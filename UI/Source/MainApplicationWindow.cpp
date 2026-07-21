@@ -52,8 +52,15 @@ void MainApplicationWindow::ProcessEvents() {
             if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape) {
                 m_isExportMode = false;
             } else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Enter) {
-                m_exportPreview.HandleEvent(event, m_window, m_engine);
-                // Keep export mode open unless a file was successfully picked
+                std::string savePath = StudioUI::NativeFileDialog::SaveFileDialog("aligned_spritesheet.png");
+                if (!savePath.empty()) {
+                    if (m_engine.ExportPNG(savePath, 8)) {
+                        std::cout << "[✓] Exported atlas and metadata successfully to: " << savePath << std::endl;
+                        m_isExportMode = false;
+                    } else {
+                        std::cerr << "[X] Failed to save exported image." << std::endl;
+                    }
+                }
             } else {
                 m_exportPreview.HandleEvent(event, m_window, m_engine);
             }
@@ -66,7 +73,33 @@ void MainApplicationWindow::ProcessEvents() {
             continue;
         }
 
-        // --- GRAPHICAL IMAGE IMPORT ---
+        if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::S && event.key.control) {
+            std::string path = StudioUI::NativeFileDialog::SaveFileDialog("project.sps");
+            if (!path.empty()) {
+                if (path.find(".sps") == std::string::npos) path += ".sps";
+                if (m_engine.SaveProject(path)) {
+                    std::cout << "[✓] Project saved to " << path << std::endl;
+                } else {
+                    std::cerr << "[X] Failed to save project." << std::endl;
+                }
+            }
+            continue;
+        }
+
+        if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::L && event.key.control) {
+            std::string path = StudioUI::NativeFileDialog::OpenFileDialog("Sprite Sheet Studio Project (*.sps)");
+            if (!path.empty()) {
+                std::string error;
+                if (m_engine.LoadProject(path, error)) {
+                    m_viewport.RefreshTexture(m_engine);
+                    std::cout << "[✓] Project loaded from " << path << std::endl;
+                } else {
+                    std::cerr << "[X] Failed to load project: " << error << std::endl;
+                }
+            }
+            continue;
+        }
+
         if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::O) {
             std::string filePath = StudioUI::NativeFileDialog::OpenFileDialog();
             if (!filePath.empty()) {

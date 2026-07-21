@@ -3,6 +3,7 @@
 #include "Systems/BackgroundJobQueue.h"
 #include "Systems/PlaybackEngine.h"
 #include "Systems/ExportManager.h"
+#include "Systems/ProjectManager.h"
 #include "Commands/CommandHistory.h"
 #include "Commands/EditMetadataCommand.h"
 #include "Commands/AnimationCommands.h"
@@ -27,7 +28,7 @@ void StudioEngineFacade::Update(float deltaTime) {
         auto results = m_jobQueue->ConsumeResults();
         if (IsProjectActive()) {
             for (auto& sprite : results) {
-                m_workspace->GetActiveProject()->AddSprite(sprite);
+                m_workspace->GetActiveProject()->AddSprite(*sprite); // <-- Added dereference here
             }
         }
     }
@@ -52,6 +53,35 @@ bool StudioEngineFacade::ImportImage(const std::string& filePath, std::string& o
     auto texture = ImageLoader::LoadFromFile(filePath, outErrorMessage);
     if (!texture) return false;
     m_workspace->GetActiveProject()->SetTexture(std::move(texture));
+    m_workspace->GetActiveProject()->SetImagePath(filePath);
+    return true;
+}
+
+bool StudioEngineFacade::SaveProject(const std::string& filePath) const {
+    if (!IsProjectActive()) return false;
+    return ProjectManager::SaveProject(*GetCurrentProject(), filePath);
+}
+
+bool StudioEngineFacade::LoadProject(const std::string& filePath, std::string& outErrorMessage) {
+    auto proj = ProjectManager::LoadProject(filePath, outErrorMessage);
+    if (!proj) return false;
+
+    // Use std::const_pointer_cast to pass the loaded texture to SetTexture cleanly
+    m_workspace->CreateNewProject();
+    auto tex = std::const_pointer_cast<SourceTexture>(proj->GetTexture());
+    m_workspace->GetActiveProject()->SetTexture(tex);
+    m_workspace->GetActiveProject()->SetImagePath(proj->GetImagePath());
+
+    for (const auto& s : proj->GetSprites()) {
+        m_workspace->GetActiveProject()->AddSprite(*s);
+    }
+    for (const auto& a : proj->GetAnimationGroups()) {
+        m_workspace->GetActiveProject()->AddAnimationGroup(std::make_shared<AnimationGroup>(*a));
+    }
+
+    if (m_commandHistory) m_commandHistory->Clear();
+    if (m_playbackEngine) m_playbackEngine->Stop();
+
     return true;
 }
 
@@ -72,7 +102,6 @@ bool StudioEngineFacade::HasTexture() const {
 
 void StudioEngineFacade::RunAutoDetection(const DetectionConfig& config) {
     if (!HasTexture() || m_jobQueue->IsRunning()) return;
-    
     std::shared_ptr<const SourceTexture> tex = GetCurrentTexture();
     m_jobQueue->StartJob([tex, config](std::atomic<float>& p, std::atomic<bool>& c) {
         return SpriteDetector::Detect(*tex, config, p, c);

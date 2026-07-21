@@ -1,39 +1,40 @@
 #pragma once
+#include <string>
 #include <vector>
 #include <memory>
-#include <string>
-#include "ExportSettings.h"
+#include "SpriteDefinition.h"
+#include "AnimationGroup.h"
 
 namespace StudioCore {
 
 class SourceTexture;
-class SpriteDefinition;
-class AnimationGroup;
 
 class Project {
 public:
-    Project() = default;
+    Project();
+    ~Project();
 
-    void SetTexture(std::shared_ptr<const SourceTexture> texture);
+    void SetTexture(std::shared_ptr<SourceTexture> texture);
     std::shared_ptr<const SourceTexture> GetTexture() const;
+    
+    void SetImagePath(const std::string& path);
+    std::string GetImagePath() const;
 
-    void AddSprite(std::shared_ptr<SpriteDefinition> sprite);
-    const std::vector<std::shared_ptr<SpriteDefinition>>& GetSprites() const;
+    void AddSprite(const SpriteDefinition& sprite);
+    void RemoveSprite(const std::string& id);
     std::shared_ptr<SpriteDefinition> GetSpriteById(const std::string& id) const;
+    const std::vector<std::shared_ptr<SpriteDefinition>>& GetSprites() const;
 
     void AddAnimationGroup(std::shared_ptr<AnimationGroup> group);
     void RemoveAnimationGroup(const std::string& id);
-    const std::vector<std::shared_ptr<AnimationGroup>>& GetAnimationGroups() const;
     std::shared_ptr<AnimationGroup> GetAnimationById(const std::string& id) const;
-
-    ExportSettings& GetExportSettings();
-    const ExportSettings& GetExportSettings() const;
+    const std::vector<std::shared_ptr<AnimationGroup>>& GetAnimationGroups() const;
 
 private:
-    std::shared_ptr<const SourceTexture> m_texture;
+    std::shared_ptr<SourceTexture> m_texture;
+    std::string m_imagePath;
     std::vector<std::shared_ptr<SpriteDefinition>> m_sprites;
     std::vector<std::shared_ptr<AnimationGroup>> m_animations;
-    ExportSettings m_exportSettings;
 };
 
 }

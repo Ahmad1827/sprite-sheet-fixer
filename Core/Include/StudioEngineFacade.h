@@ -26,6 +26,10 @@ public:
     void CreateProject();
     bool IsProjectActive() const;
     bool ImportImage(const std::string& filePath, std::string& outErrorMessage);
+
+    // Save & Load Project (.sps)
+    bool SaveProject(const std::string& filePath) const;
+    bool LoadProject(const std::string& filePath, std::string& outErrorMessage);
     
     std::shared_ptr<Project> GetCurrentProject() const;
     std::shared_ptr<const SourceTexture> GetCurrentTexture() const;
