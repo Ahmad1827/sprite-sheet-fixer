@@ -274,6 +274,30 @@ Source/Rendering/BoundingBoxGizmo.cpp.s:
 	cd /home/ahmad/proiecte/SpriteSheetStudio/build && $(MAKE) $(MAKESILENT) -f UI/CMakeFiles/SpriteSheetStudioApp.dir/build.make UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/BoundingBoxGizmo.cpp.s
 .PHONY : Source/Rendering/BoundingBoxGizmo.cpp.s
 
+Source/Rendering/CoordinateAxisRenderer.o: Source/Rendering/CoordinateAxisRenderer.cpp.o
+.PHONY : Source/Rendering/CoordinateAxisRenderer.o
+
+# target to build an object file
+Source/Rendering/CoordinateAxisRenderer.cpp.o:
+	cd /home/ahmad/proiecte/SpriteSheetStudio/build && $(MAKE) $(MAKESILENT) -f UI/CMakeFiles/SpriteSheetStudioApp.dir/build.make UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/CoordinateAxisRenderer.cpp.o
+.PHONY : Source/Rendering/CoordinateAxisRenderer.cpp.o
+
+Source/Rendering/CoordinateAxisRenderer.i: Source/Rendering/CoordinateAxisRenderer.cpp.i
+.PHONY : Source/Rendering/CoordinateAxisRenderer.i
+
+# target to preprocess a source file
+Source/Rendering/CoordinateAxisRenderer.cpp.i:
+	cd /home/ahmad/proiecte/SpriteSheetStudio/build && $(MAKE) $(MAKESILENT) -f UI/CMakeFiles/SpriteSheetStudioApp.dir/build.make UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/CoordinateAxisRenderer.cpp.i
+.PHONY : Source/Rendering/CoordinateAxisRenderer.cpp.i
+
+Source/Rendering/CoordinateAxisRenderer.s: Source/Rendering/CoordinateAxisRenderer.cpp.s
+.PHONY : Source/Rendering/CoordinateAxisRenderer.s
+
+# target to generate assembly for a file
+Source/Rendering/CoordinateAxisRenderer.cpp.s:
+	cd /home/ahmad/proiecte/SpriteSheetStudio/build && $(MAKE) $(MAKESILENT) -f UI/CMakeFiles/SpriteSheetStudioApp.dir/build.make UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/CoordinateAxisRenderer.cpp.s
+.PHONY : Source/Rendering/CoordinateAxisRenderer.cpp.s
+
 Source/Rendering/GridRenderer.o: Source/Rendering/GridRenderer.cpp.o
 .PHONY : Source/Rendering/GridRenderer.o
 
@@ -297,6 +321,54 @@ Source/Rendering/GridRenderer.s: Source/Rendering/GridRenderer.cpp.s
 Source/Rendering/GridRenderer.cpp.s:
 	cd /home/ahmad/proiecte/SpriteSheetStudio/build && $(MAKE) $(MAKESILENT) -f UI/CMakeFiles/SpriteSheetStudioApp.dir/build.make UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/GridRenderer.cpp.s
 .PHONY : Source/Rendering/GridRenderer.cpp.s
+
+Source/Rendering/OverlayRenderer.o: Source/Rendering/OverlayRenderer.cpp.o
+.PHONY : Source/Rendering/OverlayRenderer.o
+
+# target to build an object file
+Source/Rendering/OverlayRenderer.cpp.o:
+	cd /home/ahmad/proiecte/SpriteSheetStudio/build && $(MAKE) $(MAKESILENT) -f UI/CMakeFiles/SpriteSheetStudioApp.dir/build.make UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/OverlayRenderer.cpp.o
+.PHONY : Source/Rendering/OverlayRenderer.cpp.o
+
+Source/Rendering/OverlayRenderer.i: Source/Rendering/OverlayRenderer.cpp.i
+.PHONY : Source/Rendering/OverlayRenderer.i
+
+# target to preprocess a source file
+Source/Rendering/OverlayRenderer.cpp.i:
+	cd /home/ahmad/proiecte/SpriteSheetStudio/build && $(MAKE) $(MAKESILENT) -f UI/CMakeFiles/SpriteSheetStudioApp.dir/build.make UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/OverlayRenderer.cpp.i
+.PHONY : Source/Rendering/OverlayRenderer.cpp.i
+
+Source/Rendering/OverlayRenderer.s: Source/Rendering/OverlayRenderer.cpp.s
+.PHONY : Source/Rendering/OverlayRenderer.s
+
+# target to generate assembly for a file
+Source/Rendering/OverlayRenderer.cpp.s:
+	cd /home/ahmad/proiecte/SpriteSheetStudio/build && $(MAKE) $(MAKESILENT) -f UI/CMakeFiles/SpriteSheetStudioApp.dir/build.make UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/OverlayRenderer.cpp.s
+.PHONY : Source/Rendering/OverlayRenderer.cpp.s
+
+Source/Rendering/SelectionGizmo.o: Source/Rendering/SelectionGizmo.cpp.o
+.PHONY : Source/Rendering/SelectionGizmo.o
+
+# target to build an object file
+Source/Rendering/SelectionGizmo.cpp.o:
+	cd /home/ahmad/proiecte/SpriteSheetStudio/build && $(MAKE) $(MAKESILENT) -f UI/CMakeFiles/SpriteSheetStudioApp.dir/build.make UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/SelectionGizmo.cpp.o
+.PHONY : Source/Rendering/SelectionGizmo.cpp.o
+
+Source/Rendering/SelectionGizmo.i: Source/Rendering/SelectionGizmo.cpp.i
+.PHONY : Source/Rendering/SelectionGizmo.i
+
+# target to preprocess a source file
+Source/Rendering/SelectionGizmo.cpp.i:
+	cd /home/ahmad/proiecte/SpriteSheetStudio/build && $(MAKE) $(MAKESILENT) -f UI/CMakeFiles/SpriteSheetStudioApp.dir/build.make UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/SelectionGizmo.cpp.i
+.PHONY : Source/Rendering/SelectionGizmo.cpp.i
+
+Source/Rendering/SelectionGizmo.s: Source/Rendering/SelectionGizmo.cpp.s
+.PHONY : Source/Rendering/SelectionGizmo.s
+
+# target to generate assembly for a file
+Source/Rendering/SelectionGizmo.cpp.s:
+	cd /home/ahmad/proiecte/SpriteSheetStudio/build && $(MAKE) $(MAKESILENT) -f UI/CMakeFiles/SpriteSheetStudioApp.dir/build.make UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/SelectionGizmo.cpp.s
+.PHONY : Source/Rendering/SelectionGizmo.cpp.s
 
 Source/main.o: Source/main.cpp.o
 .PHONY : Source/main.o
@@ -349,9 +421,18 @@ help:
 	@echo "... Source/Rendering/BoundingBoxGizmo.o"
 	@echo "... Source/Rendering/BoundingBoxGizmo.i"
 	@echo "... Source/Rendering/BoundingBoxGizmo.s"
+	@echo "... Source/Rendering/CoordinateAxisRenderer.o"
+	@echo "... Source/Rendering/CoordinateAxisRenderer.i"
+	@echo "... Source/Rendering/CoordinateAxisRenderer.s"
 	@echo "... Source/Rendering/GridRenderer.o"
 	@echo "... Source/Rendering/GridRenderer.i"
 	@echo "... Source/Rendering/GridRenderer.s"
+	@echo "... Source/Rendering/OverlayRenderer.o"
+	@echo "... Source/Rendering/OverlayRenderer.i"
+	@echo "... Source/Rendering/OverlayRenderer.s"
+	@echo "... Source/Rendering/SelectionGizmo.o"
+	@echo "... Source/Rendering/SelectionGizmo.i"
+	@echo "... Source/Rendering/SelectionGizmo.s"
 	@echo "... Source/main.o"
 	@echo "... Source/main.i"
 	@echo "... Source/main.s"

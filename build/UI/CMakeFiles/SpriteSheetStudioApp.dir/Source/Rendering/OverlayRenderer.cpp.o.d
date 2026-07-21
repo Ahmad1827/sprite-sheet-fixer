@@ -1,7 +1,7 @@
-UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/GridRenderer.cpp.o: \
- /home/ahmad/proiecte/SpriteSheetStudio/UI/Source/Rendering/GridRenderer.cpp \
+UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/OverlayRenderer.cpp.o: \
+ /home/ahmad/proiecte/SpriteSheetStudio/UI/Source/Rendering/OverlayRenderer.cpp \
  /usr/include/stdc-predef.h \
- /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/GridRenderer.h \
+ /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/OverlayRenderer.h \
  /usr/include/SFML/Graphics.hpp /usr/include/SFML/Window.hpp \
  /usr/include/SFML/System.hpp /usr/include/SFML/Config.hpp \
  /usr/include/SFML/System/Clock.hpp /usr/include/SFML/System/Export.hpp \
@@ -235,4 +235,7 @@ UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/GridRenderer.cpp.o: \
  /usr/include/SFML/Graphics/Glsl.hpp /usr/include/SFML/Graphics/Glsl.inl \
  /usr/include/SFML/Graphics/Sprite.hpp \
  /usr/include/SFML/Graphics/Text.hpp \
- /usr/include/SFML/Graphics/VertexBuffer.hpp
+ /usr/include/SFML/Graphics/VertexBuffer.hpp /usr/include/c++/13/sstream \
+ /usr/include/c++/13/istream /usr/include/c++/13/bits/istream.tcc \
+ /usr/include/c++/13/bits/sstream.tcc /usr/include/c++/13/iomanip \
+ /usr/include/c++/13/bits/quoted_string.h /usr/include/c++/13/iostream

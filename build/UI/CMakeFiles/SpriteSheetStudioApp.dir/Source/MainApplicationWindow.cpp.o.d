@@ -249,6 +249,10 @@ UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/MainApplicationWindow.cpp.o: \
  /usr/include/c++/13/pstl/glue_memory_defs.h \
  /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/StudioEngineFacade.h \
  /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Panels/PreviewViewport.h \
+ /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/GridRenderer.h \
+ /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/SelectionGizmo.h \
+ /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/OverlayRenderer.h \
+ /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/CoordinateAxisRenderer.h \
  /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/DataModels/SourceTexture.h \
  /usr/include/c++/13/cstdint /usr/include/c++/13/iostream \
  /usr/include/c++/13/istream /usr/include/c++/13/bits/istream.tcc

@@ -14,7 +14,10 @@ set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "/home/ahmad/proiecte/SpriteSheetStudio/UI/Source/Panels/ProjectBrowserView.cpp" "UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Panels/ProjectBrowserView.cpp.o" "gcc" "UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Panels/ProjectBrowserView.cpp.o.d"
   "/home/ahmad/proiecte/SpriteSheetStudio/UI/Source/Panels/TimelineView.cpp" "UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Panels/TimelineView.cpp.o" "gcc" "UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Panels/TimelineView.cpp.o.d"
   "/home/ahmad/proiecte/SpriteSheetStudio/UI/Source/Rendering/BoundingBoxGizmo.cpp" "UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/BoundingBoxGizmo.cpp.o" "gcc" "UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/BoundingBoxGizmo.cpp.o.d"
+  "/home/ahmad/proiecte/SpriteSheetStudio/UI/Source/Rendering/CoordinateAxisRenderer.cpp" "UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/CoordinateAxisRenderer.cpp.o" "gcc" "UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/CoordinateAxisRenderer.cpp.o.d"
   "/home/ahmad/proiecte/SpriteSheetStudio/UI/Source/Rendering/GridRenderer.cpp" "UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/GridRenderer.cpp.o" "gcc" "UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/GridRenderer.cpp.o.d"
+  "/home/ahmad/proiecte/SpriteSheetStudio/UI/Source/Rendering/OverlayRenderer.cpp" "UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/OverlayRenderer.cpp.o" "gcc" "UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/OverlayRenderer.cpp.o.d"
+  "/home/ahmad/proiecte/SpriteSheetStudio/UI/Source/Rendering/SelectionGizmo.cpp" "UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/SelectionGizmo.cpp.o" "gcc" "UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/SelectionGizmo.cpp.o.d"
   "/home/ahmad/proiecte/SpriteSheetStudio/UI/Source/main.cpp" "UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/main.cpp.o" "gcc" "UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/main.cpp.o.d"
   )
 

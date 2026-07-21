@@ -153,10 +153,24 @@ UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/BoundingBoxGizmo.cpp.s: 
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/BoundingBoxGizmo.cpp.s"
 	cd /home/ahmad/proiecte/SpriteSheetStudio/build/UI && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/ahmad/proiecte/SpriteSheetStudio/UI/Source/Rendering/BoundingBoxGizmo.cpp -o CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/BoundingBoxGizmo.cpp.s
 
+UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/CoordinateAxisRenderer.cpp.o: UI/CMakeFiles/SpriteSheetStudioApp.dir/flags.make
+UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/CoordinateAxisRenderer.cpp.o: /home/ahmad/proiecte/SpriteSheetStudio/UI/Source/Rendering/CoordinateAxisRenderer.cpp
+UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/CoordinateAxisRenderer.cpp.o: UI/CMakeFiles/SpriteSheetStudioApp.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building CXX object UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/CoordinateAxisRenderer.cpp.o"
+	cd /home/ahmad/proiecte/SpriteSheetStudio/build/UI && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/CoordinateAxisRenderer.cpp.o -MF CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/CoordinateAxisRenderer.cpp.o.d -o CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/CoordinateAxisRenderer.cpp.o -c /home/ahmad/proiecte/SpriteSheetStudio/UI/Source/Rendering/CoordinateAxisRenderer.cpp
+
+UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/CoordinateAxisRenderer.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/CoordinateAxisRenderer.cpp.i"
+	cd /home/ahmad/proiecte/SpriteSheetStudio/build/UI && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/ahmad/proiecte/SpriteSheetStudio/UI/Source/Rendering/CoordinateAxisRenderer.cpp > CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/CoordinateAxisRenderer.cpp.i
+
+UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/CoordinateAxisRenderer.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/CoordinateAxisRenderer.cpp.s"
+	cd /home/ahmad/proiecte/SpriteSheetStudio/build/UI && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/ahmad/proiecte/SpriteSheetStudio/UI/Source/Rendering/CoordinateAxisRenderer.cpp -o CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/CoordinateAxisRenderer.cpp.s
+
 UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/GridRenderer.cpp.o: UI/CMakeFiles/SpriteSheetStudioApp.dir/flags.make
 UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/GridRenderer.cpp.o: /home/ahmad/proiecte/SpriteSheetStudio/UI/Source/Rendering/GridRenderer.cpp
 UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/GridRenderer.cpp.o: UI/CMakeFiles/SpriteSheetStudioApp.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building CXX object UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/GridRenderer.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Building CXX object UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/GridRenderer.cpp.o"
 	cd /home/ahmad/proiecte/SpriteSheetStudio/build/UI && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/GridRenderer.cpp.o -MF CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/GridRenderer.cpp.o.d -o CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/GridRenderer.cpp.o -c /home/ahmad/proiecte/SpriteSheetStudio/UI/Source/Rendering/GridRenderer.cpp
 
 UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/GridRenderer.cpp.i: cmake_force
@@ -167,10 +181,38 @@ UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/GridRenderer.cpp.s: cmak
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/GridRenderer.cpp.s"
 	cd /home/ahmad/proiecte/SpriteSheetStudio/build/UI && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/ahmad/proiecte/SpriteSheetStudio/UI/Source/Rendering/GridRenderer.cpp -o CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/GridRenderer.cpp.s
 
+UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/OverlayRenderer.cpp.o: UI/CMakeFiles/SpriteSheetStudioApp.dir/flags.make
+UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/OverlayRenderer.cpp.o: /home/ahmad/proiecte/SpriteSheetStudio/UI/Source/Rendering/OverlayRenderer.cpp
+UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/OverlayRenderer.cpp.o: UI/CMakeFiles/SpriteSheetStudioApp.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Building CXX object UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/OverlayRenderer.cpp.o"
+	cd /home/ahmad/proiecte/SpriteSheetStudio/build/UI && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/OverlayRenderer.cpp.o -MF CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/OverlayRenderer.cpp.o.d -o CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/OverlayRenderer.cpp.o -c /home/ahmad/proiecte/SpriteSheetStudio/UI/Source/Rendering/OverlayRenderer.cpp
+
+UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/OverlayRenderer.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/OverlayRenderer.cpp.i"
+	cd /home/ahmad/proiecte/SpriteSheetStudio/build/UI && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/ahmad/proiecte/SpriteSheetStudio/UI/Source/Rendering/OverlayRenderer.cpp > CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/OverlayRenderer.cpp.i
+
+UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/OverlayRenderer.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/OverlayRenderer.cpp.s"
+	cd /home/ahmad/proiecte/SpriteSheetStudio/build/UI && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/ahmad/proiecte/SpriteSheetStudio/UI/Source/Rendering/OverlayRenderer.cpp -o CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/OverlayRenderer.cpp.s
+
+UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/SelectionGizmo.cpp.o: UI/CMakeFiles/SpriteSheetStudioApp.dir/flags.make
+UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/SelectionGizmo.cpp.o: /home/ahmad/proiecte/SpriteSheetStudio/UI/Source/Rendering/SelectionGizmo.cpp
+UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/SelectionGizmo.cpp.o: UI/CMakeFiles/SpriteSheetStudioApp.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Building CXX object UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/SelectionGizmo.cpp.o"
+	cd /home/ahmad/proiecte/SpriteSheetStudio/build/UI && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/SelectionGizmo.cpp.o -MF CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/SelectionGizmo.cpp.o.d -o CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/SelectionGizmo.cpp.o -c /home/ahmad/proiecte/SpriteSheetStudio/UI/Source/Rendering/SelectionGizmo.cpp
+
+UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/SelectionGizmo.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/SelectionGizmo.cpp.i"
+	cd /home/ahmad/proiecte/SpriteSheetStudio/build/UI && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/ahmad/proiecte/SpriteSheetStudio/UI/Source/Rendering/SelectionGizmo.cpp > CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/SelectionGizmo.cpp.i
+
+UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/SelectionGizmo.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/SelectionGizmo.cpp.s"
+	cd /home/ahmad/proiecte/SpriteSheetStudio/build/UI && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/ahmad/proiecte/SpriteSheetStudio/UI/Source/Rendering/SelectionGizmo.cpp -o CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/SelectionGizmo.cpp.s
+
 UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/main.cpp.o: UI/CMakeFiles/SpriteSheetStudioApp.dir/flags.make
 UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/main.cpp.o: /home/ahmad/proiecte/SpriteSheetStudio/UI/Source/main.cpp
 UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/main.cpp.o: UI/CMakeFiles/SpriteSheetStudioApp.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Building CXX object UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/main.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_11) "Building CXX object UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/main.cpp.o"
 	cd /home/ahmad/proiecte/SpriteSheetStudio/build/UI && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/main.cpp.o -MF CMakeFiles/SpriteSheetStudioApp.dir/Source/main.cpp.o.d -o CMakeFiles/SpriteSheetStudioApp.dir/Source/main.cpp.o -c /home/ahmad/proiecte/SpriteSheetStudio/UI/Source/main.cpp
 
 UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/main.cpp.i: cmake_force
@@ -189,7 +231,10 @@ SpriteSheetStudioApp_OBJECTS = \
 "CMakeFiles/SpriteSheetStudioApp.dir/Source/Panels/ProjectBrowserView.cpp.o" \
 "CMakeFiles/SpriteSheetStudioApp.dir/Source/Panels/TimelineView.cpp.o" \
 "CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/BoundingBoxGizmo.cpp.o" \
+"CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/CoordinateAxisRenderer.cpp.o" \
 "CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/GridRenderer.cpp.o" \
+"CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/OverlayRenderer.cpp.o" \
+"CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/SelectionGizmo.cpp.o" \
 "CMakeFiles/SpriteSheetStudioApp.dir/Source/main.cpp.o"
 
 # External object files for target SpriteSheetStudioApp
@@ -201,12 +246,15 @@ UI/SpriteSheetStudioApp: UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Panels/Pr
 UI/SpriteSheetStudioApp: UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Panels/ProjectBrowserView.cpp.o
 UI/SpriteSheetStudioApp: UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Panels/TimelineView.cpp.o
 UI/SpriteSheetStudioApp: UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/BoundingBoxGizmo.cpp.o
+UI/SpriteSheetStudioApp: UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/CoordinateAxisRenderer.cpp.o
 UI/SpriteSheetStudioApp: UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/GridRenderer.cpp.o
+UI/SpriteSheetStudioApp: UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/OverlayRenderer.cpp.o
+UI/SpriteSheetStudioApp: UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/SelectionGizmo.cpp.o
 UI/SpriteSheetStudioApp: UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/main.cpp.o
 UI/SpriteSheetStudioApp: UI/CMakeFiles/SpriteSheetStudioApp.dir/build.make
 UI/SpriteSheetStudioApp: Core/libStudioCore.a
 UI/SpriteSheetStudioApp: UI/CMakeFiles/SpriteSheetStudioApp.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Linking CXX executable SpriteSheetStudioApp"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_12) "Linking CXX executable SpriteSheetStudioApp"
 	cd /home/ahmad/proiecte/SpriteSheetStudio/build/UI && $(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/SpriteSheetStudioApp.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.
