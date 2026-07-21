@@ -19,6 +19,8 @@ file(REMOVE_RECURSE
   "CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/OverlayRenderer.cpp.o.d"
   "CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/SelectionGizmo.cpp.o"
   "CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/SelectionGizmo.cpp.o.d"
+  "CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/SpriteGizmoRenderer.cpp.o"
+  "CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/SpriteGizmoRenderer.cpp.o.d"
   "CMakeFiles/SpriteSheetStudioApp.dir/Source/main.cpp.o"
   "CMakeFiles/SpriteSheetStudioApp.dir/Source/main.cpp.o.d"
   "SpriteSheetStudioApp"

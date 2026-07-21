@@ -251,10 +251,16 @@ UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Panels/PreviewViewport.cpp.o: \
  /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/SelectionGizmo.h \
  /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/OverlayRenderer.h \
  /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/CoordinateAxisRenderer.h \
+ /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/SpriteGizmoRenderer.h \
  /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/StudioEngineFacade.h \
+ /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/Processing/SpriteDetector.h \
+ /usr/include/c++/13/atomic /usr/include/c++/13/cstdint \
  /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/DataModels/SourceTexture.h \
- /usr/include/c++/13/cstdint /usr/include/c++/13/cmath \
- /usr/include/math.h /usr/include/x86_64-linux-gnu/bits/math-vector.h \
+ /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/DataModels/Project.h \
+ /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/DataModels/ExportSettings.h \
+ /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/DataModels/SpriteDefinition.h \
+ /usr/include/c++/13/cmath /usr/include/math.h \
+ /usr/include/x86_64-linux-gnu/bits/math-vector.h \
  /usr/include/x86_64-linux-gnu/bits/libm-simd-decl-stubs.h \
  /usr/include/x86_64-linux-gnu/bits/flt-eval-method.h \
  /usr/include/x86_64-linux-gnu/bits/fp-logb.h \

@@ -29,11 +29,25 @@ struct InspectorInfo {
     bool isHoveringImage{false};
 };
 
+struct JobProgressInfo {
+    bool isRunning{false};
+    float progress{0.0f};
+};
+
+struct SpriteInspectorInfo {
+    bool isActive{false};
+    std::string id;
+    int x{0}, y{0}, w{0}, h{0};
+    int pixelCount{0};
+    float cx{0}, cy{0};
+};
+
 class OverlayRenderer {
 public:
     OverlayRenderer();
-    
-    // Robust font loading with OS fallbacks
+    void RenderProgress(sf::RenderWindow& window, const JobProgressInfo& info);
+    void RenderSpriteInspector(sf::RenderWindow& window, const SpriteInspectorInfo& info);
+    sf::Font* GetFont() { return m_hasFont ? &m_font : nullptr; }
     bool InitializeFont(const std::string& customPath);
 
     void RenderDebug(sf::RenderWindow& window, const DebugInfo& info);

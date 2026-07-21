@@ -30,4 +30,20 @@ float SpriteDefinition::GetBaseline() const {
     return m_baseline; 
 }
 
+void SpriteDefinition::SetPixelCount(int count) {
+    m_pixelCount = count;
+}
+
+int SpriteDefinition::GetPixelCount() const {
+    return m_pixelCount;
+}
+
+void SpriteDefinition::SetCenter(const Point& center) {
+    m_center = center;
+}
+
+const Point& SpriteDefinition::GetCenter() const {
+    return m_center;
+}
+
 }

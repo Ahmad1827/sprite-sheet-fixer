@@ -248,8 +248,11 @@ UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/main.cpp.o: \
  /usr/include/c++/13/backward/auto_ptr.h \
  /usr/include/c++/13/pstl/glue_memory_defs.h \
  /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/StudioEngineFacade.h \
+ /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/Processing/SpriteDetector.h \
+ /usr/include/c++/13/atomic /usr/include/c++/13/cstdint \
  /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Panels/PreviewViewport.h \
  /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/GridRenderer.h \
  /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/SelectionGizmo.h \
  /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/OverlayRenderer.h \
- /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/CoordinateAxisRenderer.h
+ /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/CoordinateAxisRenderer.h \
+ /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/SpriteGizmoRenderer.h

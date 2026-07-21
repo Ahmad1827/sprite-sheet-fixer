@@ -18,6 +18,7 @@ set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "/home/ahmad/proiecte/SpriteSheetStudio/UI/Source/Rendering/GridRenderer.cpp" "UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/GridRenderer.cpp.o" "gcc" "UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/GridRenderer.cpp.o.d"
   "/home/ahmad/proiecte/SpriteSheetStudio/UI/Source/Rendering/OverlayRenderer.cpp" "UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/OverlayRenderer.cpp.o" "gcc" "UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/OverlayRenderer.cpp.o.d"
   "/home/ahmad/proiecte/SpriteSheetStudio/UI/Source/Rendering/SelectionGizmo.cpp" "UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/SelectionGizmo.cpp.o" "gcc" "UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/SelectionGizmo.cpp.o.d"
+  "/home/ahmad/proiecte/SpriteSheetStudio/UI/Source/Rendering/SpriteGizmoRenderer.cpp" "UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/SpriteGizmoRenderer.cpp.o" "gcc" "UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/SpriteGizmoRenderer.cpp.o.d"
   "/home/ahmad/proiecte/SpriteSheetStudio/UI/Source/main.cpp" "UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/main.cpp.o" "gcc" "UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/main.cpp.o.d"
   )
 

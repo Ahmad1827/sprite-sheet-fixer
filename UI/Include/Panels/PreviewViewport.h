@@ -1,10 +1,12 @@
 #pragma once
 #include <SFML/Graphics.hpp>
 #include <memory>
+#include <string>
 #include "Rendering/GridRenderer.h"
 #include "Rendering/SelectionGizmo.h"
 #include "Rendering/OverlayRenderer.h"
 #include "Rendering/CoordinateAxisRenderer.h"
+#include "Rendering/SpriteGizmoRenderer.h"
 
 namespace StudioCore {
     class StudioEngineFacade;
@@ -13,9 +15,9 @@ namespace StudioCore {
 class PreviewViewport {
 public:
     PreviewViewport();
-    void Initialize(); // Replaces LoadFont string pass
+    void Initialize();
 
-    void HandleEvent(const sf::Event& event, const sf::RenderWindow& window, const StudioCore::StudioEngineFacade& engine);
+    void HandleEvent(const sf::Event& event, const sf::RenderWindow& window, StudioCore::StudioEngineFacade& engine);
     void Update(float deltaTime);
     void Render(sf::RenderWindow& window, const StudioCore::StudioEngineFacade& engine);
     
@@ -30,6 +32,7 @@ public:
 private:
     sf::Vector2i GetMouseImageCoords(const sf::RenderWindow& window) const;
     sf::Color GetPixelColor(const StudioCore::StudioEngineFacade& engine, int x, int y) const;
+    void SelectSpriteAt(const sf::Vector2f& worldPos, const StudioCore::StudioEngineFacade& engine);
 
     sf::Texture m_gpuTexture;
     sf::Sprite m_sprite;
@@ -46,6 +49,13 @@ private:
     // Toggles
     bool m_showGrid{false};
     bool m_showDebug{false};
+    bool m_showBoxes{true};
+    bool m_showCenters{true};
+    bool m_showIds{true};
+
+    // Selected / Hovered state
+    std::string m_selectedSpriteId;
+    std::string m_hoveredSpriteId;
 
     // Stats
     float m_fps{0.0f};
@@ -53,9 +63,10 @@ private:
     int m_frameCount{0};
     float m_fpsTimer{0.0f};
 
-    // Renderer Instances
+    // Renderers
     StudioUI::GridRenderer m_grid;
     StudioUI::SelectionGizmo m_selection;
     StudioUI::OverlayRenderer m_overlay;
     StudioUI::CoordinateAxisRenderer m_axes;
+    StudioUI::SpriteGizmoRenderer m_spriteGizmos;
 };

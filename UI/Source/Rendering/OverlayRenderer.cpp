@@ -81,4 +81,38 @@ void OverlayRenderer::RenderInspector(sf::RenderWindow& window, const InspectorI
     DrawTextShadowed(window, oss.str(), pos);
 }
 
+void OverlayRenderer::RenderProgress(sf::RenderWindow& window, const JobProgressInfo& info) {
+    if (!info.isRunning || !m_hasFont) return;
+    
+    sf::Vector2f center(window.getSize().x / 2.0f, window.getSize().y / 2.0f);
+    
+    sf::RectangleShape bg(sf::Vector2f(300, 20));
+    bg.setOrigin(150, 10);
+    bg.setPosition(center);
+    bg.setFillColor(sf::Color(50, 50, 50, 200));
+    window.draw(bg);
+    
+    sf::RectangleShape fg(sf::Vector2f(300 * info.progress, 20));
+    fg.setOrigin(150, 10);
+    fg.setPosition(center);
+    fg.setFillColor(sf::Color(0, 255, 0, 200));
+    window.draw(fg);
+
+    std::ostringstream oss;
+    oss << "Detecting Sprites... " << static_cast<int>(info.progress * 100) << "% (Press ESC to Cancel)";
+    DrawTextShadowed(window, oss.str(), sf::Vector2f(center.x - 140, center.y - 30));
+}
+
+void OverlayRenderer::RenderSpriteInspector(sf::RenderWindow& window, const SpriteInspectorInfo& info) {
+    if (!info.isActive || !m_hasFont) return;
+    
+    std::ostringstream oss;
+    oss << "--- SPRITE PROPERTIES ---\n"
+        << "ID: " << info.id << "\n"
+        << "Rect: " << info.x << ", " << info.y << "  [" << info.w << "x" << info.h << "]\n"
+        << "Pixels: " << info.pixelCount << "\n"
+        << "Center: " << std::fixed << std::setprecision(1) << info.cx << ", " << info.cy << "\n";
+    
+    DrawTextShadowed(window, oss.str(), sf::Vector2f(window.getSize().x - 250.f, 10.f));
+}
 }

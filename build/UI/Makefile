@@ -370,6 +370,30 @@ Source/Rendering/SelectionGizmo.cpp.s:
 	cd /home/ahmad/proiecte/SpriteSheetStudio/build && $(MAKE) $(MAKESILENT) -f UI/CMakeFiles/SpriteSheetStudioApp.dir/build.make UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/SelectionGizmo.cpp.s
 .PHONY : Source/Rendering/SelectionGizmo.cpp.s
 
+Source/Rendering/SpriteGizmoRenderer.o: Source/Rendering/SpriteGizmoRenderer.cpp.o
+.PHONY : Source/Rendering/SpriteGizmoRenderer.o
+
+# target to build an object file
+Source/Rendering/SpriteGizmoRenderer.cpp.o:
+	cd /home/ahmad/proiecte/SpriteSheetStudio/build && $(MAKE) $(MAKESILENT) -f UI/CMakeFiles/SpriteSheetStudioApp.dir/build.make UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/SpriteGizmoRenderer.cpp.o
+.PHONY : Source/Rendering/SpriteGizmoRenderer.cpp.o
+
+Source/Rendering/SpriteGizmoRenderer.i: Source/Rendering/SpriteGizmoRenderer.cpp.i
+.PHONY : Source/Rendering/SpriteGizmoRenderer.i
+
+# target to preprocess a source file
+Source/Rendering/SpriteGizmoRenderer.cpp.i:
+	cd /home/ahmad/proiecte/SpriteSheetStudio/build && $(MAKE) $(MAKESILENT) -f UI/CMakeFiles/SpriteSheetStudioApp.dir/build.make UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/SpriteGizmoRenderer.cpp.i
+.PHONY : Source/Rendering/SpriteGizmoRenderer.cpp.i
+
+Source/Rendering/SpriteGizmoRenderer.s: Source/Rendering/SpriteGizmoRenderer.cpp.s
+.PHONY : Source/Rendering/SpriteGizmoRenderer.s
+
+# target to generate assembly for a file
+Source/Rendering/SpriteGizmoRenderer.cpp.s:
+	cd /home/ahmad/proiecte/SpriteSheetStudio/build && $(MAKE) $(MAKESILENT) -f UI/CMakeFiles/SpriteSheetStudioApp.dir/build.make UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/SpriteGizmoRenderer.cpp.s
+.PHONY : Source/Rendering/SpriteGizmoRenderer.cpp.s
+
 Source/main.o: Source/main.cpp.o
 .PHONY : Source/main.o
 
@@ -433,6 +457,9 @@ help:
 	@echo "... Source/Rendering/SelectionGizmo.o"
 	@echo "... Source/Rendering/SelectionGizmo.i"
 	@echo "... Source/Rendering/SelectionGizmo.s"
+	@echo "... Source/Rendering/SpriteGizmoRenderer.o"
+	@echo "... Source/Rendering/SpriteGizmoRenderer.i"
+	@echo "... Source/Rendering/SpriteGizmoRenderer.s"
 	@echo "... Source/main.o"
 	@echo "... Source/main.i"
 	@echo "... Source/main.s"

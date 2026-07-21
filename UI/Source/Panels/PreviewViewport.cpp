@@ -1,6 +1,8 @@
 #include "Panels/PreviewViewport.h"
 #include "StudioEngineFacade.h"
 #include "DataModels/SourceTexture.h"
+#include "DataModels/Project.h"
+#include "DataModels/SpriteDefinition.h"
 #include <cmath>
 
 PreviewViewport::PreviewViewport() {
@@ -22,6 +24,8 @@ void PreviewViewport::RefreshTexture(const StudioCore::StudioEngineFacade& engin
         m_hasValidTexture = true;
         
         m_selection.ClearSelection();
+        m_selectedSpriteId.clear();
+        m_hoveredSpriteId.clear();
         ResetZoom();
         CenterImage();
     }
@@ -69,12 +73,8 @@ void PreviewViewport::ZoomToSelection() {
 }
 
 void PreviewViewport::CenterOnPoint(const sf::Vector2f& worldPos) {
-    // Explicitly compute the pan offset so the requested image coordinate 
-    // maps perfectly to the viewport center.
     sf::Vector2f currentCameraCenter = m_view.getCenter();
     sf::Vector2f panOffset = worldPos - currentCameraCenter;
-    
-    // Translate the camera towards the target point
     m_view.move(panOffset);
 }
 
@@ -94,9 +94,36 @@ sf::Color PreviewViewport::GetPixelColor(const StudioCore::StudioEngineFacade& e
     return sf::Color::Transparent;
 }
 
-void PreviewViewport::HandleEvent(const sf::Event& event, const sf::RenderWindow& window, const StudioCore::StudioEngineFacade& engine) {
+void PreviewViewport::SelectSpriteAt(const sf::Vector2f& worldPos, const StudioCore::StudioEngineFacade& engine) {
+    if (!engine.IsProjectActive()) return;
+
+    auto project = engine.GetCurrentProject();
+    m_selectedSpriteId.clear();
+
+    for (const auto& sprite : project->GetSprites()) {
+        const auto& rect = sprite->GetSourceRect();
+        sf::FloatRect bounds(rect.x, rect.y, rect.width, rect.height);
+        if (bounds.contains(worldPos)) {
+            m_selectedSpriteId = sprite->GetId();
+            break;
+        }
+    }
+}
+
+void PreviewViewport::HandleEvent(const sf::Event& event, const sf::RenderWindow& window, StudioCore::StudioEngineFacade& engine) {
     if (event.type == sf::Event::KeyPressed) {
-        if (event.key.code == sf::Keyboard::G) m_showGrid = !m_showGrid;
+        // Ctrl + D -> Trigger Auto Detect
+        if (event.key.code == sf::Keyboard::D && event.key.control) {
+            StudioCore::DetectionConfig config; // Uses defaults: AlphaThreshold, 8-Way
+            engine.RunAutoDetection(config);
+        }
+        // Escape -> Cancel Running Detection
+        else if (event.key.code == sf::Keyboard::Escape) {
+            if (engine.IsDetectionRunning()) {
+                engine.CancelDetection();
+            }
+        }
+        else if (event.key.code == sf::Keyboard::G) m_showGrid = !m_showGrid;
         else if (event.key.code == sf::Keyboard::F3) m_showDebug = !m_showDebug;
         else if (event.key.code == sf::Keyboard::C) CenterImage();
         else if (event.key.code == sf::Keyboard::R) {
@@ -105,6 +132,8 @@ void PreviewViewport::HandleEvent(const sf::Event& event, const sf::RenderWindow
         }
         else if (event.key.code == sf::Keyboard::F) FitToImage(window);
         else if (event.key.code == sf::Keyboard::Z) ZoomToSelection();
+        else if (event.key.code == sf::Keyboard::B) m_showBoxes = !m_showBoxes;
+        else if (event.key.code == sf::Keyboard::I) m_showIds = !m_showIds;
     }
     
     else if (event.type == sf::Event::MouseWheelScrolled) {
@@ -118,19 +147,14 @@ void PreviewViewport::HandleEvent(const sf::Event& event, const sf::RenderWindow
             m_isPanning = true;
             m_lastMousePos = sf::Mouse::getPosition(window);
         } else if (event.mouseButton.button == sf::Mouse::Left) {
-            
-            // Use exact event coordinates for mathematical precision 
-            // to avoid microscopic mouse drift between clicks
             sf::Vector2i clickScreenPos(event.mouseButton.x, event.mouseButton.y);
-            
-            // 1. Convert Screen Coordinates to Image (World) Coordinates
             sf::Vector2f clickedImagePos = window.mapPixelToCoords(clickScreenPos, m_view);
 
             if (m_doubleClickTimer.getElapsedTime().asSeconds() < 0.3f) {
-                // 2. Center the camera on the converted image coordinate
                 CenterOnPoint(clickedImagePos);
                 m_selection.ClearSelection();
             } else {
+                SelectSpriteAt(clickedImagePos, engine);
                 m_selection.BeginSelection(clickedImagePos);
             }
             m_doubleClickTimer.restart();
@@ -148,6 +172,20 @@ void PreviewViewport::HandleEvent(const sf::Event& event, const sf::RenderWindow
     else if (event.type == sf::Event::MouseMoved) {
         sf::Vector2i currentMousePos = sf::Mouse::getPosition(window);
         sf::Vector2f worldPos = window.mapPixelToCoords(currentMousePos, m_view);
+
+        // Hover tracking over detected sprites
+        if (engine.IsProjectActive()) {
+            m_hoveredSpriteId.clear();
+            auto project = engine.GetCurrentProject();
+            for (const auto& sprite : project->GetSprites()) {
+                const auto& rect = sprite->GetSourceRect();
+                sf::FloatRect bounds(rect.x, rect.y, rect.width, rect.height);
+                if (bounds.contains(worldPos)) {
+                    m_hoveredSpriteId = sprite->GetId();
+                    break;
+                }
+            }
+        }
 
         m_selection.UpdateSelection(worldPos);
 
@@ -183,6 +221,7 @@ void PreviewViewport::Update(float deltaTime) {
 }
 
 void PreviewViewport::Render(sf::RenderWindow& window, const StudioCore::StudioEngineFacade& engine) {
+    // 1. WORLD SPACE
     window.setView(m_view);
 
     if (m_hasValidTexture) {
@@ -194,9 +233,32 @@ void PreviewViewport::Render(sf::RenderWindow& window, const StudioCore::StudioE
         m_grid.Render(window, m_sprite.getLocalBounds());
     }
 
+    // Render detected sprites bounding boxes
+    if (engine.IsProjectActive()) {
+        auto project = engine.GetCurrentProject();
+        m_spriteGizmos.SetHoveredSprite(m_hoveredSpriteId);
+        m_spriteGizmos.SetSelectedSprite(m_selectedSpriteId);
+        m_spriteGizmos.Render(
+            window, 
+            project->GetSprites(), 
+            m_currentZoom, 
+            m_showBoxes, 
+            m_showCenters, 
+            m_showIds, 
+            m_overlay.GetFont()
+        );
+    }
+
     m_selection.Render(window, m_currentZoom);
 
+    // 2. HUD SPACE
     window.setView(window.getDefaultView());
+
+    // Detection Job Progress Bar
+    StudioUI::JobProgressInfo jobInfo;
+    jobInfo.isRunning = engine.IsDetectionRunning();
+    jobInfo.progress = engine.GetDetectionProgress();
+    m_overlay.RenderProgress(window, jobInfo);
 
     if (m_showDebug) {
         StudioUI::DebugInfo debug;
@@ -220,6 +282,7 @@ void PreviewViewport::Render(sf::RenderWindow& window, const StudioCore::StudioE
         m_overlay.RenderDebug(window, debug);
     }
 
+    // Mouse Inspector
     StudioUI::InspectorInfo inspector;
     inspector.mouseWindow = sf::Mouse::getPosition(window);
     inspector.mouseImage = GetMouseImageCoords(window);
@@ -238,4 +301,24 @@ void PreviewViewport::Render(sf::RenderWindow& window, const StudioCore::StudioE
         }
     }
     m_overlay.RenderInspector(window, inspector);
+
+    // Selected Sprite Inspector Overlay
+    if (engine.IsProjectActive() && !m_selectedSpriteId.empty()) {
+        auto project = engine.GetCurrentProject();
+        for (const auto& sprite : project->GetSprites()) {
+            if (sprite->GetId() == m_selectedSpriteId) {
+                StudioUI::SpriteInspectorInfo spriteInfo;
+                spriteInfo.isActive = true;
+                spriteInfo.id = sprite->GetId();
+                const auto& r = sprite->GetSourceRect();
+                spriteInfo.x = r.x; spriteInfo.y = r.y;
+                spriteInfo.w = r.width; spriteInfo.h = r.height;
+                spriteInfo.pixelCount = sprite->GetPixelCount();
+                const auto& c = sprite->GetCenter();
+                spriteInfo.cx = c.x; spriteInfo.cy = c.y;
+                m_overlay.RenderSpriteInspector(window, spriteInfo);
+                break;
+            }
+        }
+    }
 }

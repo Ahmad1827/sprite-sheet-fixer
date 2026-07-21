@@ -28,11 +28,19 @@ public:
     void SetBaseline(float baseline);
     float GetBaseline() const;
 
+    void SetPixelCount(int count);
+    int GetPixelCount() const;
+
+    void SetCenter(const Point& center);
+    const Point& GetCenter() const;
+
 private:
     std::string m_id;
     Rect m_sourceRect;
     Point m_pivot{0.5f, 0.5f};
     float m_baseline{1.0f};
+    int m_pixelCount{0};
+    Point m_center{0.0f, 0.0f};
 };
 
 }

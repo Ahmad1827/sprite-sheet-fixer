@@ -1,7 +1,7 @@
-UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/MainApplicationWindow.cpp.o: \
- /home/ahmad/proiecte/SpriteSheetStudio/UI/Source/MainApplicationWindow.cpp \
+UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/SpriteGizmoRenderer.cpp.o: \
+ /home/ahmad/proiecte/SpriteSheetStudio/UI/Source/Rendering/SpriteGizmoRenderer.cpp \
  /usr/include/stdc-predef.h \
- /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/MainApplicationWindow.h \
+ /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/SpriteGizmoRenderer.h \
  /usr/include/SFML/Graphics.hpp /usr/include/SFML/Window.hpp \
  /usr/include/SFML/System.hpp /usr/include/SFML/Config.hpp \
  /usr/include/SFML/System/Clock.hpp /usr/include/SFML/System/Export.hpp \
@@ -247,15 +247,4 @@ UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/MainApplicationWindow.cpp.o: \
  /usr/include/c++/13/bits/atomic_lockfree_defines.h \
  /usr/include/c++/13/backward/auto_ptr.h \
  /usr/include/c++/13/pstl/glue_memory_defs.h \
- /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/StudioEngineFacade.h \
- /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/Processing/SpriteDetector.h \
- /usr/include/c++/13/atomic /usr/include/c++/13/cstdint \
- /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Panels/PreviewViewport.h \
- /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/GridRenderer.h \
- /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/SelectionGizmo.h \
- /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/OverlayRenderer.h \
- /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/CoordinateAxisRenderer.h \
- /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/SpriteGizmoRenderer.h \
- /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/DataModels/SourceTexture.h \
- /usr/include/c++/13/iostream /usr/include/c++/13/istream \
- /usr/include/c++/13/bits/istream.tcc
+ /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/DataModels/SpriteDefinition.h
