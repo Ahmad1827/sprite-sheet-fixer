@@ -2,6 +2,7 @@
 #include "Systems/WorkspaceManager.h"
 #include "Systems/BackgroundJobQueue.h"
 #include "Systems/PlaybackEngine.h"
+#include "Systems/ExportManager.h"
 #include "Commands/CommandHistory.h"
 #include "Commands/EditMetadataCommand.h"
 #include "Commands/AnimationCommands.h"
@@ -18,6 +19,7 @@ void StudioEngineFacade::Initialize() {
     m_jobQueue = std::make_unique<BackgroundJobQueue>();
     m_commandHistory = std::make_unique<CommandHistory>();
     m_playbackEngine = std::make_unique<PlaybackEngine>();
+    m_exportManager = std::make_unique<ExportManager>();
 }
 
 void StudioEngineFacade::Update(float deltaTime) {
@@ -135,6 +137,26 @@ void StudioEngineFacade::EditAnimationSettings(const std::string& id, const std:
     m_commandHistory->ExecuteCommand(std::move(cmd));
 }
 
+void StudioEngineFacade::ToggleAutoAlign() {
+    if (m_playbackEngine) {
+        m_playbackEngine->SetAutoAlign(!m_playbackEngine->IsAutoAlignEnabled());
+    }
+}
+
+bool StudioEngineFacade::IsAutoAlignEnabled() const {
+    return m_playbackEngine ? m_playbackEngine->IsAutoAlignEnabled() : false;
+}
+
+sf::Image StudioEngineFacade::GenerateExportPreview(int padding) const {
+    if (!IsProjectActive() || !m_exportManager) return sf::Image();
+    return m_exportManager->GeneratePreview(*GetCurrentProject(), padding);
+}
+
+bool StudioEngineFacade::ExportPNG(const std::string& filePath, int padding) const {
+    if (!IsProjectActive() || !m_exportManager) return false;
+    return m_exportManager->ExportPNG(*GetCurrentProject(), filePath, padding);
+}
+
 PlaybackEngine& StudioEngineFacade::GetPlaybackEngine() {
     return *m_playbackEngine;
 }
@@ -145,16 +167,6 @@ const PlaybackEngine& StudioEngineFacade::GetPlaybackEngine() const {
 
 std::shared_ptr<WorkspaceManager> StudioEngineFacade::GetWorkspace() const {
     return m_workspace;
-}
-
-void StudioEngineFacade::ToggleAutoAlign() {
-    if (m_playbackEngine) {
-        m_playbackEngine->SetAutoAlign(!m_playbackEngine->IsAutoAlignEnabled());
-    }
-}
-
-bool StudioEngineFacade::IsAutoAlignEnabled() const {
-    return m_playbackEngine ? m_playbackEngine->IsAutoAlignEnabled() : false;
 }
 
 }

@@ -2,6 +2,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <SFML/Graphics/Image.hpp>
 #include "Processing/SpriteDetector.h"
 #include "DataModels/SpriteDefinition.h"
 
@@ -13,6 +14,7 @@ class SourceTexture;
 class BackgroundJobQueue;
 class CommandHistory;
 class PlaybackEngine;
+class ExportManager;
 
 class StudioEngineFacade {
 public:
@@ -44,18 +46,22 @@ public:
     void ModifyAnimationFrames(const std::string& id, const std::vector<std::string>& newFrames);
     void EditAnimationSettings(const std::string& id, const std::string& newName, float fps, bool looping);
 
+    void ToggleAutoAlign();
+    bool IsAutoAlignEnabled() const;
+
+    sf::Image GenerateExportPreview(int padding) const;
+    bool ExportPNG(const std::string& filePath, int padding) const;
+
     PlaybackEngine& GetPlaybackEngine();
     const PlaybackEngine& GetPlaybackEngine() const;
     std::shared_ptr<WorkspaceManager> GetWorkspace() const;
-
-    void ToggleAutoAlign();
-    bool IsAutoAlignEnabled() const;
 
 private:
     std::shared_ptr<WorkspaceManager> m_workspace;
     std::unique_ptr<BackgroundJobQueue> m_jobQueue;
     std::unique_ptr<CommandHistory> m_commandHistory;
     std::unique_ptr<PlaybackEngine> m_playbackEngine;
+    std::unique_ptr<ExportManager> m_exportManager;
     int m_animIdCounter{1};
 };
 

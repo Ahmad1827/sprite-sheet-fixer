@@ -4,6 +4,7 @@
 #include <string>
 #include "StudioEngineFacade.h"
 #include "Panels/PreviewViewport.h"
+#include "Panels/ExportPreviewPanel.h"
 
 namespace StudioUI {
     class AnimationPanel;
@@ -26,4 +27,6 @@ private:
     StudioCore::StudioEngineFacade m_engine;
     PreviewViewport m_viewport;
     std::unique_ptr<StudioUI::AnimationPanel> m_animationPanel;
+    StudioUI::ExportPreviewPanel m_exportPreview;
+    bool m_isExportMode{false};
 };
