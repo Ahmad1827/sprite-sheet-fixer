@@ -1,0 +1,35 @@
+#pragma once
+#include <vector>
+#include <memory>
+#include "ExportSettings.h"
+
+namespace StudioCore {
+
+class SourceTexture;
+class SpriteDefinition;
+class AnimationGroup;
+
+class Project {
+public:
+    Project() = default;
+
+    void SetTexture(std::shared_ptr<const SourceTexture> texture);
+    std::shared_ptr<const SourceTexture> GetTexture() const;
+
+    void AddSprite(std::shared_ptr<SpriteDefinition> sprite);
+    const std::vector<std::shared_ptr<SpriteDefinition>>& GetSprites() const;
+
+    void AddAnimationGroup(std::shared_ptr<AnimationGroup> group);
+    const std::vector<std::shared_ptr<AnimationGroup>>& GetAnimationGroups() const;
+
+    ExportSettings& GetExportSettings();
+    const ExportSettings& GetExportSettings() const;
+
+private:
+    std::shared_ptr<const SourceTexture> m_texture;
+    std::vector<std::shared_ptr<SpriteDefinition>> m_sprites;
+    std::vector<std::shared_ptr<AnimationGroup>> m_animations;
+    ExportSettings m_exportSettings;
+};
+
+}
