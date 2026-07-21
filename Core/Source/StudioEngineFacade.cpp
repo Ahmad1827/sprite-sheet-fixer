@@ -1,8 +1,10 @@
 #include "StudioEngineFacade.h"
 #include "Systems/WorkspaceManager.h"
 #include "Systems/BackgroundJobQueue.h"
+#include "Systems/PlaybackEngine.h"
 #include "Commands/CommandHistory.h"
 #include "Commands/EditMetadataCommand.h"
+#include "Commands/AnimationCommands.h"
 #include "Processing/ImageLoader.h"
 #include "DataModels/Project.h"
 
@@ -15,9 +17,10 @@ void StudioEngineFacade::Initialize() {
     m_workspace = std::make_shared<WorkspaceManager>();
     m_jobQueue = std::make_unique<BackgroundJobQueue>();
     m_commandHistory = std::make_unique<CommandHistory>();
+    m_playbackEngine = std::make_unique<PlaybackEngine>();
 }
 
-void StudioEngineFacade::Update() {
+void StudioEngineFacade::Update(float deltaTime) {
     if (m_jobQueue && m_jobQueue->HasResults()) {
         auto results = m_jobQueue->ConsumeResults();
         if (IsProjectActive()) {
@@ -26,11 +29,16 @@ void StudioEngineFacade::Update() {
             }
         }
     }
+    if (IsProjectActive() && m_playbackEngine) {
+        m_playbackEngine->Update(deltaTime, m_workspace->GetActiveProject().get());
+    }
 }
 
 void StudioEngineFacade::CreateProject() {
     if (m_workspace) m_workspace->CreateNewProject();
     if (m_commandHistory) m_commandHistory->Clear();
+    if (m_playbackEngine) m_playbackEngine->Stop();
+    m_animIdCounter = 1;
 }
 
 bool StudioEngineFacade::IsProjectActive() const {
@@ -99,6 +107,40 @@ void StudioEngineFacade::EditBaseline(const std::vector<std::string>& spriteIds,
     if (!IsProjectActive() || spriteIds.empty()) return;
     auto cmd = std::make_unique<EditMetadataCommand>(GetCurrentProject(), spriteIds, EditType::Baseline, Point{0,0}, newBaseline);
     m_commandHistory->ExecuteCommand(std::move(cmd));
+}
+
+void StudioEngineFacade::CreateAnimation(const std::string& name) {
+    if (!IsProjectActive()) return;
+    std::string id = "anim_" + std::to_string(m_animIdCounter++);
+    auto cmd = std::make_unique<CreateAnimationCommand>(GetCurrentProject(), id, name);
+    m_commandHistory->ExecuteCommand(std::move(cmd));
+}
+
+void StudioEngineFacade::DeleteAnimation(const std::string& id) {
+    if (!IsProjectActive()) return;
+    if (m_playbackEngine->GetActiveAnimation() == id) m_playbackEngine->Stop();
+    auto cmd = std::make_unique<DeleteAnimationCommand>(GetCurrentProject(), id);
+    m_commandHistory->ExecuteCommand(std::move(cmd));
+}
+
+void StudioEngineFacade::ModifyAnimationFrames(const std::string& id, const std::vector<std::string>& newFrames) {
+    if (!IsProjectActive()) return;
+    auto cmd = std::make_unique<ModifyFramesCommand>(GetCurrentProject(), id, newFrames);
+    m_commandHistory->ExecuteCommand(std::move(cmd));
+}
+
+void StudioEngineFacade::EditAnimationSettings(const std::string& id, const std::string& newName, float fps, bool looping) {
+    if (!IsProjectActive()) return;
+    auto cmd = std::make_unique<EditAnimationSettingsCommand>(GetCurrentProject(), id, newName, fps, looping);
+    m_commandHistory->ExecuteCommand(std::move(cmd));
+}
+
+PlaybackEngine& StudioEngineFacade::GetPlaybackEngine() {
+    return *m_playbackEngine;
+}
+
+const PlaybackEngine& StudioEngineFacade::GetPlaybackEngine() const {
+    return *m_playbackEngine;
 }
 
 std::shared_ptr<WorkspaceManager> StudioEngineFacade::GetWorkspace() const {

@@ -2,6 +2,7 @@
 #include "DataModels/SourceTexture.h"
 #include "DataModels/SpriteDefinition.h"
 #include "DataModels/AnimationGroup.h"
+#include <algorithm>
 
 namespace StudioCore {
 
@@ -25,9 +26,7 @@ const std::vector<std::shared_ptr<SpriteDefinition>>& Project::GetSprites() cons
 
 std::shared_ptr<SpriteDefinition> Project::GetSpriteById(const std::string& id) const {
     for (const auto& sprite : m_sprites) {
-        if (sprite->GetId() == id) {
-            return sprite;
-        }
+        if (sprite->GetId() == id) return sprite;
     }
     return nullptr;
 }
@@ -38,8 +37,25 @@ void Project::AddAnimationGroup(std::shared_ptr<AnimationGroup> group) {
     }
 }
 
+void Project::RemoveAnimationGroup(const std::string& id) {
+    m_animations.erase(
+        std::remove_if(m_animations.begin(), m_animations.end(), 
+            [&id](const std::shared_ptr<AnimationGroup>& group) {
+                return group->GetId() == id;
+            }), 
+        m_animations.end()
+    );
+}
+
 const std::vector<std::shared_ptr<AnimationGroup>>& Project::GetAnimationGroups() const {
     return m_animations;
+}
+
+std::shared_ptr<AnimationGroup> Project::GetAnimationById(const std::string& id) const {
+    for (const auto& anim : m_animations) {
+        if (anim->GetId() == id) return anim;
+    }
+    return nullptr;
 }
 
 ExportSettings& Project::GetExportSettings() {

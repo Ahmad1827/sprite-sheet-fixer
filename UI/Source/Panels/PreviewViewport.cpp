@@ -165,20 +165,28 @@ void PreviewViewport::HandleEvent(const sf::Event& event, const sf::RenderWindow
         else if (event.key.code == sf::Keyboard::P) m_showPivots = !m_showPivots;
         else if (event.key.code == sf::Keyboard::L) m_showBaselines = !m_showBaselines;
         else if (event.key.code == sf::Keyboard::N) TriggerNumericEdit(engine);
+    } else if (event.type == sf::Event::MouseWheelScrolled) {
+        sf::Vector2i mousePos(event.mouseWheelScroll.x, event.mouseWheelScroll.y);
+        if (GetViewportBounds(window).contains(static_cast<float>(mousePos.x), static_cast<float>(mousePos.y))) {
+            float zoomFactor = (event.mouseWheelScroll.delta > 0) ? 0.8f : 1.25f;
+            m_view.zoom(zoomFactor);
+            m_currentZoom *= zoomFactor;
+        }
     }
     
-    else if (event.type == sf::Event::MouseWheelScrolled) {
-        float zoomFactor = (event.mouseWheelScroll.delta > 0) ? 0.8f : 1.25f;
-        m_view.zoom(zoomFactor);
-        m_currentZoom *= zoomFactor;
-    } 
-    
     else if (event.type == sf::Event::MouseButtonPressed) {
+        sf::Vector2i clickScreenPos(event.mouseButton.x, event.mouseButton.y);
+        sf::FloatRect canvasBounds = GetViewportBounds(window);
+
+        // ONLY process mouse clicks if they land INSIDE the main viewport canvas!
+        if (!canvasBounds.contains(static_cast<float>(clickScreenPos.x), static_cast<float>(clickScreenPos.y))) {
+            return; // Ignore click—let AnimationPanel handle it
+        }
+
         if (event.mouseButton.button == sf::Mouse::Middle) {
             m_isPanning = true;
             m_lastMousePos = sf::Mouse::getPosition(window);
         } else if (event.mouseButton.button == sf::Mouse::Left) {
-            sf::Vector2i clickScreenPos(event.mouseButton.x, event.mouseButton.y);
             sf::Vector2f clickedImagePos = window.mapPixelToCoords(clickScreenPos, m_view);
 
             bool ctrl = sf::Keyboard::isKeyPressed(sf::Keyboard::LControl) || sf::Keyboard::isKeyPressed(sf::Keyboard::RControl);
@@ -194,7 +202,6 @@ void PreviewViewport::HandleEvent(const sf::Event& event, const sf::RenderWindow
                 }
                 m_selection.ClearSelection();
             } else {
-                // FIXED ORDER: Check Ctrl + Alt first, then just Alt
                 if (ctrl && alt && !m_selectedSpriteIds.empty()) {
                     m_isDraggingBaseline = true;
                     m_isDraggingPivot = false;
@@ -210,7 +217,7 @@ void PreviewViewport::HandleEvent(const sf::Event& event, const sf::RenderWindow
             }
             m_doubleClickTimer.restart();
         }
-    } 
+    }
     
     else if (event.type == sf::Event::MouseButtonReleased) {
         if (event.mouseButton.button == sf::Mouse::Middle) {
@@ -386,4 +393,5 @@ void PreviewViewport::Render(sf::RenderWindow& window, const StudioCore::StudioE
             m_overlay.RenderSpriteInspector(window, spriteInfo);
         }
     }
+    window.setView(window.getDefaultView());
 }

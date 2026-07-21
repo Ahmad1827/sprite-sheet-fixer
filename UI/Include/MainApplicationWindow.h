@@ -1,15 +1,20 @@
 #pragma once
 #include <SFML/Graphics.hpp>
 #include <memory>
+#include <string>
 #include "StudioEngineFacade.h"
 #include "Panels/PreviewViewport.h"
+
+namespace StudioUI {
+    class AnimationPanel;
+}
 
 class MainApplicationWindow {
 public:
     MainApplicationWindow();
-    void Run();
+    ~MainApplicationWindow();
 
-    // Helper to trigger image loading programmatically or via UI keybind
+    void Run();
     bool LoadImage(const std::string& filePath);
 
 private:
@@ -20,4 +25,5 @@ private:
     sf::RenderWindow m_window;
     StudioCore::StudioEngineFacade m_engine;
     PreviewViewport m_viewport;
+    std::unique_ptr<StudioUI::AnimationPanel> m_animationPanel;
 };

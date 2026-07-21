@@ -22,7 +22,9 @@ public:
     std::shared_ptr<SpriteDefinition> GetSpriteById(const std::string& id) const;
 
     void AddAnimationGroup(std::shared_ptr<AnimationGroup> group);
+    void RemoveAnimationGroup(const std::string& id);
     const std::vector<std::shared_ptr<AnimationGroup>>& GetAnimationGroups() const;
+    std::shared_ptr<AnimationGroup> GetAnimationById(const std::string& id) const;
 
     ExportSettings& GetExportSettings();
     const ExportSettings& GetExportSettings() const;

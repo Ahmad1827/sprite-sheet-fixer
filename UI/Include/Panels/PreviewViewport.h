@@ -17,10 +17,20 @@ class PreviewViewport {
 public:
     PreviewViewport();
     void Initialize();
-
+    const std::vector<std::string>& GetSelectedSpriteIds() const { return m_selectedSpriteIds; }
     void HandleEvent(const sf::Event& event, const sf::RenderWindow& window, StudioCore::StudioEngineFacade& engine);
     void Update(float deltaTime);
     void Render(sf::RenderWindow& window, const StudioCore::StudioEngineFacade& engine);
+    
+    void ClearSelection() { 
+        m_selectedSpriteIds.clear(); 
+        m_selection.ClearSelection();
+    }
+
+    sf::FloatRect GetViewportBounds(const sf::RenderWindow& window) const {
+        sf::Vector2u size = window.getSize();
+        return sf::FloatRect(0.f, 0.f, static_cast<float>(size.x) - 300.f, static_cast<float>(size.y) - 200.f);
+    }
     
     void RefreshTexture(const StudioCore::StudioEngineFacade& engine);
     void ResetZoom();
