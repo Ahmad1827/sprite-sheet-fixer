@@ -27,6 +27,12 @@ private:
     sf::FloatRect m_timelineArea;
     sf::FloatRect m_previewArea;
     
+    sf::FloatRect m_playBtnArea;
+    sf::FloatRect m_pauseBtnArea;
+    sf::FloatRect m_stopBtnArea;
+    sf::FloatRect m_fpsMinusBtnArea;
+    sf::FloatRect m_fpsPlusBtnArea;
+
     sf::RectangleShape m_bgShape;
     
     std::string m_selectedAnimation;
