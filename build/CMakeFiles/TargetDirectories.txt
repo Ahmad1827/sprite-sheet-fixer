@@ -1,8 +1,0 @@
-/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles/edit_cache.dir
-/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles/rebuild_cache.dir
-/home/ahmad/proiecte/SpriteSheetStudio/build/Core/CMakeFiles/StudioCore.dir
-/home/ahmad/proiecte/SpriteSheetStudio/build/Core/CMakeFiles/edit_cache.dir
-/home/ahmad/proiecte/SpriteSheetStudio/build/Core/CMakeFiles/rebuild_cache.dir
-/home/ahmad/proiecte/SpriteSheetStudio/build/UI/CMakeFiles/SpriteSheetStudioApp.dir
-/home/ahmad/proiecte/SpriteSheetStudio/build/UI/CMakeFiles/edit_cache.dir
-/home/ahmad/proiecte/SpriteSheetStudio/build/UI/CMakeFiles/rebuild_cache.dir
