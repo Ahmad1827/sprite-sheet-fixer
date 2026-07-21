@@ -4,6 +4,8 @@
 #include "DataModels/Project.h"
 #include "DataModels/SpriteDefinition.h"
 #include <cmath>
+#include <algorithm>
+#include <iostream>
 
 PreviewViewport::PreviewViewport() {
     m_view.setSize(800.f, 600.f);
@@ -24,7 +26,7 @@ void PreviewViewport::RefreshTexture(const StudioCore::StudioEngineFacade& engin
         m_hasValidTexture = true;
         
         m_selection.ClearSelection();
-        m_selectedSpriteId.clear();
+        m_selectedSpriteIds.clear();
         m_hoveredSpriteId.clear();
         ResetZoom();
         CenterImage();
@@ -94,34 +96,60 @@ sf::Color PreviewViewport::GetPixelColor(const StudioCore::StudioEngineFacade& e
     return sf::Color::Transparent;
 }
 
-void PreviewViewport::SelectSpriteAt(const sf::Vector2f& worldPos, const StudioCore::StudioEngineFacade& engine) {
+void PreviewViewport::HandleSpriteSelection(const sf::Vector2f& worldPos, const StudioCore::StudioEngineFacade& engine, bool shift, bool ctrl) {
     if (!engine.IsProjectActive()) return;
 
     auto project = engine.GetCurrentProject();
-    m_selectedSpriteId.clear();
+    std::string clickedId = "";
 
     for (const auto& sprite : project->GetSprites()) {
         const auto& rect = sprite->GetSourceRect();
         sf::FloatRect bounds(rect.x, rect.y, rect.width, rect.height);
         if (bounds.contains(worldPos)) {
-            m_selectedSpriteId = sprite->GetId();
+            clickedId = sprite->GetId();
             break;
         }
+    }
+
+    if (clickedId.empty()) {
+        if (!ctrl && !shift) m_selectedSpriteIds.clear();
+        return;
+    }
+
+    auto it = std::find(m_selectedSpriteIds.begin(), m_selectedSpriteIds.end(), clickedId);
+
+    if (ctrl) {
+        if (it != m_selectedSpriteIds.end()) m_selectedSpriteIds.erase(it);
+        else m_selectedSpriteIds.push_back(clickedId);
+    } else if (shift) {
+        if (it == m_selectedSpriteIds.end()) m_selectedSpriteIds.push_back(clickedId);
+    } else {
+        m_selectedSpriteIds.clear();
+        m_selectedSpriteIds.push_back(clickedId);
+    }
+}
+
+void PreviewViewport::TriggerNumericEdit(StudioCore::StudioEngineFacade& engine) {
+    if (m_selectedSpriteIds.empty()) return;
+    std::cout << "\nEnter Pivot (X Y): ";
+    float px, py;
+    if (std::cin >> px >> py) {
+        engine.EditPivot(m_selectedSpriteIds, {px, py});
     }
 }
 
 void PreviewViewport::HandleEvent(const sf::Event& event, const sf::RenderWindow& window, StudioCore::StudioEngineFacade& engine) {
     if (event.type == sf::Event::KeyPressed) {
-        // Ctrl + D -> Trigger Auto Detect
-        if (event.key.code == sf::Keyboard::D && event.key.control) {
-            StudioCore::DetectionConfig config; // Uses defaults: AlphaThreshold, 8-Way
+        if (event.key.code == sf::Keyboard::Z && event.key.control) {
+            if (event.key.shift) engine.Redo();
+            else engine.Undo();
+        }
+        else if (event.key.code == sf::Keyboard::D && event.key.control) {
+            StudioCore::DetectionConfig config;
             engine.RunAutoDetection(config);
         }
-        // Escape -> Cancel Running Detection
         else if (event.key.code == sf::Keyboard::Escape) {
-            if (engine.IsDetectionRunning()) {
-                engine.CancelDetection();
-            }
+            if (engine.IsDetectionRunning()) engine.CancelDetection();
         }
         else if (event.key.code == sf::Keyboard::G) m_showGrid = !m_showGrid;
         else if (event.key.code == sf::Keyboard::F3) m_showDebug = !m_showDebug;
@@ -134,6 +162,9 @@ void PreviewViewport::HandleEvent(const sf::Event& event, const sf::RenderWindow
         else if (event.key.code == sf::Keyboard::Z) ZoomToSelection();
         else if (event.key.code == sf::Keyboard::B) m_showBoxes = !m_showBoxes;
         else if (event.key.code == sf::Keyboard::I) m_showIds = !m_showIds;
+        else if (event.key.code == sf::Keyboard::P) m_showPivots = !m_showPivots;
+        else if (event.key.code == sf::Keyboard::L) m_showBaselines = !m_showBaselines;
+        else if (event.key.code == sf::Keyboard::N) TriggerNumericEdit(engine);
     }
     
     else if (event.type == sf::Event::MouseWheelScrolled) {
@@ -150,12 +181,32 @@ void PreviewViewport::HandleEvent(const sf::Event& event, const sf::RenderWindow
             sf::Vector2i clickScreenPos(event.mouseButton.x, event.mouseButton.y);
             sf::Vector2f clickedImagePos = window.mapPixelToCoords(clickScreenPos, m_view);
 
+            bool ctrl = sf::Keyboard::isKeyPressed(sf::Keyboard::LControl) || sf::Keyboard::isKeyPressed(sf::Keyboard::RControl);
+            bool shift = sf::Keyboard::isKeyPressed(sf::Keyboard::LShift) || sf::Keyboard::isKeyPressed(sf::Keyboard::RShift);
+            bool alt = sf::Keyboard::isKeyPressed(sf::Keyboard::LAlt) || sf::Keyboard::isKeyPressed(sf::Keyboard::RAlt);
+
             if (m_doubleClickTimer.getElapsedTime().asSeconds() < 0.3f) {
-                CenterOnPoint(clickedImagePos);
+                if (!m_selectedSpriteIds.empty()) {
+                    engine.EditPivot(m_selectedSpriteIds, {0.5f, 1.0f});
+                    engine.EditBaseline(m_selectedSpriteIds, 0.0f);
+                } else {
+                    CenterOnPoint(clickedImagePos);
+                }
                 m_selection.ClearSelection();
             } else {
-                SelectSpriteAt(clickedImagePos, engine);
-                m_selection.BeginSelection(clickedImagePos);
+                // FIXED ORDER: Check Ctrl + Alt first, then just Alt
+                if (ctrl && alt && !m_selectedSpriteIds.empty()) {
+                    m_isDraggingBaseline = true;
+                    m_isDraggingPivot = false;
+                } else if (alt && !m_selectedSpriteIds.empty()) {
+                    m_isDraggingPivot = true;
+                    m_isDraggingBaseline = false;
+                } else {
+                    HandleSpriteSelection(clickedImagePos, engine, shift, ctrl);
+                    if (m_selectedSpriteIds.empty()) {
+                        m_selection.BeginSelection(clickedImagePos);
+                    }
+                }
             }
             m_doubleClickTimer.restart();
         }
@@ -166,6 +217,8 @@ void PreviewViewport::HandleEvent(const sf::Event& event, const sf::RenderWindow
             m_isPanning = false;
         } else if (event.mouseButton.button == sf::Mouse::Left) {
             m_selection.EndSelection();
+            m_isDraggingPivot = false;
+            m_isDraggingBaseline = false;
         }
     } 
     
@@ -173,7 +226,6 @@ void PreviewViewport::HandleEvent(const sf::Event& event, const sf::RenderWindow
         sf::Vector2i currentMousePos = sf::Mouse::getPosition(window);
         sf::Vector2f worldPos = window.mapPixelToCoords(currentMousePos, m_view);
 
-        // Hover tracking over detected sprites
         if (engine.IsProjectActive()) {
             m_hoveredSpriteId.clear();
             auto project = engine.GetCurrentProject();
@@ -183,6 +235,25 @@ void PreviewViewport::HandleEvent(const sf::Event& event, const sf::RenderWindow
                 if (bounds.contains(worldPos)) {
                     m_hoveredSpriteId = sprite->GetId();
                     break;
+                }
+            }
+
+            if (m_isDraggingPivot && !m_selectedSpriteIds.empty()) {
+                auto primary = project->GetSpriteById(m_selectedSpriteIds[0]);
+                if (primary) {
+                    const auto& rect = primary->GetSourceRect();
+                    float nx = std::clamp((worldPos.x - rect.x) / rect.width, 0.0f, 1.0f);
+                    float ny = std::clamp((worldPos.y - rect.y) / rect.height, 0.0f, 1.0f);
+                    engine.EditPivot(m_selectedSpriteIds, {nx, ny});
+                }
+            }
+
+            if (m_isDraggingBaseline && !m_selectedSpriteIds.empty()) {
+                auto primary = project->GetSpriteById(m_selectedSpriteIds[0]);
+                if (primary) {
+                    const auto& rect = primary->GetSourceRect();
+                    float offset = (rect.y + rect.height) - worldPos.y;
+                    engine.EditBaseline(m_selectedSpriteIds, offset);
                 }
             }
         }
@@ -221,7 +292,6 @@ void PreviewViewport::Update(float deltaTime) {
 }
 
 void PreviewViewport::Render(sf::RenderWindow& window, const StudioCore::StudioEngineFacade& engine) {
-    // 1. WORLD SPACE
     window.setView(m_view);
 
     if (m_hasValidTexture) {
@@ -233,17 +303,18 @@ void PreviewViewport::Render(sf::RenderWindow& window, const StudioCore::StudioE
         m_grid.Render(window, m_sprite.getLocalBounds());
     }
 
-    // Render detected sprites bounding boxes
     if (engine.IsProjectActive()) {
         auto project = engine.GetCurrentProject();
         m_spriteGizmos.SetHoveredSprite(m_hoveredSpriteId);
-        m_spriteGizmos.SetSelectedSprite(m_selectedSpriteId);
+        m_spriteGizmos.SetSelectedSprites(m_selectedSpriteIds);
         m_spriteGizmos.Render(
             window, 
             project->GetSprites(), 
             m_currentZoom, 
             m_showBoxes, 
             m_showCenters, 
+            m_showPivots,
+            m_showBaselines,
             m_showIds, 
             m_overlay.GetFont()
         );
@@ -251,10 +322,8 @@ void PreviewViewport::Render(sf::RenderWindow& window, const StudioCore::StudioE
 
     m_selection.Render(window, m_currentZoom);
 
-    // 2. HUD SPACE
     window.setView(window.getDefaultView());
 
-    // Detection Job Progress Bar
     StudioUI::JobProgressInfo jobInfo;
     jobInfo.isRunning = engine.IsDetectionRunning();
     jobInfo.progress = engine.GetDetectionProgress();
@@ -282,7 +351,6 @@ void PreviewViewport::Render(sf::RenderWindow& window, const StudioCore::StudioE
         m_overlay.RenderDebug(window, debug);
     }
 
-    // Mouse Inspector
     StudioUI::InspectorInfo inspector;
     inspector.mouseWindow = sf::Mouse::getPosition(window);
     inspector.mouseImage = GetMouseImageCoords(window);
@@ -302,23 +370,20 @@ void PreviewViewport::Render(sf::RenderWindow& window, const StudioCore::StudioE
     }
     m_overlay.RenderInspector(window, inspector);
 
-    // Selected Sprite Inspector Overlay
-    if (engine.IsProjectActive() && !m_selectedSpriteId.empty()) {
+    if (engine.IsProjectActive() && !m_selectedSpriteIds.empty()) {
         auto project = engine.GetCurrentProject();
-        for (const auto& sprite : project->GetSprites()) {
-            if (sprite->GetId() == m_selectedSpriteId) {
-                StudioUI::SpriteInspectorInfo spriteInfo;
-                spriteInfo.isActive = true;
-                spriteInfo.id = sprite->GetId();
-                const auto& r = sprite->GetSourceRect();
-                spriteInfo.x = r.x; spriteInfo.y = r.y;
-                spriteInfo.w = r.width; spriteInfo.h = r.height;
-                spriteInfo.pixelCount = sprite->GetPixelCount();
-                const auto& c = sprite->GetCenter();
-                spriteInfo.cx = c.x; spriteInfo.cy = c.y;
-                m_overlay.RenderSpriteInspector(window, spriteInfo);
-                break;
-            }
+        auto sprite = project->GetSpriteById(m_selectedSpriteIds.back());
+        if (sprite) {
+            StudioUI::SpriteInspectorInfo spriteInfo;
+            spriteInfo.isActive = true;
+            spriteInfo.id = m_selectedSpriteIds.size() > 1 ? "Multiple Selected" : sprite->GetId();
+            const auto& r = sprite->GetSourceRect();
+            spriteInfo.x = r.x; spriteInfo.y = r.y;
+            spriteInfo.w = r.width; spriteInfo.h = r.height;
+            spriteInfo.pixelCount = sprite->GetPixelCount();
+            const auto& c = sprite->GetCenter();
+            spriteInfo.cx = c.x; spriteInfo.cy = c.y;
+            m_overlay.RenderSpriteInspector(window, spriteInfo);
         }
     }
 }

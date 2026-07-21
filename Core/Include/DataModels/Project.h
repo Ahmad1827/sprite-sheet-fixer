@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <memory>
+#include <string>
 #include "ExportSettings.h"
 
 namespace StudioCore {
@@ -18,6 +19,7 @@ public:
 
     void AddSprite(std::shared_ptr<SpriteDefinition> sprite);
     const std::vector<std::shared_ptr<SpriteDefinition>>& GetSprites() const;
+    std::shared_ptr<SpriteDefinition> GetSpriteById(const std::string& id) const;
 
     void AddAnimationGroup(std::shared_ptr<AnimationGroup> group);
     const std::vector<std::shared_ptr<AnimationGroup>>& GetAnimationGroups() const;

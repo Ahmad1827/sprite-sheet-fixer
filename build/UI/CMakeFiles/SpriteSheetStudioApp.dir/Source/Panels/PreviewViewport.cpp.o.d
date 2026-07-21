@@ -255,10 +255,10 @@ UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Panels/PreviewViewport.cpp.o: \
  /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/StudioEngineFacade.h \
  /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/Processing/SpriteDetector.h \
  /usr/include/c++/13/atomic /usr/include/c++/13/cstdint \
+ /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/DataModels/SpriteDefinition.h \
  /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/DataModels/SourceTexture.h \
  /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/DataModels/Project.h \
  /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/DataModels/ExportSettings.h \
- /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/DataModels/SpriteDefinition.h \
  /usr/include/c++/13/cmath /usr/include/math.h \
  /usr/include/x86_64-linux-gnu/bits/math-vector.h \
  /usr/include/x86_64-linux-gnu/bits/libm-simd-decl-stubs.h \
@@ -281,4 +281,5 @@ UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Panels/PreviewViewport.cpp.o: \
  /usr/include/c++/13/tr1/modified_bessel_func.tcc \
  /usr/include/c++/13/tr1/poly_hermite.tcc \
  /usr/include/c++/13/tr1/poly_laguerre.tcc \
- /usr/include/c++/13/tr1/riemann_zeta.tcc
+ /usr/include/c++/13/tr1/riemann_zeta.tcc /usr/include/c++/13/iostream \
+ /usr/include/c++/13/istream /usr/include/c++/13/bits/istream.tcc

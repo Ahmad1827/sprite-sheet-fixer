@@ -1,6 +1,8 @@
 #include "StudioEngineFacade.h"
 #include "Systems/WorkspaceManager.h"
 #include "Systems/BackgroundJobQueue.h"
+#include "Commands/CommandHistory.h"
+#include "Commands/EditMetadataCommand.h"
 #include "Processing/ImageLoader.h"
 #include "DataModels/Project.h"
 
@@ -12,6 +14,7 @@ StudioEngineFacade::~StudioEngineFacade() = default;
 void StudioEngineFacade::Initialize() {
     m_workspace = std::make_shared<WorkspaceManager>();
     m_jobQueue = std::make_unique<BackgroundJobQueue>();
+    m_commandHistory = std::make_unique<CommandHistory>();
 }
 
 void StudioEngineFacade::Update() {
@@ -27,6 +30,7 @@ void StudioEngineFacade::Update() {
 
 void StudioEngineFacade::CreateProject() {
     if (m_workspace) m_workspace->CreateNewProject();
+    if (m_commandHistory) m_commandHistory->Clear();
 }
 
 bool StudioEngineFacade::IsProjectActive() const {
@@ -75,6 +79,26 @@ bool StudioEngineFacade::IsDetectionRunning() const {
 
 float StudioEngineFacade::GetDetectionProgress() const {
     return m_jobQueue ? m_jobQueue->GetProgress() : 0.0f;
+}
+
+void StudioEngineFacade::Undo() {
+    if (m_commandHistory) m_commandHistory->Undo();
+}
+
+void StudioEngineFacade::Redo() {
+    if (m_commandHistory) m_commandHistory->Redo();
+}
+
+void StudioEngineFacade::EditPivot(const std::vector<std::string>& spriteIds, Point newPivot) {
+    if (!IsProjectActive() || spriteIds.empty()) return;
+    auto cmd = std::make_unique<EditMetadataCommand>(GetCurrentProject(), spriteIds, EditType::Pivot, newPivot, 0.0f);
+    m_commandHistory->ExecuteCommand(std::move(cmd));
+}
+
+void StudioEngineFacade::EditBaseline(const std::vector<std::string>& spriteIds, float newBaseline) {
+    if (!IsProjectActive() || spriteIds.empty()) return;
+    auto cmd = std::make_unique<EditMetadataCommand>(GetCurrentProject(), spriteIds, EditType::Baseline, Point{0,0}, newBaseline);
+    m_commandHistory->ExecuteCommand(std::move(cmd));
 }
 
 std::shared_ptr<WorkspaceManager> StudioEngineFacade::GetWorkspace() const {

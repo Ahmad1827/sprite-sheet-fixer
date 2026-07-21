@@ -250,6 +250,7 @@ UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/MainApplicationWindow.cpp.o: \
  /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/StudioEngineFacade.h \
  /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/Processing/SpriteDetector.h \
  /usr/include/c++/13/atomic /usr/include/c++/13/cstdint \
+ /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/DataModels/SpriteDefinition.h \
  /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Panels/PreviewViewport.h \
  /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/GridRenderer.h \
  /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/SelectionGizmo.h \

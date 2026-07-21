@@ -83,10 +83,38 @@ Core/CMakeFiles/StudioCore.dir/Source/Commands/AdjustBaselineCommand.cpp.s: cmak
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/StudioCore.dir/Source/Commands/AdjustBaselineCommand.cpp.s"
 	cd /home/ahmad/proiecte/SpriteSheetStudio/build/Core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/Commands/AdjustBaselineCommand.cpp -o CMakeFiles/StudioCore.dir/Source/Commands/AdjustBaselineCommand.cpp.s
 
+Core/CMakeFiles/StudioCore.dir/Source/Commands/CommandHistory.cpp.o: Core/CMakeFiles/StudioCore.dir/flags.make
+Core/CMakeFiles/StudioCore.dir/Source/Commands/CommandHistory.cpp.o: /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/Commands/CommandHistory.cpp
+Core/CMakeFiles/StudioCore.dir/Source/Commands/CommandHistory.cpp.o: Core/CMakeFiles/StudioCore.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object Core/CMakeFiles/StudioCore.dir/Source/Commands/CommandHistory.cpp.o"
+	cd /home/ahmad/proiecte/SpriteSheetStudio/build/Core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT Core/CMakeFiles/StudioCore.dir/Source/Commands/CommandHistory.cpp.o -MF CMakeFiles/StudioCore.dir/Source/Commands/CommandHistory.cpp.o.d -o CMakeFiles/StudioCore.dir/Source/Commands/CommandHistory.cpp.o -c /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/Commands/CommandHistory.cpp
+
+Core/CMakeFiles/StudioCore.dir/Source/Commands/CommandHistory.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/StudioCore.dir/Source/Commands/CommandHistory.cpp.i"
+	cd /home/ahmad/proiecte/SpriteSheetStudio/build/Core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/Commands/CommandHistory.cpp > CMakeFiles/StudioCore.dir/Source/Commands/CommandHistory.cpp.i
+
+Core/CMakeFiles/StudioCore.dir/Source/Commands/CommandHistory.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/StudioCore.dir/Source/Commands/CommandHistory.cpp.s"
+	cd /home/ahmad/proiecte/SpriteSheetStudio/build/Core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/Commands/CommandHistory.cpp -o CMakeFiles/StudioCore.dir/Source/Commands/CommandHistory.cpp.s
+
+Core/CMakeFiles/StudioCore.dir/Source/Commands/EditMetadataCommand.cpp.o: Core/CMakeFiles/StudioCore.dir/flags.make
+Core/CMakeFiles/StudioCore.dir/Source/Commands/EditMetadataCommand.cpp.o: /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/Commands/EditMetadataCommand.cpp
+Core/CMakeFiles/StudioCore.dir/Source/Commands/EditMetadataCommand.cpp.o: Core/CMakeFiles/StudioCore.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object Core/CMakeFiles/StudioCore.dir/Source/Commands/EditMetadataCommand.cpp.o"
+	cd /home/ahmad/proiecte/SpriteSheetStudio/build/Core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT Core/CMakeFiles/StudioCore.dir/Source/Commands/EditMetadataCommand.cpp.o -MF CMakeFiles/StudioCore.dir/Source/Commands/EditMetadataCommand.cpp.o.d -o CMakeFiles/StudioCore.dir/Source/Commands/EditMetadataCommand.cpp.o -c /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/Commands/EditMetadataCommand.cpp
+
+Core/CMakeFiles/StudioCore.dir/Source/Commands/EditMetadataCommand.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/StudioCore.dir/Source/Commands/EditMetadataCommand.cpp.i"
+	cd /home/ahmad/proiecte/SpriteSheetStudio/build/Core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/Commands/EditMetadataCommand.cpp > CMakeFiles/StudioCore.dir/Source/Commands/EditMetadataCommand.cpp.i
+
+Core/CMakeFiles/StudioCore.dir/Source/Commands/EditMetadataCommand.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/StudioCore.dir/Source/Commands/EditMetadataCommand.cpp.s"
+	cd /home/ahmad/proiecte/SpriteSheetStudio/build/Core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/Commands/EditMetadataCommand.cpp -o CMakeFiles/StudioCore.dir/Source/Commands/EditMetadataCommand.cpp.s
+
 Core/CMakeFiles/StudioCore.dir/Source/Commands/MoveSpriteCommand.cpp.o: Core/CMakeFiles/StudioCore.dir/flags.make
 Core/CMakeFiles/StudioCore.dir/Source/Commands/MoveSpriteCommand.cpp.o: /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/Commands/MoveSpriteCommand.cpp
 Core/CMakeFiles/StudioCore.dir/Source/Commands/MoveSpriteCommand.cpp.o: Core/CMakeFiles/StudioCore.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object Core/CMakeFiles/StudioCore.dir/Source/Commands/MoveSpriteCommand.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object Core/CMakeFiles/StudioCore.dir/Source/Commands/MoveSpriteCommand.cpp.o"
 	cd /home/ahmad/proiecte/SpriteSheetStudio/build/Core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT Core/CMakeFiles/StudioCore.dir/Source/Commands/MoveSpriteCommand.cpp.o -MF CMakeFiles/StudioCore.dir/Source/Commands/MoveSpriteCommand.cpp.o.d -o CMakeFiles/StudioCore.dir/Source/Commands/MoveSpriteCommand.cpp.o -c /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/Commands/MoveSpriteCommand.cpp
 
 Core/CMakeFiles/StudioCore.dir/Source/Commands/MoveSpriteCommand.cpp.i: cmake_force
@@ -100,7 +128,7 @@ Core/CMakeFiles/StudioCore.dir/Source/Commands/MoveSpriteCommand.cpp.s: cmake_fo
 Core/CMakeFiles/StudioCore.dir/Source/DataModels/AnimationGroup.cpp.o: Core/CMakeFiles/StudioCore.dir/flags.make
 Core/CMakeFiles/StudioCore.dir/Source/DataModels/AnimationGroup.cpp.o: /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/DataModels/AnimationGroup.cpp
 Core/CMakeFiles/StudioCore.dir/Source/DataModels/AnimationGroup.cpp.o: Core/CMakeFiles/StudioCore.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object Core/CMakeFiles/StudioCore.dir/Source/DataModels/AnimationGroup.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object Core/CMakeFiles/StudioCore.dir/Source/DataModels/AnimationGroup.cpp.o"
 	cd /home/ahmad/proiecte/SpriteSheetStudio/build/Core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT Core/CMakeFiles/StudioCore.dir/Source/DataModels/AnimationGroup.cpp.o -MF CMakeFiles/StudioCore.dir/Source/DataModels/AnimationGroup.cpp.o.d -o CMakeFiles/StudioCore.dir/Source/DataModels/AnimationGroup.cpp.o -c /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/DataModels/AnimationGroup.cpp
 
 Core/CMakeFiles/StudioCore.dir/Source/DataModels/AnimationGroup.cpp.i: cmake_force
@@ -114,7 +142,7 @@ Core/CMakeFiles/StudioCore.dir/Source/DataModels/AnimationGroup.cpp.s: cmake_for
 Core/CMakeFiles/StudioCore.dir/Source/DataModels/ExportSettings.cpp.o: Core/CMakeFiles/StudioCore.dir/flags.make
 Core/CMakeFiles/StudioCore.dir/Source/DataModels/ExportSettings.cpp.o: /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/DataModels/ExportSettings.cpp
 Core/CMakeFiles/StudioCore.dir/Source/DataModels/ExportSettings.cpp.o: Core/CMakeFiles/StudioCore.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object Core/CMakeFiles/StudioCore.dir/Source/DataModels/ExportSettings.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building CXX object Core/CMakeFiles/StudioCore.dir/Source/DataModels/ExportSettings.cpp.o"
 	cd /home/ahmad/proiecte/SpriteSheetStudio/build/Core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT Core/CMakeFiles/StudioCore.dir/Source/DataModels/ExportSettings.cpp.o -MF CMakeFiles/StudioCore.dir/Source/DataModels/ExportSettings.cpp.o.d -o CMakeFiles/StudioCore.dir/Source/DataModels/ExportSettings.cpp.o -c /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/DataModels/ExportSettings.cpp
 
 Core/CMakeFiles/StudioCore.dir/Source/DataModels/ExportSettings.cpp.i: cmake_force
@@ -128,7 +156,7 @@ Core/CMakeFiles/StudioCore.dir/Source/DataModels/ExportSettings.cpp.s: cmake_for
 Core/CMakeFiles/StudioCore.dir/Source/DataModels/Project.cpp.o: Core/CMakeFiles/StudioCore.dir/flags.make
 Core/CMakeFiles/StudioCore.dir/Source/DataModels/Project.cpp.o: /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/DataModels/Project.cpp
 Core/CMakeFiles/StudioCore.dir/Source/DataModels/Project.cpp.o: Core/CMakeFiles/StudioCore.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object Core/CMakeFiles/StudioCore.dir/Source/DataModels/Project.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building CXX object Core/CMakeFiles/StudioCore.dir/Source/DataModels/Project.cpp.o"
 	cd /home/ahmad/proiecte/SpriteSheetStudio/build/Core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT Core/CMakeFiles/StudioCore.dir/Source/DataModels/Project.cpp.o -MF CMakeFiles/StudioCore.dir/Source/DataModels/Project.cpp.o.d -o CMakeFiles/StudioCore.dir/Source/DataModels/Project.cpp.o -c /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/DataModels/Project.cpp
 
 Core/CMakeFiles/StudioCore.dir/Source/DataModels/Project.cpp.i: cmake_force
@@ -142,7 +170,7 @@ Core/CMakeFiles/StudioCore.dir/Source/DataModels/Project.cpp.s: cmake_force
 Core/CMakeFiles/StudioCore.dir/Source/DataModels/SourceTexture.cpp.o: Core/CMakeFiles/StudioCore.dir/flags.make
 Core/CMakeFiles/StudioCore.dir/Source/DataModels/SourceTexture.cpp.o: /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/DataModels/SourceTexture.cpp
 Core/CMakeFiles/StudioCore.dir/Source/DataModels/SourceTexture.cpp.o: Core/CMakeFiles/StudioCore.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building CXX object Core/CMakeFiles/StudioCore.dir/Source/DataModels/SourceTexture.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Building CXX object Core/CMakeFiles/StudioCore.dir/Source/DataModels/SourceTexture.cpp.o"
 	cd /home/ahmad/proiecte/SpriteSheetStudio/build/Core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT Core/CMakeFiles/StudioCore.dir/Source/DataModels/SourceTexture.cpp.o -MF CMakeFiles/StudioCore.dir/Source/DataModels/SourceTexture.cpp.o.d -o CMakeFiles/StudioCore.dir/Source/DataModels/SourceTexture.cpp.o -c /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/DataModels/SourceTexture.cpp
 
 Core/CMakeFiles/StudioCore.dir/Source/DataModels/SourceTexture.cpp.i: cmake_force
@@ -156,7 +184,7 @@ Core/CMakeFiles/StudioCore.dir/Source/DataModels/SourceTexture.cpp.s: cmake_forc
 Core/CMakeFiles/StudioCore.dir/Source/DataModels/SpriteDefinition.cpp.o: Core/CMakeFiles/StudioCore.dir/flags.make
 Core/CMakeFiles/StudioCore.dir/Source/DataModels/SpriteDefinition.cpp.o: /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/DataModels/SpriteDefinition.cpp
 Core/CMakeFiles/StudioCore.dir/Source/DataModels/SpriteDefinition.cpp.o: Core/CMakeFiles/StudioCore.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building CXX object Core/CMakeFiles/StudioCore.dir/Source/DataModels/SpriteDefinition.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Building CXX object Core/CMakeFiles/StudioCore.dir/Source/DataModels/SpriteDefinition.cpp.o"
 	cd /home/ahmad/proiecte/SpriteSheetStudio/build/Core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT Core/CMakeFiles/StudioCore.dir/Source/DataModels/SpriteDefinition.cpp.o -MF CMakeFiles/StudioCore.dir/Source/DataModels/SpriteDefinition.cpp.o.d -o CMakeFiles/StudioCore.dir/Source/DataModels/SpriteDefinition.cpp.o -c /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/DataModels/SpriteDefinition.cpp
 
 Core/CMakeFiles/StudioCore.dir/Source/DataModels/SpriteDefinition.cpp.i: cmake_force
@@ -170,7 +198,7 @@ Core/CMakeFiles/StudioCore.dir/Source/DataModels/SpriteDefinition.cpp.s: cmake_f
 Core/CMakeFiles/StudioCore.dir/Source/Export/AtlasPacker.cpp.o: Core/CMakeFiles/StudioCore.dir/flags.make
 Core/CMakeFiles/StudioCore.dir/Source/Export/AtlasPacker.cpp.o: /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/Export/AtlasPacker.cpp
 Core/CMakeFiles/StudioCore.dir/Source/Export/AtlasPacker.cpp.o: Core/CMakeFiles/StudioCore.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Building CXX object Core/CMakeFiles/StudioCore.dir/Source/Export/AtlasPacker.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Building CXX object Core/CMakeFiles/StudioCore.dir/Source/Export/AtlasPacker.cpp.o"
 	cd /home/ahmad/proiecte/SpriteSheetStudio/build/Core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT Core/CMakeFiles/StudioCore.dir/Source/Export/AtlasPacker.cpp.o -MF CMakeFiles/StudioCore.dir/Source/Export/AtlasPacker.cpp.o.d -o CMakeFiles/StudioCore.dir/Source/Export/AtlasPacker.cpp.o -c /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/Export/AtlasPacker.cpp
 
 Core/CMakeFiles/StudioCore.dir/Source/Export/AtlasPacker.cpp.i: cmake_force
@@ -184,7 +212,7 @@ Core/CMakeFiles/StudioCore.dir/Source/Export/AtlasPacker.cpp.s: cmake_force
 Core/CMakeFiles/StudioCore.dir/Source/Export/MetadataExporter.cpp.o: Core/CMakeFiles/StudioCore.dir/flags.make
 Core/CMakeFiles/StudioCore.dir/Source/Export/MetadataExporter.cpp.o: /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/Export/MetadataExporter.cpp
 Core/CMakeFiles/StudioCore.dir/Source/Export/MetadataExporter.cpp.o: Core/CMakeFiles/StudioCore.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Building CXX object Core/CMakeFiles/StudioCore.dir/Source/Export/MetadataExporter.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_11) "Building CXX object Core/CMakeFiles/StudioCore.dir/Source/Export/MetadataExporter.cpp.o"
 	cd /home/ahmad/proiecte/SpriteSheetStudio/build/Core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT Core/CMakeFiles/StudioCore.dir/Source/Export/MetadataExporter.cpp.o -MF CMakeFiles/StudioCore.dir/Source/Export/MetadataExporter.cpp.o.d -o CMakeFiles/StudioCore.dir/Source/Export/MetadataExporter.cpp.o -c /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/Export/MetadataExporter.cpp
 
 Core/CMakeFiles/StudioCore.dir/Source/Export/MetadataExporter.cpp.i: cmake_force
@@ -198,7 +226,7 @@ Core/CMakeFiles/StudioCore.dir/Source/Export/MetadataExporter.cpp.s: cmake_force
 Core/CMakeFiles/StudioCore.dir/Source/Export/TextureRenderer.cpp.o: Core/CMakeFiles/StudioCore.dir/flags.make
 Core/CMakeFiles/StudioCore.dir/Source/Export/TextureRenderer.cpp.o: /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/Export/TextureRenderer.cpp
 Core/CMakeFiles/StudioCore.dir/Source/Export/TextureRenderer.cpp.o: Core/CMakeFiles/StudioCore.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Building CXX object Core/CMakeFiles/StudioCore.dir/Source/Export/TextureRenderer.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_12) "Building CXX object Core/CMakeFiles/StudioCore.dir/Source/Export/TextureRenderer.cpp.o"
 	cd /home/ahmad/proiecte/SpriteSheetStudio/build/Core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT Core/CMakeFiles/StudioCore.dir/Source/Export/TextureRenderer.cpp.o -MF CMakeFiles/StudioCore.dir/Source/Export/TextureRenderer.cpp.o.d -o CMakeFiles/StudioCore.dir/Source/Export/TextureRenderer.cpp.o -c /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/Export/TextureRenderer.cpp
 
 Core/CMakeFiles/StudioCore.dir/Source/Export/TextureRenderer.cpp.i: cmake_force
@@ -212,7 +240,7 @@ Core/CMakeFiles/StudioCore.dir/Source/Export/TextureRenderer.cpp.s: cmake_force
 Core/CMakeFiles/StudioCore.dir/Source/Processing/BaselineAnalyzer.cpp.o: Core/CMakeFiles/StudioCore.dir/flags.make
 Core/CMakeFiles/StudioCore.dir/Source/Processing/BaselineAnalyzer.cpp.o: /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/Processing/BaselineAnalyzer.cpp
 Core/CMakeFiles/StudioCore.dir/Source/Processing/BaselineAnalyzer.cpp.o: Core/CMakeFiles/StudioCore.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_11) "Building CXX object Core/CMakeFiles/StudioCore.dir/Source/Processing/BaselineAnalyzer.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_13) "Building CXX object Core/CMakeFiles/StudioCore.dir/Source/Processing/BaselineAnalyzer.cpp.o"
 	cd /home/ahmad/proiecte/SpriteSheetStudio/build/Core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT Core/CMakeFiles/StudioCore.dir/Source/Processing/BaselineAnalyzer.cpp.o -MF CMakeFiles/StudioCore.dir/Source/Processing/BaselineAnalyzer.cpp.o.d -o CMakeFiles/StudioCore.dir/Source/Processing/BaselineAnalyzer.cpp.o -c /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/Processing/BaselineAnalyzer.cpp
 
 Core/CMakeFiles/StudioCore.dir/Source/Processing/BaselineAnalyzer.cpp.i: cmake_force
@@ -226,7 +254,7 @@ Core/CMakeFiles/StudioCore.dir/Source/Processing/BaselineAnalyzer.cpp.s: cmake_f
 Core/CMakeFiles/StudioCore.dir/Source/Processing/ImageLoader.cpp.o: Core/CMakeFiles/StudioCore.dir/flags.make
 Core/CMakeFiles/StudioCore.dir/Source/Processing/ImageLoader.cpp.o: /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/Processing/ImageLoader.cpp
 Core/CMakeFiles/StudioCore.dir/Source/Processing/ImageLoader.cpp.o: Core/CMakeFiles/StudioCore.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_12) "Building CXX object Core/CMakeFiles/StudioCore.dir/Source/Processing/ImageLoader.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_14) "Building CXX object Core/CMakeFiles/StudioCore.dir/Source/Processing/ImageLoader.cpp.o"
 	cd /home/ahmad/proiecte/SpriteSheetStudio/build/Core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT Core/CMakeFiles/StudioCore.dir/Source/Processing/ImageLoader.cpp.o -MF CMakeFiles/StudioCore.dir/Source/Processing/ImageLoader.cpp.o.d -o CMakeFiles/StudioCore.dir/Source/Processing/ImageLoader.cpp.o -c /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/Processing/ImageLoader.cpp
 
 Core/CMakeFiles/StudioCore.dir/Source/Processing/ImageLoader.cpp.i: cmake_force
@@ -240,7 +268,7 @@ Core/CMakeFiles/StudioCore.dir/Source/Processing/ImageLoader.cpp.s: cmake_force
 Core/CMakeFiles/StudioCore.dir/Source/Processing/SpriteAligner.cpp.o: Core/CMakeFiles/StudioCore.dir/flags.make
 Core/CMakeFiles/StudioCore.dir/Source/Processing/SpriteAligner.cpp.o: /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/Processing/SpriteAligner.cpp
 Core/CMakeFiles/StudioCore.dir/Source/Processing/SpriteAligner.cpp.o: Core/CMakeFiles/StudioCore.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_13) "Building CXX object Core/CMakeFiles/StudioCore.dir/Source/Processing/SpriteAligner.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_15) "Building CXX object Core/CMakeFiles/StudioCore.dir/Source/Processing/SpriteAligner.cpp.o"
 	cd /home/ahmad/proiecte/SpriteSheetStudio/build/Core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT Core/CMakeFiles/StudioCore.dir/Source/Processing/SpriteAligner.cpp.o -MF CMakeFiles/StudioCore.dir/Source/Processing/SpriteAligner.cpp.o.d -o CMakeFiles/StudioCore.dir/Source/Processing/SpriteAligner.cpp.o -c /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/Processing/SpriteAligner.cpp
 
 Core/CMakeFiles/StudioCore.dir/Source/Processing/SpriteAligner.cpp.i: cmake_force
@@ -254,7 +282,7 @@ Core/CMakeFiles/StudioCore.dir/Source/Processing/SpriteAligner.cpp.s: cmake_forc
 Core/CMakeFiles/StudioCore.dir/Source/Processing/SpriteDetector.cpp.o: Core/CMakeFiles/StudioCore.dir/flags.make
 Core/CMakeFiles/StudioCore.dir/Source/Processing/SpriteDetector.cpp.o: /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/Processing/SpriteDetector.cpp
 Core/CMakeFiles/StudioCore.dir/Source/Processing/SpriteDetector.cpp.o: Core/CMakeFiles/StudioCore.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_14) "Building CXX object Core/CMakeFiles/StudioCore.dir/Source/Processing/SpriteDetector.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_16) "Building CXX object Core/CMakeFiles/StudioCore.dir/Source/Processing/SpriteDetector.cpp.o"
 	cd /home/ahmad/proiecte/SpriteSheetStudio/build/Core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT Core/CMakeFiles/StudioCore.dir/Source/Processing/SpriteDetector.cpp.o -MF CMakeFiles/StudioCore.dir/Source/Processing/SpriteDetector.cpp.o.d -o CMakeFiles/StudioCore.dir/Source/Processing/SpriteDetector.cpp.o -c /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/Processing/SpriteDetector.cpp
 
 Core/CMakeFiles/StudioCore.dir/Source/Processing/SpriteDetector.cpp.i: cmake_force
@@ -268,7 +296,7 @@ Core/CMakeFiles/StudioCore.dir/Source/Processing/SpriteDetector.cpp.s: cmake_for
 Core/CMakeFiles/StudioCore.dir/Source/StudioEngineFacade.cpp.o: Core/CMakeFiles/StudioCore.dir/flags.make
 Core/CMakeFiles/StudioCore.dir/Source/StudioEngineFacade.cpp.o: /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/StudioEngineFacade.cpp
 Core/CMakeFiles/StudioCore.dir/Source/StudioEngineFacade.cpp.o: Core/CMakeFiles/StudioCore.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_15) "Building CXX object Core/CMakeFiles/StudioCore.dir/Source/StudioEngineFacade.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_17) "Building CXX object Core/CMakeFiles/StudioCore.dir/Source/StudioEngineFacade.cpp.o"
 	cd /home/ahmad/proiecte/SpriteSheetStudio/build/Core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT Core/CMakeFiles/StudioCore.dir/Source/StudioEngineFacade.cpp.o -MF CMakeFiles/StudioCore.dir/Source/StudioEngineFacade.cpp.o.d -o CMakeFiles/StudioCore.dir/Source/StudioEngineFacade.cpp.o -c /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/StudioEngineFacade.cpp
 
 Core/CMakeFiles/StudioCore.dir/Source/StudioEngineFacade.cpp.i: cmake_force
@@ -282,7 +310,7 @@ Core/CMakeFiles/StudioCore.dir/Source/StudioEngineFacade.cpp.s: cmake_force
 Core/CMakeFiles/StudioCore.dir/Source/Systems/BackgroundJobQueue.cpp.o: Core/CMakeFiles/StudioCore.dir/flags.make
 Core/CMakeFiles/StudioCore.dir/Source/Systems/BackgroundJobQueue.cpp.o: /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/Systems/BackgroundJobQueue.cpp
 Core/CMakeFiles/StudioCore.dir/Source/Systems/BackgroundJobQueue.cpp.o: Core/CMakeFiles/StudioCore.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_16) "Building CXX object Core/CMakeFiles/StudioCore.dir/Source/Systems/BackgroundJobQueue.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_18) "Building CXX object Core/CMakeFiles/StudioCore.dir/Source/Systems/BackgroundJobQueue.cpp.o"
 	cd /home/ahmad/proiecte/SpriteSheetStudio/build/Core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT Core/CMakeFiles/StudioCore.dir/Source/Systems/BackgroundJobQueue.cpp.o -MF CMakeFiles/StudioCore.dir/Source/Systems/BackgroundJobQueue.cpp.o.d -o CMakeFiles/StudioCore.dir/Source/Systems/BackgroundJobQueue.cpp.o -c /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/Systems/BackgroundJobQueue.cpp
 
 Core/CMakeFiles/StudioCore.dir/Source/Systems/BackgroundJobQueue.cpp.i: cmake_force
@@ -296,7 +324,7 @@ Core/CMakeFiles/StudioCore.dir/Source/Systems/BackgroundJobQueue.cpp.s: cmake_fo
 Core/CMakeFiles/StudioCore.dir/Source/Systems/CommandHistory.cpp.o: Core/CMakeFiles/StudioCore.dir/flags.make
 Core/CMakeFiles/StudioCore.dir/Source/Systems/CommandHistory.cpp.o: /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/Systems/CommandHistory.cpp
 Core/CMakeFiles/StudioCore.dir/Source/Systems/CommandHistory.cpp.o: Core/CMakeFiles/StudioCore.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_17) "Building CXX object Core/CMakeFiles/StudioCore.dir/Source/Systems/CommandHistory.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_19) "Building CXX object Core/CMakeFiles/StudioCore.dir/Source/Systems/CommandHistory.cpp.o"
 	cd /home/ahmad/proiecte/SpriteSheetStudio/build/Core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT Core/CMakeFiles/StudioCore.dir/Source/Systems/CommandHistory.cpp.o -MF CMakeFiles/StudioCore.dir/Source/Systems/CommandHistory.cpp.o.d -o CMakeFiles/StudioCore.dir/Source/Systems/CommandHistory.cpp.o -c /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/Systems/CommandHistory.cpp
 
 Core/CMakeFiles/StudioCore.dir/Source/Systems/CommandHistory.cpp.i: cmake_force
@@ -310,7 +338,7 @@ Core/CMakeFiles/StudioCore.dir/Source/Systems/CommandHistory.cpp.s: cmake_force
 Core/CMakeFiles/StudioCore.dir/Source/Systems/PlaybackEngine.cpp.o: Core/CMakeFiles/StudioCore.dir/flags.make
 Core/CMakeFiles/StudioCore.dir/Source/Systems/PlaybackEngine.cpp.o: /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/Systems/PlaybackEngine.cpp
 Core/CMakeFiles/StudioCore.dir/Source/Systems/PlaybackEngine.cpp.o: Core/CMakeFiles/StudioCore.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_18) "Building CXX object Core/CMakeFiles/StudioCore.dir/Source/Systems/PlaybackEngine.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_20) "Building CXX object Core/CMakeFiles/StudioCore.dir/Source/Systems/PlaybackEngine.cpp.o"
 	cd /home/ahmad/proiecte/SpriteSheetStudio/build/Core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT Core/CMakeFiles/StudioCore.dir/Source/Systems/PlaybackEngine.cpp.o -MF CMakeFiles/StudioCore.dir/Source/Systems/PlaybackEngine.cpp.o.d -o CMakeFiles/StudioCore.dir/Source/Systems/PlaybackEngine.cpp.o -c /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/Systems/PlaybackEngine.cpp
 
 Core/CMakeFiles/StudioCore.dir/Source/Systems/PlaybackEngine.cpp.i: cmake_force
@@ -324,7 +352,7 @@ Core/CMakeFiles/StudioCore.dir/Source/Systems/PlaybackEngine.cpp.s: cmake_force
 Core/CMakeFiles/StudioCore.dir/Source/Systems/WorkspaceManager.cpp.o: Core/CMakeFiles/StudioCore.dir/flags.make
 Core/CMakeFiles/StudioCore.dir/Source/Systems/WorkspaceManager.cpp.o: /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/Systems/WorkspaceManager.cpp
 Core/CMakeFiles/StudioCore.dir/Source/Systems/WorkspaceManager.cpp.o: Core/CMakeFiles/StudioCore.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_19) "Building CXX object Core/CMakeFiles/StudioCore.dir/Source/Systems/WorkspaceManager.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_21) "Building CXX object Core/CMakeFiles/StudioCore.dir/Source/Systems/WorkspaceManager.cpp.o"
 	cd /home/ahmad/proiecte/SpriteSheetStudio/build/Core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT Core/CMakeFiles/StudioCore.dir/Source/Systems/WorkspaceManager.cpp.o -MF CMakeFiles/StudioCore.dir/Source/Systems/WorkspaceManager.cpp.o.d -o CMakeFiles/StudioCore.dir/Source/Systems/WorkspaceManager.cpp.o -c /home/ahmad/proiecte/SpriteSheetStudio/Core/Source/Systems/WorkspaceManager.cpp
 
 Core/CMakeFiles/StudioCore.dir/Source/Systems/WorkspaceManager.cpp.i: cmake_force
@@ -338,6 +366,8 @@ Core/CMakeFiles/StudioCore.dir/Source/Systems/WorkspaceManager.cpp.s: cmake_forc
 # Object files for target StudioCore
 StudioCore_OBJECTS = \
 "CMakeFiles/StudioCore.dir/Source/Commands/AdjustBaselineCommand.cpp.o" \
+"CMakeFiles/StudioCore.dir/Source/Commands/CommandHistory.cpp.o" \
+"CMakeFiles/StudioCore.dir/Source/Commands/EditMetadataCommand.cpp.o" \
 "CMakeFiles/StudioCore.dir/Source/Commands/MoveSpriteCommand.cpp.o" \
 "CMakeFiles/StudioCore.dir/Source/DataModels/AnimationGroup.cpp.o" \
 "CMakeFiles/StudioCore.dir/Source/DataModels/ExportSettings.cpp.o" \
@@ -361,6 +391,8 @@ StudioCore_OBJECTS = \
 StudioCore_EXTERNAL_OBJECTS =
 
 Core/libStudioCore.a: Core/CMakeFiles/StudioCore.dir/Source/Commands/AdjustBaselineCommand.cpp.o
+Core/libStudioCore.a: Core/CMakeFiles/StudioCore.dir/Source/Commands/CommandHistory.cpp.o
+Core/libStudioCore.a: Core/CMakeFiles/StudioCore.dir/Source/Commands/EditMetadataCommand.cpp.o
 Core/libStudioCore.a: Core/CMakeFiles/StudioCore.dir/Source/Commands/MoveSpriteCommand.cpp.o
 Core/libStudioCore.a: Core/CMakeFiles/StudioCore.dir/Source/DataModels/AnimationGroup.cpp.o
 Core/libStudioCore.a: Core/CMakeFiles/StudioCore.dir/Source/DataModels/ExportSettings.cpp.o
@@ -381,7 +413,7 @@ Core/libStudioCore.a: Core/CMakeFiles/StudioCore.dir/Source/Systems/PlaybackEngi
 Core/libStudioCore.a: Core/CMakeFiles/StudioCore.dir/Source/Systems/WorkspaceManager.cpp.o
 Core/libStudioCore.a: Core/CMakeFiles/StudioCore.dir/build.make
 Core/libStudioCore.a: Core/CMakeFiles/StudioCore.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_20) "Linking CXX static library libStudioCore.a"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/ahmad/proiecte/SpriteSheetStudio/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_22) "Linking CXX static library libStudioCore.a"
 	cd /home/ahmad/proiecte/SpriteSheetStudio/build/Core && $(CMAKE_COMMAND) -P CMakeFiles/StudioCore.dir/cmake_clean_target.cmake
 	cd /home/ahmad/proiecte/SpriteSheetStudio/build/Core && $(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/StudioCore.dir/link.txt --verbose=$(VERBOSE)
 

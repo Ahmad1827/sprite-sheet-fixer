@@ -121,9 +121,8 @@ Core/CMakeFiles/StudioCore.dir/Source/DataModels/Project.cpp.o: \
  /usr/include/c++/13/bits/atomic_lockfree_defines.h \
  /usr/include/c++/13/backward/auto_ptr.h \
  /usr/include/c++/13/pstl/glue_memory_defs.h \
- /usr/include/c++/13/pstl/execution_defs.h \
- /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/DataModels/ExportSettings.h \
- /usr/include/c++/13/string /usr/include/c++/13/bits/char_traits.h \
+ /usr/include/c++/13/pstl/execution_defs.h /usr/include/c++/13/string \
+ /usr/include/c++/13/bits/char_traits.h \
  /usr/include/c++/13/bits/localefwd.h \
  /usr/include/x86_64-linux-gnu/c++/13/bits/c++locale.h \
  /usr/include/c++/13/clocale /usr/include/locale.h \
@@ -155,6 +154,7 @@ Core/CMakeFiles/StudioCore.dir/Source/DataModels/Project.cpp.o: \
  /usr/include/x86_64-linux-gnu/bits/types/error_t.h \
  /usr/include/c++/13/bits/charconv.h \
  /usr/include/c++/13/bits/basic_string.tcc \
+ /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/DataModels/ExportSettings.h \
  /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/DataModels/SourceTexture.h \
  /usr/include/c++/13/cstdint \
  /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/DataModels/SpriteDefinition.h \

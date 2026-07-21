@@ -152,11 +152,12 @@ Core/CMakeFiles/StudioCore.dir/Source/StudioEngineFacade.cpp.o: \
  /usr/include/c++/13/bits/basic_string.tcc \
  /usr/include/c++/13/bits/memory_resource.h /usr/include/c++/13/cstddef \
  /usr/include/c++/13/bits/uses_allocator_args.h \
- /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/Processing/SpriteDetector.h \
  /usr/include/c++/13/vector /usr/include/c++/13/bits/stl_vector.h \
  /usr/include/c++/13/bits/stl_bvector.h \
- /usr/include/c++/13/bits/vector.tcc /usr/include/c++/13/atomic \
- /usr/include/c++/13/cstdint \
+ /usr/include/c++/13/bits/vector.tcc \
+ /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/Processing/SpriteDetector.h \
+ /usr/include/c++/13/atomic /usr/include/c++/13/cstdint \
+ /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/DataModels/SpriteDefinition.h \
  /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/Systems/WorkspaceManager.h \
  /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/Systems/BackgroundJobQueue.h \
  /usr/include/c++/13/thread /usr/include/c++/13/bits/std_thread.h \
@@ -167,6 +168,9 @@ Core/CMakeFiles/StudioCore.dir/Source/StudioEngineFacade.cpp.o: \
  /usr/include/x86_64-linux-gnu/c++/13/bits/error_constants.h \
  /usr/include/c++/13/bits/std_mutex.h \
  /usr/include/c++/13/bits/unique_lock.h \
+ /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/Commands/CommandHistory.h \
+ /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/Commands/ICommand.h \
+ /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/Commands/EditMetadataCommand.h \
  /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/Processing/ImageLoader.h \
  /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/DataModels/Project.h \
  /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/DataModels/ExportSettings.h

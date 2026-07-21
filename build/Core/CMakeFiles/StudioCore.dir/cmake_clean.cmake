@@ -1,6 +1,10 @@
 file(REMOVE_RECURSE
   "CMakeFiles/StudioCore.dir/Source/Commands/AdjustBaselineCommand.cpp.o"
   "CMakeFiles/StudioCore.dir/Source/Commands/AdjustBaselineCommand.cpp.o.d"
+  "CMakeFiles/StudioCore.dir/Source/Commands/CommandHistory.cpp.o"
+  "CMakeFiles/StudioCore.dir/Source/Commands/CommandHistory.cpp.o.d"
+  "CMakeFiles/StudioCore.dir/Source/Commands/EditMetadataCommand.cpp.o"
+  "CMakeFiles/StudioCore.dir/Source/Commands/EditMetadataCommand.cpp.o.d"
   "CMakeFiles/StudioCore.dir/Source/Commands/MoveSpriteCommand.cpp.o"
   "CMakeFiles/StudioCore.dir/Source/Commands/MoveSpriteCommand.cpp.o.d"
   "CMakeFiles/StudioCore.dir/Source/DataModels/AnimationGroup.cpp.o"

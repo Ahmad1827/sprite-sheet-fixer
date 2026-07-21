@@ -23,6 +23,15 @@ const std::vector<std::shared_ptr<SpriteDefinition>>& Project::GetSprites() cons
     return m_sprites;
 }
 
+std::shared_ptr<SpriteDefinition> Project::GetSpriteById(const std::string& id) const {
+    for (const auto& sprite : m_sprites) {
+        if (sprite->GetId() == id) {
+            return sprite;
+        }
+    }
+    return nullptr;
+}
+
 void Project::AddAnimationGroup(std::shared_ptr<AnimationGroup> group) {
     if (group) {
         m_animations.push_back(std::move(group));

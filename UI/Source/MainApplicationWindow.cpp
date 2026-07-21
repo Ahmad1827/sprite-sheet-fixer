@@ -3,7 +3,7 @@
 #include <iostream>
 
 MainApplicationWindow::MainApplicationWindow() 
-    : m_window(sf::VideoMode(1280, 720), "Sprite Sheet Studio - Milestone 4") {
+    : m_window(sf::VideoMode(1280, 720), "Sprite Sheet Studio - Milestone 5") {
     
     m_window.setFramerateLimit(60);
     m_engine.Initialize();
@@ -31,15 +31,19 @@ bool MainApplicationWindow::LoadImage(const std::string& filePath) {
 void MainApplicationWindow::Run() {
     sf::Clock clock;
     std::cout << "\n==================================================" << std::endl;
-    std::cout << "  Sprite Sheet Studio - Milestone 4 Controls" << std::endl;
+    std::cout << "  Sprite Sheet Studio - Milestone 5 Controls" << std::endl;
     std::cout << "==================================================" << std::endl;
     std::cout << "  [O] Load PNG via Terminal" << std::endl;
     std::cout << "  [Ctrl + D] Auto Detect Sprites (CCL)" << std::endl;
-    std::cout << "  [ESC] Cancel Detection" << std::endl;
-    std::cout << "  [B] Toggle Bounding Boxes" << std::endl;
-    std::cout << "  [I] Toggle Sprite IDs" << std::endl;
-    std::cout << "  [G] Toggle Grid Overlay" << std::endl;
-    std::cout << "  [F3] Toggle Debug HUD" << std::endl;
+    std::cout << "  [Left Click] Select Sprite" << std::endl;
+    std::cout << "  [Shift + Click] Add to Selection" << std::endl;
+    std::cout << "  [Ctrl + Click] Toggle Selection" << std::endl;
+    std::cout << "  [Alt + Drag] Edit Pivot" << std::endl;
+    std::cout << "  [Ctrl + Alt + Drag] Edit Baseline" << std::endl;
+    std::cout << "  [Double Click] Reset Pivot & Baseline" << std::endl;
+    std::cout << "  [N] Numeric Pivot Edit (Terminal)" << std::endl;
+    std::cout << "  [Ctrl + Z] Undo   |  [Ctrl + Shift + Z] Redo" << std::endl;
+    std::cout << "  [P] Toggle Pivots |  [L] Toggle Baselines" << std::endl;
     std::cout << "==================================================\n" << std::endl;
 
     while (m_window.isOpen()) {
@@ -70,7 +74,6 @@ void MainApplicationWindow::ProcessEvents() {
 }
 
 void MainApplicationWindow::Update(float deltaTime) {
-    // Flush background job results into active project
     m_engine.Update();
     m_viewport.Update(deltaTime);
 }

@@ -3,6 +3,7 @@
 
 UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/MainApplicationWindow.cpp.o: /home/ahmad/proiecte/SpriteSheetStudio/UI/Source/MainApplicationWindow.cpp \
   /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/DataModels/SourceTexture.h \
+  /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/DataModels/SpriteDefinition.h \
   /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/Processing/SpriteDetector.h \
   /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/StudioEngineFacade.h \
   /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/MainApplicationWindow.h \
@@ -11,6 +12,7 @@ UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/MainApplicationWindow.cpp.o: /home
   /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/GridRenderer.h \
   /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/OverlayRenderer.h \
   /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/SelectionGizmo.h \
+  /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/SpriteGizmoRenderer.h \
   /usr/include/SFML/Config.hpp \
   /usr/include/SFML/Graphics.hpp \
   /usr/include/SFML/Graphics/BlendMode.hpp \
@@ -327,7 +329,10 @@ UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Panels/InspectorView.cpp.o: /home/
   /usr/include/stdc-predef.h
 
 UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Panels/PreviewViewport.cpp.o: /home/ahmad/proiecte/SpriteSheetStudio/UI/Source/Panels/PreviewViewport.cpp \
+  /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/DataModels/ExportSettings.h \
+  /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/DataModels/Project.h \
   /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/DataModels/SourceTexture.h \
+  /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/DataModels/SpriteDefinition.h \
   /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/Processing/SpriteDetector.h \
   /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/StudioEngineFacade.h \
   /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Panels/PreviewViewport.h \
@@ -335,6 +340,7 @@ UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Panels/PreviewViewport.cpp.o: /hom
   /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/GridRenderer.h \
   /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/OverlayRenderer.h \
   /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/SelectionGizmo.h \
+  /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/SpriteGizmoRenderer.h \
   /usr/include/SFML/Config.hpp \
   /usr/include/SFML/Graphics.hpp \
   /usr/include/SFML/Graphics/BlendMode.hpp \
@@ -446,6 +452,7 @@ UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Panels/PreviewViewport.cpp.o: /hom
   /usr/include/c++/13/bits/hash_bytes.h \
   /usr/include/c++/13/bits/invoke.h \
   /usr/include/c++/13/bits/ios_base.h \
+  /usr/include/c++/13/bits/istream.tcc \
   /usr/include/c++/13/bits/locale_classes.h \
   /usr/include/c++/13/bits/locale_classes.tcc \
   /usr/include/c++/13/bits/locale_conv.h \
@@ -525,6 +532,8 @@ UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Panels/PreviewViewport.cpp.o: /hom
   /usr/include/c++/13/initializer_list \
   /usr/include/c++/13/ios \
   /usr/include/c++/13/iosfwd \
+  /usr/include/c++/13/iostream \
+  /usr/include/c++/13/istream \
   /usr/include/c++/13/iterator \
   /usr/include/c++/13/limits \
   /usr/include/c++/13/locale \
@@ -2230,6 +2239,7 @@ UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/Rendering/SpriteGizmoRenderer.cpp.
   /usr/lib/gcc/x86_64-linux-gnu/13/include/stdint.h
 
 UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/main.cpp.o: /home/ahmad/proiecte/SpriteSheetStudio/UI/Source/main.cpp \
+  /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/DataModels/SpriteDefinition.h \
   /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/Processing/SpriteDetector.h \
   /home/ahmad/proiecte/SpriteSheetStudio/Core/Include/StudioEngineFacade.h \
   /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/MainApplicationWindow.h \
@@ -2238,6 +2248,7 @@ UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/main.cpp.o: /home/ahmad/proiecte/S
   /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/GridRenderer.h \
   /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/OverlayRenderer.h \
   /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/SelectionGizmo.h \
+  /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/SpriteGizmoRenderer.h \
   /usr/include/SFML/Config.hpp \
   /usr/include/SFML/Graphics.hpp \
   /usr/include/SFML/Graphics/BlendMode.hpp \
@@ -2550,8 +2561,6 @@ UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/main.cpp.o: /home/ahmad/proiecte/S
 
 /home/ahmad/proiecte/SpriteSheetStudio/UI/Source/main.cpp:
 
-/home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/SpriteGizmoRenderer.h:
-
 /home/ahmad/proiecte/SpriteSheetStudio/UI/Source/Rendering/SpriteGizmoRenderer.cpp:
 
 /home/ahmad/proiecte/SpriteSheetStudio/UI/Source/Rendering/SelectionGizmo.cpp:
@@ -2596,6 +2605,8 @@ UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/main.cpp.o: /home/ahmad/proiecte/S
 
 /usr/include/c++/13/cmath:
 
+/home/ahmad/proiecte/SpriteSheetStudio/Core/Include/DataModels/ExportSettings.h:
+
 /home/ahmad/proiecte/SpriteSheetStudio/UI/Source/Panels/PreviewViewport.cpp:
 
 /usr/lib/gcc/x86_64-linux-gnu/13/include/stdint.h:
@@ -2611,10 +2622,6 @@ UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/main.cpp.o: /home/ahmad/proiecte/S
 /usr/include/x86_64-linux-gnu/c++/13/bits/time_members.h:
 
 /usr/include/x86_64-linux-gnu/c++/13/bits/os_defines.h:
-
-/home/ahmad/proiecte/SpriteSheetStudio/Core/Include/DataModels/SpriteDefinition.h:
-
-/usr/include/x86_64-linux-gnu/c++/13/bits/messages_members.h:
 
 /usr/include/x86_64-linux-gnu/c++/13/bits/gthr.h:
 
@@ -2681,8 +2688,6 @@ UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/main.cpp.o: /home/ahmad/proiecte/S
 /usr/include/x86_64-linux-gnu/bits/timex.h:
 
 /usr/include/x86_64-linux-gnu/bits/stdio_lim.h:
-
-/usr/include/c++/13/bits/locale_facets.tcc:
 
 /usr/include/x86_64-linux-gnu/bits/timesize.h:
 
@@ -2828,6 +2833,18 @@ UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/main.cpp.o: /home/ahmad/proiecte/S
 
 /usr/include/SFML/System/Utf.inl:
 
+/usr/include/x86_64-linux-gnu/bits/waitstatus.h:
+
+/usr/include/c++/13/bits/exception_defines.h:
+
+/usr/include/c++/13/bits/sstream.tcc:
+
+/usr/include/SFML/Graphics/ConvexShape.hpp:
+
+/home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/OverlayRenderer.h:
+
+/usr/include/SFML/System/ThreadLocal.hpp:
+
 /usr/include/libintl.h:
 
 /usr/include/SFML/System/String.hpp:
@@ -2854,13 +2871,23 @@ UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/main.cpp.o: /home/ahmad/proiecte/S
 
 /usr/include/SFML/Graphics/Shader.hpp:
 
-/usr/include/SFML/System/Mutex.hpp:
+/usr/include/SFML/System/Vector3.hpp:
 
-/usr/include/c++/13/typeinfo:
+/usr/include/x86_64-linux-gnu/bits/libm-simd-decl-stubs.h:
 
-/home/ahmad/proiecte/SpriteSheetStudio/UI/Include/MainApplicationWindow.h:
+/usr/include/x86_64-linux-gnu/bits/types/struct_FILE.h:
 
-/usr/include/stdc-predef.h:
+/usr/include/SFML/Graphics/PrimitiveType.hpp:
+
+/usr/include/c++/13/memory:
+
+/usr/include/SFML/System/Sleep.hpp:
+
+/usr/include/features.h:
+
+/usr/include/x86_64-linux-gnu/c++/13/bits/ctype_inline.h:
+
+/usr/include/c++/13/bits/char_traits.h:
 
 /usr/include/SFML/Window/VideoMode.hpp:
 
@@ -2870,7 +2897,27 @@ UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/main.cpp.o: /home/ahmad/proiecte/S
 
 /usr/include/c++/13/bits/streambuf.tcc:
 
+/usr/include/SFML/Window/Vulkan.hpp:
+
+/usr/include/x86_64-linux-gnu/c++/13/bits/gthr-default.h:
+
+/usr/include/x86_64-linux-gnu/bits/types/struct_timespec.h:
+
+/usr/include/x86_64-linux-gnu/bits/stdint-uintn.h:
+
+/usr/include/SFML/Graphics/RectangleShape.hpp:
+
+/usr/include/c++/13/typeinfo:
+
+/home/ahmad/proiecte/SpriteSheetStudio/UI/Include/MainApplicationWindow.h:
+
+/usr/include/stdc-predef.h:
+
 /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/CoordinateAxisRenderer.h:
+
+/usr/include/x86_64-linux-gnu/bits/stdint-least.h:
+
+/home/ahmad/proiecte/SpriteSheetStudio/Core/Include/Processing/SpriteDetector.h:
 
 /usr/include/c++/13/bits/locale_facets.h:
 
@@ -2879,10 +2926,6 @@ UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/main.cpp.o: /home/ahmad/proiecte/S
 /usr/include/SFML/Window/ContextSettings.hpp:
 
 /usr/include/c++/13/cerrno:
-
-/home/ahmad/proiecte/SpriteSheetStudio/Core/Include/Processing/SpriteDetector.h:
-
-/usr/include/x86_64-linux-gnu/bits/stdint-least.h:
 
 /usr/include/SFML/Graphics/CircleShape.hpp:
 
@@ -2896,18 +2939,6 @@ UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/main.cpp.o: /home/ahmad/proiecte/S
 
 /usr/include/c++/13/bits/localefwd.h:
 
-/usr/include/c++/13/memory:
-
-/usr/include/SFML/System/Sleep.hpp:
-
-/usr/include/x86_64-linux-gnu/bits/libm-simd-decl-stubs.h:
-
-/usr/include/x86_64-linux-gnu/bits/types/struct_FILE.h:
-
-/usr/include/SFML/Graphics/PrimitiveType.hpp:
-
-/usr/include/features.h:
-
 /usr/include/c++/13/clocale:
 
 /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/SelectionGizmo.h:
@@ -2917,16 +2948,6 @@ UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/main.cpp.o: /home/ahmad/proiecte/S
 /usr/include/SFML/Window/Context.hpp:
 
 /home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/GridRenderer.h:
-
-/usr/include/c++/13/bits/sstream.tcc:
-
-/home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/OverlayRenderer.h:
-
-/usr/include/SFML/Graphics/ConvexShape.hpp:
-
-/usr/include/x86_64-linux-gnu/bits/waitstatus.h:
-
-/usr/include/c++/13/bits/exception_defines.h:
 
 /usr/include/SFML/Graphics/Export.hpp:
 
@@ -2946,27 +2967,9 @@ UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/main.cpp.o: /home/ahmad/proiecte/S
 
 /usr/include/SFML/Graphics/Transform.hpp:
 
-/usr/include/SFML/Window/Vulkan.hpp:
+/usr/include/x86_64-linux-gnu/c++/13/bits/messages_members.h:
 
-/usr/include/x86_64-linux-gnu/c++/13/bits/gthr-default.h:
-
-/usr/include/x86_64-linux-gnu/bits/types/struct_timespec.h:
-
-/usr/include/x86_64-linux-gnu/bits/stdint-uintn.h:
-
-/usr/include/SFML/Graphics/RectangleShape.hpp:
-
-/usr/include/c++/13/sstream:
-
-/usr/include/x86_64-linux-gnu/bits/types/cookie_io_functions_t.h:
-
-/usr/include/SFML/Graphics/VertexArray.hpp:
-
-/usr/include/SFML/System/Vector3.hpp:
-
-/usr/include/x86_64-linux-gnu/c++/13/bits/ctype_inline.h:
-
-/usr/include/c++/13/bits/char_traits.h:
+/home/ahmad/proiecte/SpriteSheetStudio/Core/Include/DataModels/SpriteDefinition.h:
 
 /usr/include/SFML/Config.hpp:
 
@@ -2983,6 +2986,16 @@ UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/main.cpp.o: /home/ahmad/proiecte/S
 /usr/include/SFML/Window/Event.hpp:
 
 /usr/include/SFML/System/String.inl:
+
+/usr/include/SFML/System/Mutex.hpp:
+
+/home/ahmad/proiecte/SpriteSheetStudio/UI/Include/Rendering/SpriteGizmoRenderer.h:
+
+/usr/include/c++/13/sstream:
+
+/usr/include/x86_64-linux-gnu/bits/types/cookie_io_functions_t.h:
+
+/usr/include/SFML/Graphics/VertexArray.hpp:
 
 /usr/include/SFML/System/Time.hpp:
 
@@ -3050,6 +3063,8 @@ UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/main.cpp.o: /home/ahmad/proiecte/S
 
 /usr/include/x86_64-linux-gnu/bits/flt-eval-method.h:
 
+/home/ahmad/proiecte/SpriteSheetStudio/Core/Include/DataModels/Project.h:
+
 /usr/include/c++/13/bits/streambuf_iterator.h:
 
 /usr/include/c++/13/ostream:
@@ -3070,7 +3085,7 @@ UI/CMakeFiles/SpriteSheetStudioApp.dir/Source/main.cpp.o: /home/ahmad/proiecte/S
 
 /usr/include/c++/13/istream:
 
-/usr/include/SFML/System/ThreadLocal.hpp:
+/usr/include/c++/13/bits/locale_facets.tcc:
 
 /usr/include/c++/13/bits/locale_facets_nonio.h:
 

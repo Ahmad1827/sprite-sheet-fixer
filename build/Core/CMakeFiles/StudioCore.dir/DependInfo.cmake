@@ -9,6 +9,8 @@ set(CMAKE_DEPENDS_LANGUAGES
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "/home/ahmad/proiecte/SpriteSheetStudio/Core/Source/Commands/AdjustBaselineCommand.cpp" "Core/CMakeFiles/StudioCore.dir/Source/Commands/AdjustBaselineCommand.cpp.o" "gcc" "Core/CMakeFiles/StudioCore.dir/Source/Commands/AdjustBaselineCommand.cpp.o.d"
+  "/home/ahmad/proiecte/SpriteSheetStudio/Core/Source/Commands/CommandHistory.cpp" "Core/CMakeFiles/StudioCore.dir/Source/Commands/CommandHistory.cpp.o" "gcc" "Core/CMakeFiles/StudioCore.dir/Source/Commands/CommandHistory.cpp.o.d"
+  "/home/ahmad/proiecte/SpriteSheetStudio/Core/Source/Commands/EditMetadataCommand.cpp" "Core/CMakeFiles/StudioCore.dir/Source/Commands/EditMetadataCommand.cpp.o" "gcc" "Core/CMakeFiles/StudioCore.dir/Source/Commands/EditMetadataCommand.cpp.o.d"
   "/home/ahmad/proiecte/SpriteSheetStudio/Core/Source/Commands/MoveSpriteCommand.cpp" "Core/CMakeFiles/StudioCore.dir/Source/Commands/MoveSpriteCommand.cpp.o" "gcc" "Core/CMakeFiles/StudioCore.dir/Source/Commands/MoveSpriteCommand.cpp.o.d"
   "/home/ahmad/proiecte/SpriteSheetStudio/Core/Source/DataModels/AnimationGroup.cpp" "Core/CMakeFiles/StudioCore.dir/Source/DataModels/AnimationGroup.cpp.o" "gcc" "Core/CMakeFiles/StudioCore.dir/Source/DataModels/AnimationGroup.cpp.o.d"
   "/home/ahmad/proiecte/SpriteSheetStudio/Core/Source/DataModels/ExportSettings.cpp" "Core/CMakeFiles/StudioCore.dir/Source/DataModels/ExportSettings.cpp.o" "gcc" "Core/CMakeFiles/StudioCore.dir/Source/DataModels/ExportSettings.cpp.o.d"

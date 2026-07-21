@@ -154,6 +154,54 @@ Source/Commands/AdjustBaselineCommand.cpp.s:
 	cd /home/ahmad/proiecte/SpriteSheetStudio/build && $(MAKE) $(MAKESILENT) -f Core/CMakeFiles/StudioCore.dir/build.make Core/CMakeFiles/StudioCore.dir/Source/Commands/AdjustBaselineCommand.cpp.s
 .PHONY : Source/Commands/AdjustBaselineCommand.cpp.s
 
+Source/Commands/CommandHistory.o: Source/Commands/CommandHistory.cpp.o
+.PHONY : Source/Commands/CommandHistory.o
+
+# target to build an object file
+Source/Commands/CommandHistory.cpp.o:
+	cd /home/ahmad/proiecte/SpriteSheetStudio/build && $(MAKE) $(MAKESILENT) -f Core/CMakeFiles/StudioCore.dir/build.make Core/CMakeFiles/StudioCore.dir/Source/Commands/CommandHistory.cpp.o
+.PHONY : Source/Commands/CommandHistory.cpp.o
+
+Source/Commands/CommandHistory.i: Source/Commands/CommandHistory.cpp.i
+.PHONY : Source/Commands/CommandHistory.i
+
+# target to preprocess a source file
+Source/Commands/CommandHistory.cpp.i:
+	cd /home/ahmad/proiecte/SpriteSheetStudio/build && $(MAKE) $(MAKESILENT) -f Core/CMakeFiles/StudioCore.dir/build.make Core/CMakeFiles/StudioCore.dir/Source/Commands/CommandHistory.cpp.i
+.PHONY : Source/Commands/CommandHistory.cpp.i
+
+Source/Commands/CommandHistory.s: Source/Commands/CommandHistory.cpp.s
+.PHONY : Source/Commands/CommandHistory.s
+
+# target to generate assembly for a file
+Source/Commands/CommandHistory.cpp.s:
+	cd /home/ahmad/proiecte/SpriteSheetStudio/build && $(MAKE) $(MAKESILENT) -f Core/CMakeFiles/StudioCore.dir/build.make Core/CMakeFiles/StudioCore.dir/Source/Commands/CommandHistory.cpp.s
+.PHONY : Source/Commands/CommandHistory.cpp.s
+
+Source/Commands/EditMetadataCommand.o: Source/Commands/EditMetadataCommand.cpp.o
+.PHONY : Source/Commands/EditMetadataCommand.o
+
+# target to build an object file
+Source/Commands/EditMetadataCommand.cpp.o:
+	cd /home/ahmad/proiecte/SpriteSheetStudio/build && $(MAKE) $(MAKESILENT) -f Core/CMakeFiles/StudioCore.dir/build.make Core/CMakeFiles/StudioCore.dir/Source/Commands/EditMetadataCommand.cpp.o
+.PHONY : Source/Commands/EditMetadataCommand.cpp.o
+
+Source/Commands/EditMetadataCommand.i: Source/Commands/EditMetadataCommand.cpp.i
+.PHONY : Source/Commands/EditMetadataCommand.i
+
+# target to preprocess a source file
+Source/Commands/EditMetadataCommand.cpp.i:
+	cd /home/ahmad/proiecte/SpriteSheetStudio/build && $(MAKE) $(MAKESILENT) -f Core/CMakeFiles/StudioCore.dir/build.make Core/CMakeFiles/StudioCore.dir/Source/Commands/EditMetadataCommand.cpp.i
+.PHONY : Source/Commands/EditMetadataCommand.cpp.i
+
+Source/Commands/EditMetadataCommand.s: Source/Commands/EditMetadataCommand.cpp.s
+.PHONY : Source/Commands/EditMetadataCommand.s
+
+# target to generate assembly for a file
+Source/Commands/EditMetadataCommand.cpp.s:
+	cd /home/ahmad/proiecte/SpriteSheetStudio/build && $(MAKE) $(MAKESILENT) -f Core/CMakeFiles/StudioCore.dir/build.make Core/CMakeFiles/StudioCore.dir/Source/Commands/EditMetadataCommand.cpp.s
+.PHONY : Source/Commands/EditMetadataCommand.cpp.s
+
 Source/Commands/MoveSpriteCommand.o: Source/Commands/MoveSpriteCommand.cpp.o
 .PHONY : Source/Commands/MoveSpriteCommand.o
 
@@ -598,6 +646,12 @@ help:
 	@echo "... Source/Commands/AdjustBaselineCommand.o"
 	@echo "... Source/Commands/AdjustBaselineCommand.i"
 	@echo "... Source/Commands/AdjustBaselineCommand.s"
+	@echo "... Source/Commands/CommandHistory.o"
+	@echo "... Source/Commands/CommandHistory.i"
+	@echo "... Source/Commands/CommandHistory.s"
+	@echo "... Source/Commands/EditMetadataCommand.o"
+	@echo "... Source/Commands/EditMetadataCommand.i"
+	@echo "... Source/Commands/EditMetadataCommand.s"
 	@echo "... Source/Commands/MoveSpriteCommand.o"
 	@echo "... Source/Commands/MoveSpriteCommand.i"
 	@echo "... Source/Commands/MoveSpriteCommand.s"
