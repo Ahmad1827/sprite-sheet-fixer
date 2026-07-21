@@ -48,6 +48,9 @@ public:
     const PlaybackEngine& GetPlaybackEngine() const;
     std::shared_ptr<WorkspaceManager> GetWorkspace() const;
 
+    void ToggleAutoAlign();
+    bool IsAutoAlignEnabled() const;
+
 private:
     std::shared_ptr<WorkspaceManager> m_workspace;
     std::unique_ptr<BackgroundJobQueue> m_jobQueue;

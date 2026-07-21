@@ -2,9 +2,11 @@
 #include "DataModels/Project.h"
 #include "DataModels/AnimationGroup.h"
 #include "DataModels/SpriteDefinition.h"
+#include "Processing/SpriteAligner.h"
 
 namespace StudioCore {
 
+    
 void PlaybackEngine::Update(float deltaTime, const Project* project) {
     if (!m_isPlaying || !project || m_activeAnimationId.empty()) {
         return;
@@ -79,6 +81,22 @@ std::shared_ptr<SpriteDefinition> PlaybackEngine::GetCurrentSprite(const Project
     }
     
     return project->GetSpriteById(anim->GetFrames()[index]);
+}
+
+void PlaybackEngine::SetAutoAlign(bool enabled) {
+    m_autoAlignEnabled = enabled;
+}
+
+bool PlaybackEngine::IsAutoAlignEnabled() const {
+    return m_autoAlignEnabled;
+}
+
+AlignmentResult PlaybackEngine::GetCurrentAlignment(const Project* project) const {
+    auto sprite = GetCurrentSprite(project);
+    if (sprite) {
+        return SpriteAligner::ComputeAlignment(*sprite);
+    }
+    return AlignmentResult();
 }
 
 }

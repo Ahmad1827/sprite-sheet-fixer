@@ -147,4 +147,14 @@ std::shared_ptr<WorkspaceManager> StudioEngineFacade::GetWorkspace() const {
     return m_workspace;
 }
 
+void StudioEngineFacade::ToggleAutoAlign() {
+    if (m_playbackEngine) {
+        m_playbackEngine->SetAutoAlign(!m_playbackEngine->IsAutoAlignEnabled());
+    }
+}
+
+bool StudioEngineFacade::IsAutoAlignEnabled() const {
+    return m_playbackEngine ? m_playbackEngine->IsAutoAlignEnabled() : false;
+}
+
 }

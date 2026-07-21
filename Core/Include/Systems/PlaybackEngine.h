@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <memory>
+#include "Processing/SpriteAligner.h"
 
 namespace StudioCore {
 
@@ -13,6 +14,10 @@ public:
 
     void Update(float deltaTime, const Project* project);
     
+    void SetAutoAlign(bool enabled);
+    bool IsAutoAlignEnabled() const;
+    AlignmentResult GetCurrentAlignment(const Project* project) const;
+
     void Play();
     void Pause();
     void Stop();
@@ -29,6 +34,7 @@ private:
     bool m_isPlaying{false};
     float m_playbackTimer{0.0f};
     int m_currentFrameIndex{0};
+    bool m_autoAlignEnabled{false};
 };
 
 }

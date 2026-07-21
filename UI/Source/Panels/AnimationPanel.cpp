@@ -159,6 +159,11 @@ void AnimationPanel::HandleEvent(const sf::Event& event, const sf::RenderWindow&
         }
         m_draggedFrameIndex = -1;
         m_dropTargetIndex = -1;
+    } else if (event.key.code == sf::Keyboard::Space) {
+        if (engine.GetPlaybackEngine().IsPlaying()) engine.GetPlaybackEngine().Pause();
+        else engine.GetPlaybackEngine().Play();
+    } else if (event.key.code == sf::Keyboard::A) {
+        engine.ToggleAutoAlign();
     }
 }
 
@@ -256,8 +261,11 @@ void AnimationPanel::RenderPreview(sf::RenderWindow& window, const StudioCore::S
     m_bgShape.setSize(sf::Vector2f(m_previewArea.width, m_previewArea.height));
     window.draw(m_bgShape);
 
-    sf::Text title("Preview (Space to Play/Pause)", m_font, 16);
+    bool autoAlign = engine.IsAutoAlignEnabled();
+    std::string titleStr = "Preview (Space: Play/Pause, A: Auto Align [" + std::string(autoAlign ? "ON" : "OFF") + "])";
+    sf::Text title(titleStr, m_font, 14);
     title.setPosition(m_previewArea.left + 10.f, m_previewArea.top + 10.f);
+    title.setFillColor(autoAlign ? sf::Color::Cyan : sf::Color::White);
     window.draw(title);
 
     auto spriteDef = engine.GetPlaybackEngine().GetCurrentSprite(engine.GetCurrentProject().get());
@@ -273,19 +281,67 @@ void AnimationPanel::RenderPreview(sf::RenderWindow& window, const StudioCore::S
         const auto& r = spriteDef->GetSourceRect();
         renderSprite.setTextureRect(sf::IntRect(r.x, r.y, r.width, r.height));
         
-        const auto& pivot = spriteDef->GetPivot();
-        renderSprite.setOrigin(r.width * pivot.x, r.height * pivot.y);
+        // Retrieve standard or aligned rendering anchors
+        sf::Vector2f activeAnchor;
+        float activeBaseline = 0.0f;
+        
+        if (autoAlign) {
+            auto alignment = engine.GetPlaybackEngine().GetCurrentAlignment(engine.GetCurrentProject().get());
+            activeAnchor.x = r.width * alignment.alignedPivot.x;
+            activeAnchor.y = r.height * alignment.alignedPivot.y;
+            activeBaseline = alignment.alignedBaseline;
+        } else {
+            activeAnchor.x = r.width * spriteDef->GetPivot().x;
+            activeAnchor.y = r.height * spriteDef->GetPivot().y;
+            activeBaseline = spriteDef->GetBaseline();
+        }
+
+        renderSprite.setOrigin(activeAnchor.x, activeAnchor.y);
         
         float scale = std::min((m_previewArea.width - 40.f) / r.width, (m_previewArea.height - 80.f) / r.height);
         renderSprite.setScale(scale, scale);
-        renderSprite.setPosition(m_previewArea.left + m_previewArea.width / 2.f, m_previewArea.top + m_previewArea.height / 2.f + (spriteDef->GetBaseline() * scale));
         
-        sf::RectangleShape baselineShape(sf::Vector2f(m_previewArea.width, 1.f));
-        baselineShape.setPosition(m_previewArea.left, renderSprite.getPosition().y);
-        baselineShape.setFillColor(sf::Color(255, 165, 0, 150));
-        window.draw(baselineShape);
+        sf::Vector2f previewCenter(m_previewArea.left + m_previewArea.width / 2.f, m_previewArea.top + m_previewArea.height / 2.f);
+        renderSprite.setPosition(previewCenter.x, previewCenter.y + (activeBaseline * scale));
         
         window.draw(renderSprite);
+
+        // --- GIZMO VISUALIZATION ---
+        sf::Vector2f activePos = renderSprite.getPosition();
+        sf::Vector2f activeOrigin = renderSprite.getOrigin();
+
+        // Calculate Screen Coordinates for Top-Left of the Sprite
+        sf::Vector2f tl;
+        tl.x = activePos.x - (activeOrigin.x * scale);
+        tl.y = activePos.y - (activeOrigin.y * scale);
+
+        // Draw Active Baseline (Cyan if aligned, Orange if original)
+        sf::RectangleShape activeBaselineLine(sf::Vector2f(m_previewArea.width, 1.f));
+        activeBaselineLine.setPosition(m_previewArea.left, tl.y + (r.height - activeBaseline) * scale);
+        activeBaselineLine.setFillColor(autoAlign ? sf::Color(0, 255, 255, 200) : sf::Color(255, 165, 0, 200));
+        window.draw(activeBaselineLine);
+
+        // Draw Active Pivot (Magenta if aligned, Green if original)
+        sf::CircleShape activePivotDot(4.f);
+        activePivotDot.setOrigin(4.f, 4.f);
+        activePivotDot.setPosition(activePos); // The origin is always exactly where the sprite was placed
+        activePivotDot.setFillColor(autoAlign ? sf::Color::Magenta : sf::Color::Green);
+        window.draw(activePivotDot);
+
+        if (autoAlign) {
+            // Draw Original Baseline as Ghost (Translucent Orange)
+            sf::RectangleShape origBaselineLine(sf::Vector2f(m_previewArea.width, 1.f));
+            origBaselineLine.setPosition(m_previewArea.left, tl.y + (r.height - spriteDef->GetBaseline()) * scale);
+            origBaselineLine.setFillColor(sf::Color(255, 165, 0, 100));
+            window.draw(origBaselineLine);
+
+            // Draw Original Pivot as Ghost (Translucent Green)
+            sf::CircleShape origPivotDot(4.f);
+            origPivotDot.setOrigin(4.f, 4.f);
+            origPivotDot.setPosition(tl.x + (r.width * spriteDef->GetPivot().x) * scale, tl.y + (r.height * spriteDef->GetPivot().y) * scale);
+            origPivotDot.setFillColor(sf::Color(0, 255, 0, 100));
+            window.draw(origPivotDot);
+        }
     }
 }
 
