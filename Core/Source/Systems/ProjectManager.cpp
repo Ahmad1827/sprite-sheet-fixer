@@ -18,6 +18,8 @@ bool ProjectManager::SaveProject(const Project& project, const std::string& file
     for (const auto& s : project.GetSprites()) {
         const auto& rect = s->GetSourceRect();
         const auto& pivot = s->GetPivot();
+        const auto& center = s->GetCenter(); // Get Center of Mass
+
         spritesArray.push_back({
             {"id", s->GetId()},
             {"x", rect.x},
@@ -26,7 +28,10 @@ bool ProjectManager::SaveProject(const Project& project, const std::string& file
             {"height", rect.height},
             {"pivotX", pivot.x},
             {"pivotY", pivot.y},
-            {"baseline", s->GetBaseline()}
+            {"baseline", s->GetBaseline()},
+            {"pixelCount", s->GetPixelCount()},
+            {"centerX", center.x},
+            {"centerY", center.y}
         });
     }
     j["sprites"] = spritesArray;
@@ -91,6 +96,15 @@ std::shared_ptr<Project> ProjectManager::LoadProject(const std::string& filePath
             SpriteDefinition def(id, rect);
             def.SetPivot({s["pivotX"], s["pivotY"]});
             def.SetBaseline(s["baseline"]);
+            
+            // Restore Center of Mass for Auto-Align
+            if (s.contains("pixelCount")) {
+                def.SetPixelCount(s["pixelCount"]);
+            }
+            if (s.contains("centerX") && s.contains("centerY")) {
+                def.SetCenter({s["centerX"], s["centerY"]});
+            }
+
             project->AddSprite(def);
         }
     }
