@@ -1,40 +1,46 @@
 #pragma once
 #include "Commands/ICommand.h"
+#include "DataModels/Project.h"
 #include "DataModels/SpriteDefinition.h"
-#include <vector>
 #include <memory>
+#include <string>
 
 namespace StudioCore {
 
-struct SpriteMoveState {
-    std::shared_ptr<SpriteDefinition> sprite;
-    sf::FloatRect oldRect;
-    sf::FloatRect newRect;
-};
-
 class MoveSpriteCommand : public ICommand {
 public:
-    explicit MoveSpriteCommand(std::vector<SpriteMoveState> moves)
-        : m_moves(std::move(moves)) {}
+    MoveSpriteCommand(std::shared_ptr<Project> project,
+                      const std::string& spriteId,
+                      const Rect& oldRect,
+                      const Rect& newRect)
+        : m_project(project), m_spriteId(spriteId), m_oldRect(oldRect), m_newRect(newRect) {}
 
     void Execute() override {
-        for (auto& move : m_moves) {
-            if (move.sprite) {
-                move.sprite->SetSourceRect(move.newRect);
-            }
-        }
+        ApplyRect(m_newRect);
     }
 
     void Undo() override {
-        for (auto& move : m_moves) {
-            if (move.sprite) {
-                move.sprite->SetSourceRect(move.oldRect);
-            }
-        }
+        ApplyRect(m_oldRect);
     }
 
 private:
-    std::vector<SpriteMoveState> m_moves;
+    void ApplyRect(const Rect& rect) {
+        if (!m_project) return;
+        auto sprite = m_project->GetSpriteById(m_spriteId);
+        if (!sprite) return;
+
+        SpriteDefinition updatedSprite(m_spriteId, rect);
+        updatedSprite.SetPivot(sprite->GetPivot());
+        updatedSprite.SetBaseline(sprite->GetBaseline());
+
+        m_project->RemoveSprite(m_spriteId);
+        m_project->AddSprite(updatedSprite);
+    }
+
+    std::shared_ptr<Project> m_project;
+    std::string m_spriteId;
+    Rect m_oldRect;
+    Rect m_newRect;
 };
 
 }

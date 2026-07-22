@@ -75,10 +75,39 @@ void MainApplicationWindow::ProcessEvents() {
             m_window.close();
         } 
 
-        if (m_workspace.HandleEvent(event, m_window)) {
-            continue;
+        // 1. KEYBOARD SHORTCUTS (CTRL+Z, CTRL+Y, etc.) - Process FIRST so UI doesn't swallow them
+        if (event.type == sf::Event::KeyPressed) {
+            bool isControl = sf::Keyboard::isKeyPressed(sf::Keyboard::LControl) || 
+                             sf::Keyboard::isKeyPressed(sf::Keyboard::RControl);
+
+            if (isControl) {
+                if (event.key.code == sf::Keyboard::Z) {
+                    m_engine.Undo();
+                    m_viewport.RefreshTexture(m_engine);
+                    continue;
+                }
+                if (event.key.code == sf::Keyboard::Y) {
+                    m_engine.Redo();
+                    m_viewport.RefreshTexture(m_engine);
+                    continue;
+                }
+                if (event.key.code == sf::Keyboard::E) {
+                    m_isExportMode = true;
+                    m_exportPreview.Activate(m_engine);
+                    continue;
+                }
+                if (event.key.code == sf::Keyboard::S) {
+                    std::string path = StudioUI::NativeFileDialog::SaveFileDialog("project.sps");
+                    if (!path.empty()) {
+                        if (path.find(".sps") == std::string::npos) path += ".sps";
+                        m_engine.SaveProject(path);
+                    }
+                    continue;
+                }
+            }
         }
 
+        // 2. RIGHT CLICK CONTEXT MENU
         if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Right) {
             sf::Vector2i pixelPos(event.mouseButton.x, event.mouseButton.y);
             sf::Vector2f worldPos = m_viewport.MapPixelToWorld(pixelPos, m_window);
@@ -127,38 +156,38 @@ void MainApplicationWindow::ProcessEvents() {
             }
         }
 
+        // 3. LEFT CLICK DRAG START
         if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
-            sf::Vector2i pixelPos(event.mouseButton.x, event.mouseButton.y);
-            sf::Vector2f worldPos = m_viewport.MapPixelToWorld(pixelPos, m_window);
+            // Only initiate sprite drag if Alt is NOT pressed (Alt is reserved for pivot editing)
+            if (!sf::Keyboard::isKeyPressed(sf::Keyboard::LAlt) && !sf::Keyboard::isKeyPressed(sf::Keyboard::RAlt)) {
+                sf::Vector2i pixelPos(event.mouseButton.x, event.mouseButton.y);
+                sf::Vector2f worldPos = m_viewport.MapPixelToWorld(pixelPos, m_window);
 
-            if (m_engine.IsProjectActive() && m_engine.GetCurrentProject()) {
-                auto sprites = m_engine.GetCurrentProject()->GetSprites();
-                m_draggedSprites.clear();
+                if (m_engine.IsProjectActive() && m_engine.GetCurrentProject()) {
+                    auto sprites = m_engine.GetCurrentProject()->GetSprites();
+                    m_draggedSprites.clear();
+                    m_dragStartRects.clear();
 
-                for (auto it = sprites.rbegin(); it != sprites.rend(); ++it) {
-                    auto sprite = *it;
-                    if (!sprite) continue;
+                    for (auto it = sprites.rbegin(); it != sprites.rend(); ++it) {
+                        auto sprite = *it;
+                        if (!sprite) continue;
 
-                    auto rect = sprite->GetSourceRect();
-                    sf::FloatRect bounds(rect.x, rect.y, rect.width, rect.height);
+                        auto rect = sprite->GetSourceRect();
+                        sf::FloatRect bounds(rect.x, rect.y, rect.width, rect.height);
 
-                    if (bounds.contains(worldPos)) {
-                        m_isDragging = true;
-                        m_dragStartPos = worldPos;
-                        m_draggedSprites.push_back(sprite);
-                        break;
+                        if (bounds.contains(worldPos)) {
+                            m_isDragging = true;
+                            m_dragStartPos = worldPos;
+                            m_draggedSprites.push_back(sprite);
+                            m_dragStartRects.push_back({sprite->GetId(), rect});
+                            break;
+                        }
                     }
                 }
             }
         }
 
-        if (event.type == sf::Event::MouseButtonReleased && event.mouseButton.button == sf::Mouse::Left) {
-            if (m_isDragging) {
-                m_isDragging = false;
-                m_draggedSprites.clear();
-            }
-        }
-
+        // 4. MOUSE MOVE DRAGGING
         if (event.type == sf::Event::MouseMoved && m_isDragging) {
             sf::Vector2i pixelPos(event.mouseMove.x, event.mouseMove.y);
             sf::Vector2f currentWorldPos = m_viewport.MapPixelToWorld(pixelPos, m_window);
@@ -173,19 +202,13 @@ void MainApplicationWindow::ProcessEvents() {
                     std::string id = oldSprite->GetId();
                     auto rect = oldSprite->GetSourceRect();
 
-                    StudioCore::Rect newRect;
-                    newRect.x = rect.x + delta.x;
-                    newRect.y = rect.y + delta.y;
-                    newRect.width = rect.width;
-                    newRect.height = rect.height;
-
+                    StudioCore::Rect newRect{rect.x + delta.x, rect.y + delta.y, rect.width, rect.height};
                     StudioCore::SpriteDefinition updatedSprite(id, newRect);
                     updatedSprite.SetPivot(oldSprite->GetPivot());
                     updatedSprite.SetBaseline(oldSprite->GetBaseline());
 
                     proj->RemoveSprite(id);
                     proj->AddSprite(updatedSprite);
-
                     m_draggedSprites[i] = proj->GetSpriteById(id);
                 }
                 m_dragStartPos = currentWorldPos;
@@ -193,27 +216,31 @@ void MainApplicationWindow::ProcessEvents() {
             }
         }
 
-        if (event.type == sf::Event::MouseButtonReleased && event.mouseButton.button == sf::Mouse::Left && m_isDragging) {
-            m_isDragging = false;
-            m_viewport.RefreshTexture(m_engine); // Refresh view post-drag
-        }
+        // 5. MOUSE RELEASE (RECORD MOVE COMMAND TO UNDO STACK)
         if (event.type == sf::Event::MouseButtonReleased && event.mouseButton.button == sf::Mouse::Left) {
             if (m_isDragging) {
+                auto proj = m_engine.GetCurrentProject();
+                if (proj) {
+                    for (const auto& startData : m_dragStartRects) {
+                        auto currentSprite = proj->GetSpriteById(startData.first);
+                        if (currentSprite) {
+                            StudioCore::Rect finalRect = currentSprite->GetSourceRect();
+                            if (startData.second.x != finalRect.x || startData.second.y != finalRect.y) {
+                                m_engine.MoveSprite(startData.first, startData.second, finalRect);
+                            }
+                        }
+                    }
+                }
                 m_isDragging = false;
                 m_draggedSprites.clear();
+                m_dragStartRects.clear();
+                m_viewport.RefreshTexture(m_engine);
             }
         }
-        if (event.type == sf::Event::KeyPressed) {
-            if (event.key.control && event.key.code == sf::Keyboard::Z) {
-                m_engine.Undo();
-                m_viewport.RefreshTexture(m_engine);
-                std::cout << "[✓] Undo Executed." << std::endl;
-            }
-            else if (event.key.control && event.key.code == sf::Keyboard::Y) {
-                m_engine.Redo();
-                m_viewport.RefreshTexture(m_engine);
-                std::cout << "[✓] Redo Executed." << std::endl;
-            }
+
+        // 6. WORKSPACE UI EVENT HANDLING
+        if (m_workspace.HandleEvent(event, m_window)) {
+            continue;
         }
 
         if (m_isWizardMode) {
@@ -247,50 +274,10 @@ void MainApplicationWindow::ProcessEvents() {
             continue;
         }
 
-        if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::E && event.key.control) {
-            m_isExportMode = true;
-            m_exportPreview.Activate(m_engine);
-            continue;
-        }
-
-        if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::S && event.key.control) {
-            std::string path = StudioUI::NativeFileDialog::SaveFileDialog("project.sps");
-            if (!path.empty()) {
-                if (path.find(".sps") == std::string::npos) path += ".sps";
-                m_engine.SaveProject(path);
-            }
-            continue;
-        }
-
-        if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::L && event.key.control) {
-            if (m_engine.HasTexture() || m_engine.IsProjectActive()) {
-                continue;
-            }
-            std::string path = StudioUI::NativeFileDialog::OpenFileDialog("Sprite Sheet Studio Project (*.sps)");
-            if (!path.empty()) {
-                std::string error;
-                if (m_engine.LoadProject(path, error)) {
-                    m_viewport.RefreshTexture(m_engine);
-                }
-            }
-            continue;
-        }
-
-        if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::O) {
-            if (m_engine.HasTexture()) {
-                continue;
-            }
-            std::string filePath = StudioUI::NativeFileDialog::OpenFileDialog();
-            if (!filePath.empty()) {
-                LoadImage(filePath);
-            }
-            continue;
-        } 
-        else {
-            m_viewport.HandleEvent(event, m_window, m_engine);
-            if (m_animationPanel) {
-                m_animationPanel->HandleEvent(event, m_window, m_engine, m_viewport);
-            }
+        // 7. VIEWPORT AND ANIMATION PANEL (Passes events here so Alt+Click Pivot editing works!)
+        m_viewport.HandleEvent(event, m_window, m_engine);
+        if (m_animationPanel) {
+            m_animationPanel->HandleEvent(event, m_window, m_engine, m_viewport);
         }
     }
 }

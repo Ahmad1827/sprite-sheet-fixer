@@ -14,6 +14,8 @@
 #include "DataModels/SpriteDefinition.h"
 #include "DataModels/SourceTexture.h"
 #include <iostream>
+#include "Commands/MoveSpriteCommand.h"
+
 
 namespace StudioCore {
 
@@ -126,11 +128,15 @@ float StudioEngineFacade::GetDetectionProgress() const {
 }
 
 void StudioEngineFacade::Undo() {
-    if (m_commandHistory) m_commandHistory->Undo();
+    if (m_commandHistory) {
+        m_commandHistory->Undo();
+    }
 }
 
 void StudioEngineFacade::Redo() {
-    if (m_commandHistory) m_commandHistory->Redo();
+    if (m_commandHistory) {
+        m_commandHistory->Redo();
+    }
 }
 
 void StudioEngineFacade::EditPivot(const std::vector<std::string>& spriteIds, Point newPivot) {
@@ -346,7 +352,15 @@ void StudioEngineFacade::DeleteSpriteWithPixels(const std::string& spriteId) {
         m_commandHistory->ExecuteCommand(std::move(pixelCmd));
     }
 }
+void StudioEngineFacade::MoveSprite(const std::string& spriteId, const StudioCore::Rect& oldRect, const StudioCore::Rect& newRect) {
+    auto proj = GetCurrentProject();
+    if (!proj) return;
 
+    auto moveCmd = std::make_unique<MoveSpriteCommand>(proj, spriteId, oldRect, newRect);
 
+    if (m_commandHistory) {
+        m_commandHistory->ExecuteCommand(std::move(moveCmd));
+    }
+}
 
 }
