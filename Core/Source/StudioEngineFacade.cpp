@@ -10,6 +10,10 @@
 #include "Processing/ImageLoader.h"
 #include "DataModels/Project.h"
 #include "Commands/BatchCommands.h"
+#include "Commands/PixelCommands.h"
+#include "DataModels/SpriteDefinition.h"
+#include "DataModels/SourceTexture.h"
+#include <iostream>
 
 namespace StudioCore {
 
@@ -242,5 +246,107 @@ void StudioEngineFacade::CommitProposedAnimations(const std::vector<ProposedAnim
         proj->AddAnimationGroup(group);
     }
 }
+
+void StudioEngineFacade::DuplicateSpriteWithPixels(const std::string& spriteId) {
+    auto proj = GetCurrentProject();
+    if (!proj) return;
+
+    auto constTexture = proj->GetTexture();
+    if (!constTexture) return;
+
+    auto texture = std::const_pointer_cast<SourceTexture>(constTexture);
+    if (!texture || !texture->IsValid()) return;
+
+    auto sprite = proj->GetSpriteById(spriteId);
+    if (!sprite) return;
+
+    auto rect = sprite->GetSourceRect();
+    int imgWidth = texture->GetWidth();
+    int imgHeight = texture->GetHeight();
+
+    sf::Image originalImage;
+    originalImage.create(imgWidth, imgHeight, texture->GetPixels().data());
+
+    sf::IntRect srcRect(static_cast<int>(rect.x), static_cast<int>(rect.y),
+                        static_cast<int>(rect.width), static_cast<int>(rect.height));
+
+    sf::Image copiedPixels;
+    copiedPixels.create(srcRect.width, srcRect.height);
+    copiedPixels.copy(originalImage, 0, 0, srcRect);
+
+    // Place duplicate offset slightly down and right
+    int targetLeft = std::min(srcRect.left + 15, imgWidth - srcRect.width);
+    int targetTop = std::min(srcRect.top + 15, imgHeight - srcRect.height);
+
+    sf::Image newCanvas = originalImage;
+    newCanvas.copy(copiedPixels, targetLeft, targetTop);
+
+    std::vector<uint8_t> oldPixels = texture->GetPixels();
+    std::vector<uint8_t> newPixels(newCanvas.getPixelsPtr(), newCanvas.getPixelsPtr() + (imgWidth * imgHeight * 4));
+
+    std::string newId = "sprite_" + std::to_string(proj->GetSprites().size() + 1);
+    StudioCore::Rect newRect{static_cast<float>(targetLeft), static_cast<float>(targetTop),
+                             rect.width, rect.height};
+
+    auto pixelCmd = std::make_unique<PixelRegionCommand>(texture, oldPixels, newPixels);
+    pixelCmd->Execute();
+
+    SpriteDefinition dup(newId, newRect);
+    dup.SetPivot({newRect.width / 2.0f, newRect.height / 2.0f});
+    dup.SetBaseline(sprite->GetBaseline());
+
+    proj->AddSprite(dup);
+
+    if (m_commandHistory) {
+        m_commandHistory->ExecuteCommand(std::move(pixelCmd));
+    }
+}
+
+void StudioEngineFacade::DeleteSpriteWithPixels(const std::string& spriteId) {
+    auto proj = GetCurrentProject();
+    if (!proj) return;
+
+    auto constTexture = proj->GetTexture();
+    if (!constTexture) return;
+
+    auto texture = std::const_pointer_cast<SourceTexture>(constTexture);
+    if (!texture || !texture->IsValid()) return;
+
+    auto sprite = proj->GetSpriteById(spriteId);
+    if (!sprite) return;
+
+    auto rect = sprite->GetSourceRect();
+    int imgWidth = texture->GetWidth();
+    int imgHeight = texture->GetHeight();
+
+    sf::Image currentCanvas;
+    currentCanvas.create(imgWidth, imgHeight, texture->GetPixels().data());
+    sf::Image erasedCanvas = currentCanvas;
+
+    sf::IntRect srcRect(static_cast<int>(rect.x), static_cast<int>(rect.y),
+                        static_cast<int>(rect.width), static_cast<int>(rect.height));
+
+    for (int y = srcRect.top; y < srcRect.top + srcRect.height; ++y) {
+        for (int x = srcRect.left; x < srcRect.left + srcRect.width; ++x) {
+            if (x >= 0 && x < imgWidth && y >= 0 && y < imgHeight) {
+                erasedCanvas.setPixel(x, y, sf::Color::Transparent);
+            }
+        }
+    }
+
+    std::vector<uint8_t> oldPixels = texture->GetPixels();
+    std::vector<uint8_t> newPixels(erasedCanvas.getPixelsPtr(), erasedCanvas.getPixelsPtr() + (imgWidth * imgHeight * 4));
+
+    auto pixelCmd = std::make_unique<PixelRegionCommand>(texture, oldPixels, newPixels);
+    pixelCmd->Execute();
+
+    proj->RemoveSprite(spriteId);
+
+    if (m_commandHistory) {
+        m_commandHistory->ExecuteCommand(std::move(pixelCmd));
+    }
+}
+
+
 
 }

@@ -35,8 +35,10 @@ public:
     bool LoadProject(const std::string& filePath, std::string& outErrorMessage);
     
     std::vector<ProposedAnimation> BuildAnimationsByRow();
-void CommitProposedAnimations(const std::vector<ProposedAnimation>& animations);
-
+    void CommitProposedAnimations(const std::vector<ProposedAnimation>& animations);
+    void DuplicateSpriteWithPixels(const std::string& spriteId);
+    void DeleteSpriteWithPixels(const std::string& spriteId);
+    
     std::shared_ptr<Project> GetCurrentProject() const;
     std::shared_ptr<const SourceTexture> GetCurrentTexture() const;
     bool HasTexture() const;

@@ -12,6 +12,8 @@ public:
     int GetWidth() const;
     int GetHeight() const;
     const std::vector<uint8_t>& GetPixels() const;
+    std::vector<uint8_t>& GetPixelsMutable() { return m_pixels; }
+    void SetPixels(const std::vector<uint8_t>& pixels) { m_pixels = pixels; }
     bool IsValid() const;
 
 private:

@@ -27,8 +27,13 @@ void Project::AddSprite(const SpriteDefinition& sprite) {
 }
 
 void Project::RemoveSprite(const std::string& id) {
-    m_sprites.erase(std::remove_if(m_sprites.begin(), m_sprites.end(),
-        [&id](const auto& s) { return s->GetId() == id; }), m_sprites.end());
+    m_sprites.erase(
+        std::remove_if(m_sprites.begin(), m_sprites.end(),
+            [&id](const std::shared_ptr<SpriteDefinition>& sprite) {
+                return sprite && sprite->GetId() == id;
+            }),
+        m_sprites.end()
+    );
 }
 
 std::shared_ptr<SpriteDefinition> Project::GetSpriteById(const std::string& id) const {

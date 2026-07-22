@@ -81,14 +81,17 @@ void MainApplicationWindow::ProcessEvents() {
 
         if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Right) {
             sf::Vector2i pixelPos(event.mouseButton.x, event.mouseButton.y);
-            sf::Vector2f worldPos = m_window.mapPixelToCoords(pixelPos);
+            sf::Vector2f worldPos = m_viewport.MapPixelToWorld(pixelPos, m_window);
 
             std::string targetSpriteId = "";
 
             if (m_engine.IsProjectActive() && m_engine.GetCurrentProject()) {
                 auto sprites = m_engine.GetCurrentProject()->GetSprites();
                 
-                for (const auto& sprite : sprites) {
+                for (auto it = sprites.rbegin(); it != sprites.rend(); ++it) {
+                    auto sprite = *it;
+                    if (!sprite) continue;
+
                     auto rect = sprite->GetSourceRect();
                     sf::FloatRect bounds(rect.x, rect.y, rect.width, rect.height);
                     if (bounds.contains(worldPos)) {
@@ -96,36 +99,17 @@ void MainApplicationWindow::ProcessEvents() {
                         break;
                     }
                 }
-
-                if (targetSpriteId.empty() && !sprites.empty()) {
-                    targetSpriteId = sprites.back()->GetId();
-                }
             }
 
             if (!targetSpriteId.empty()) {
                 std::vector<StudioUI::ContextMenuItem> items = {
                     {"Duplicate Sprite", [this, targetSpriteId]() {
-                        auto proj = m_engine.GetCurrentProject();
-                        if (!proj) return;
-                        auto sprite = proj->GetSpriteById(targetSpriteId);
-                        if (sprite) {
-                            std::string newId = "sprite_" + std::to_string(proj->GetSprites().size() + 1);
-                            auto rect = sprite->GetSourceRect();
-                            rect.x += 15.0f;
-                            rect.y += 15.0f;
-
-                            StudioCore::SpriteDefinition dup(newId, rect);
-                            dup.SetPivot({sprite->GetPivot().x + 15.0f, sprite->GetPivot().y + 15.0f});
-                            dup.SetBaseline(sprite->GetBaseline());
-
-                            proj->AddSprite(dup);
-                        }
+                        m_engine.DuplicateSpriteWithPixels(targetSpriteId);
+                        m_viewport.RefreshTexture(m_engine);
                     }},
                     {"Delete Sprite", [this, targetSpriteId]() {
-                        auto proj = m_engine.GetCurrentProject();
-                        if (proj) {
-                            proj->RemoveSprite(targetSpriteId);
-                        }
+                        m_engine.DeleteSpriteWithPixels(targetSpriteId);
+                        m_viewport.RefreshTexture(m_engine);
                     }},
                     {"Reset Pivot", [this, targetSpriteId]() {
                         auto proj = m_engine.GetCurrentProject();
@@ -133,13 +117,103 @@ void MainApplicationWindow::ProcessEvents() {
                         auto sprite = proj->GetSpriteById(targetSpriteId);
                         if (sprite) {
                             auto rect = sprite->GetSourceRect();
-                            sprite->SetPivot({rect.x + (rect.width / 2.0f), rect.y + (rect.height / 2.0f)});
+                            sprite->SetPivot({rect.width / 2.0f, rect.height / 2.0f});
+                            m_viewport.RefreshTexture(m_engine);
                         }
                     }}
                 };
                 m_workspace.ShowContextMenu({static_cast<float>(event.mouseButton.x), static_cast<float>(event.mouseButton.y)}, items);
+                continue;
             }
-            continue;
+        }
+
+        if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
+            sf::Vector2i pixelPos(event.mouseButton.x, event.mouseButton.y);
+            sf::Vector2f worldPos = m_viewport.MapPixelToWorld(pixelPos, m_window);
+
+            if (m_engine.IsProjectActive() && m_engine.GetCurrentProject()) {
+                auto sprites = m_engine.GetCurrentProject()->GetSprites();
+                m_draggedSprites.clear();
+
+                for (auto it = sprites.rbegin(); it != sprites.rend(); ++it) {
+                    auto sprite = *it;
+                    if (!sprite) continue;
+
+                    auto rect = sprite->GetSourceRect();
+                    sf::FloatRect bounds(rect.x, rect.y, rect.width, rect.height);
+
+                    if (bounds.contains(worldPos)) {
+                        m_isDragging = true;
+                        m_dragStartPos = worldPos;
+                        m_draggedSprites.push_back(sprite);
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (event.type == sf::Event::MouseButtonReleased && event.mouseButton.button == sf::Mouse::Left) {
+            if (m_isDragging) {
+                m_isDragging = false;
+                m_draggedSprites.clear();
+            }
+        }
+
+        if (event.type == sf::Event::MouseMoved && m_isDragging) {
+            sf::Vector2i pixelPos(event.mouseMove.x, event.mouseMove.y);
+            sf::Vector2f currentWorldPos = m_viewport.MapPixelToWorld(pixelPos, m_window);
+            sf::Vector2f delta = currentWorldPos - m_dragStartPos;
+
+            auto proj = m_engine.GetCurrentProject();
+            if (proj && !m_draggedSprites.empty()) {
+                for (size_t i = 0; i < m_draggedSprites.size(); ++i) {
+                    auto oldSprite = m_draggedSprites[i];
+                    if (!oldSprite) continue;
+
+                    std::string id = oldSprite->GetId();
+                    auto rect = oldSprite->GetSourceRect();
+
+                    StudioCore::Rect newRect;
+                    newRect.x = rect.x + delta.x;
+                    newRect.y = rect.y + delta.y;
+                    newRect.width = rect.width;
+                    newRect.height = rect.height;
+
+                    StudioCore::SpriteDefinition updatedSprite(id, newRect);
+                    updatedSprite.SetPivot(oldSprite->GetPivot());
+                    updatedSprite.SetBaseline(oldSprite->GetBaseline());
+
+                    proj->RemoveSprite(id);
+                    proj->AddSprite(updatedSprite);
+
+                    m_draggedSprites[i] = proj->GetSpriteById(id);
+                }
+                m_dragStartPos = currentWorldPos;
+                m_viewport.RefreshTexture(m_engine);
+            }
+        }
+
+        if (event.type == sf::Event::MouseButtonReleased && event.mouseButton.button == sf::Mouse::Left && m_isDragging) {
+            m_isDragging = false;
+            m_viewport.RefreshTexture(m_engine); // Refresh view post-drag
+        }
+        if (event.type == sf::Event::MouseButtonReleased && event.mouseButton.button == sf::Mouse::Left) {
+            if (m_isDragging) {
+                m_isDragging = false;
+                m_draggedSprites.clear();
+            }
+        }
+        if (event.type == sf::Event::KeyPressed) {
+            if (event.key.control && event.key.code == sf::Keyboard::Z) {
+                m_engine.Undo();
+                m_viewport.RefreshTexture(m_engine);
+                std::cout << "[✓] Undo Executed." << std::endl;
+            }
+            else if (event.key.control && event.key.code == sf::Keyboard::Y) {
+                m_engine.Redo();
+                m_viewport.RefreshTexture(m_engine);
+                std::cout << "[✓] Redo Executed." << std::endl;
+            }
         }
 
         if (m_isWizardMode) {

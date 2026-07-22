@@ -26,7 +26,9 @@ public:
         m_selectedSpriteIds.clear(); 
         m_selection.ClearSelection();
     }
-
+    sf::Vector2f MapPixelToWorld(const sf::Vector2i& pixelPos, const sf::RenderWindow& window) const {
+        return window.mapPixelToCoords(pixelPos, m_view); // or m_cameraView / whatever view member name exists inside PreviewViewport
+    }
     void SetUIHidden(bool hidden) { m_isUIHidden = hidden; }
     
     sf::FloatRect GetViewportBounds(const sf::RenderWindow& window) const {
