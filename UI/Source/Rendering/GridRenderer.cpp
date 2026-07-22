@@ -1,34 +1,30 @@
 #include "Rendering/GridRenderer.h"
+#include "Theme.h"
 
 namespace StudioUI {
 
 GridRenderer::GridRenderer() = default;
 
-void GridRenderer::SetCellSize(int width, int height) {
-    if (width > 0 && height > 0) {
-        m_cellWidth = width;
-        m_cellHeight = height;
+void GridRenderer::Render(sf::RenderWindow& window, const sf::FloatRect& bounds) {
+    float gridSize = 16.0f;
+
+    int startX = static_cast<int>(bounds.left / gridSize) - 1;
+    int endX = static_cast<int>((bounds.left + bounds.width) / gridSize) + 1;
+    int startY = static_cast<int>(bounds.top / gridSize) - 1;
+    int endY = static_cast<int>((bounds.top + bounds.height) / gridSize) + 1;
+
+    sf::RectangleShape cell({gridSize, gridSize});
+
+    for (int y = startY; y < endY; ++y) {
+        for (int x = startX; x < endX; ++x) {
+            bool isDark = ((x + y) % 2 == 0);
+            
+            // Subtle dark checkerboard matching the Viewport background
+            cell.setFillColor(isDark ? Theme::ViewportBackground : sf::Color(32, 34, 38));
+            cell.setPosition(x * gridSize, y * gridSize);
+            window.draw(cell);
+        }
     }
 }
 
-void GridRenderer::Render(sf::RenderWindow& window, const sf::FloatRect& imageBounds) {
-    if (imageBounds.width <= 0 || imageBounds.height <= 0) return;
-
-    sf::VertexArray lines(sf::Lines);
-
-    // Vertical lines
-    for (float x = 0; x <= imageBounds.width; x += m_cellWidth) {
-        lines.append(sf::Vertex(sf::Vector2f(x, 0), m_gridColor));
-        lines.append(sf::Vertex(sf::Vector2f(x, imageBounds.height), m_gridColor));
-    }
-
-    // Horizontal lines
-    for (float y = 0; y <= imageBounds.height; y += m_cellHeight) {
-        lines.append(sf::Vertex(sf::Vector2f(0, y), m_gridColor));
-        lines.append(sf::Vertex(sf::Vector2f(imageBounds.width, y), m_gridColor));
-    }
-
-    window.draw(lines);
-}
-
-}
+} // namespace StudioUI

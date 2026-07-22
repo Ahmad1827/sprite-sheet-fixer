@@ -1,4 +1,5 @@
 #include "Rendering/OverlayRenderer.h"
+#include "Theme.h"
 #include <sstream>
 #include <iomanip>
 #include <iostream>
@@ -11,6 +12,8 @@ OverlayRenderer::OverlayRenderer() = default;
 bool OverlayRenderer::InitializeFont(const std::string& customPath) {
     std::vector<std::string> fontPaths = {
         customPath,
+        "Resources/font.ttf",
+        "../Resources/font.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
         "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
         "/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf",
@@ -32,53 +35,108 @@ bool OverlayRenderer::InitializeFont(const std::string& customPath) {
 
 void OverlayRenderer::DrawTextShadowed(sf::RenderWindow& window, const std::string& str, const sf::Vector2f& pos) {
     if (!m_hasFont) return;
-    sf::Text text(str, m_font, 14);
+    sf::Text text(str, m_font, 12);
     
     text.setPosition(pos.x + 1, pos.y + 1);
-    text.setFillColor(sf::Color::Black);
+    text.setFillColor(sf::Color(0, 0, 0, 180));
     window.draw(text);
 
     text.setPosition(pos);
-    text.setFillColor(sf::Color::White);
+    text.setFillColor(Theme::TextPrimary);
     window.draw(text);
 }
 
 void OverlayRenderer::RenderDebug(sf::RenderWindow& window, const DebugInfo& info) {
+    if (!m_hasFont) return;
+
+    float panelWidth = 240.0f;
+    float panelHeight = 160.0f;
+    float posX = 12.0f;
+    float posY = Theme::ToolbarHeight + 12.0f;
+
+    sf::RectangleShape bg({panelWidth, panelHeight});
+    bg.setPosition(posX, posY);
+    bg.setFillColor(Theme::InspectorBackground);
+    bg.setOutlineThickness(Theme::BorderThickness);
+    bg.setOutlineColor(Theme::BorderColor);
+    window.draw(bg);
+
+    sf::RectangleShape header({panelWidth, Theme::HeaderHeight});
+    header.setPosition(posX, posY);
+    header.setFillColor(Theme::PanelBackground);
+    window.draw(header);
+
+    sf::Text headerTitle;
+    headerTitle.setFont(m_font);
+    headerTitle.setString("DEBUG METRICS (F3)");
+    headerTitle.setCharacterSize(11);
+    headerTitle.setFillColor(Theme::TextSecondary);
+    headerTitle.setPosition(posX + 8.0f, posY + 6.0f);
+    window.draw(headerTitle);
+
     std::ostringstream oss;
-    oss << "--- DEBUG (F3) ---\n"
-        << "FPS: " << static_cast<int>(info.fps) << " (" << std::fixed << std::setprecision(2) << info.frameTimeMs << " ms)\n"
-        << "Zoom Level: " << std::fixed << std::setprecision(2) << info.zoomLevel << "x\n"
-        << "Pan Offset: [" << static_cast<int>(info.panOffset.x) << ", " << static_cast<int>(info.panOffset.y) << "]\n"
-        << "Viewport Size: " << static_cast<int>(info.viewportSize.x) << "x" << static_cast<int>(info.viewportSize.y) << "\n"
-        << "Image Size: " << info.imageWidth << "x" << info.imageHeight << "\n"
-        << "Project Status: " << (info.projectLoaded ? "Active" : "None") << "\n"
-        << "Texture Status: " << (info.textureLoaded ? "Loaded" : "Empty") << "\n";
+    oss << "FPS: " << static_cast<int>(info.fps) << " (" << std::fixed << std::setprecision(1) << info.frameTimeMs << " ms)\n"
+        << "Zoom: " << std::fixed << std::setprecision(2) << info.zoomLevel << "x\n"
+        << "Pan: [" << static_cast<int>(info.panOffset.x) << ", " << static_cast<int>(info.panOffset.y) << "]\n"
+        << "Canvas: " << info.imageWidth << "x" << info.imageHeight << "\n"
+        << "Project: " << (info.projectLoaded ? "Active" : "None") << "\n"
+        << "Texture: " << (info.textureLoaded ? "Loaded" : "Empty");
 
-    if (info.selectionWidth > 0 && info.selectionHeight > 0) {
-        oss << "Selection Size: " << static_cast<int>(info.selectionWidth) << "x" << static_cast<int>(info.selectionHeight) << " px\n";
-    }
-
-    DrawTextShadowed(window, oss.str(), sf::Vector2f(10.f, 10.f));
+    sf::Text debugText;
+    debugText.setFont(m_font);
+    debugText.setString(oss.str());
+    debugText.setCharacterSize(11);
+    debugText.setFillColor(Theme::TextPrimary);
+    debugText.setPosition(posX + 8.0f, posY + Theme::HeaderHeight + 6.0f);
+    window.draw(debugText);
 }
 
 void OverlayRenderer::RenderInspector(sf::RenderWindow& window, const InspectorInfo& info) {
+    if (!m_hasFont) return;
+
+    float panelWidth = 220.0f;
+    float panelHeight = 110.0f;
+    float posX = 12.0f;
+    float posY = window.getSize().y - Theme::StatusBarHeight - panelHeight - 12.0f;
+
+    sf::RectangleShape bg({panelWidth, panelHeight});
+    bg.setPosition(posX, posY);
+    bg.setFillColor(Theme::InspectorBackground);
+    bg.setOutlineThickness(Theme::BorderThickness);
+    bg.setOutlineColor(Theme::BorderColor);
+    window.draw(bg);
+
+    sf::RectangleShape header({panelWidth, Theme::HeaderHeight});
+    header.setPosition(posX, posY);
+    header.setFillColor(Theme::PanelBackground);
+    window.draw(header);
+
+    sf::Text headerTitle;
+    headerTitle.setFont(m_font);
+    headerTitle.setString("CANVAS INSPECTOR");
+    headerTitle.setCharacterSize(11);
+    headerTitle.setFillColor(Theme::TextSecondary);
+    headerTitle.setPosition(posX + 8.0f, posY + 6.0f);
+    window.draw(headerTitle);
+
     std::ostringstream oss;
-    oss << "--- MOUSE INSPECTOR ---\n"
-        << "Screen Pos: [" << info.mouseWindow.x << ", " << info.mouseWindow.y << "]\n"
-        << "Image Dimensions: " << info.imageWidth << "x" << info.imageHeight << "\n"
-        << "Current Zoom: " << std::fixed << std::setprecision(2) << info.currentZoom << "x\n"
-        << "Current Pan: [" << static_cast<int>(info.panOffset.x) << ", " << static_cast<int>(info.panOffset.y) << "]\n";
-    
     if (info.isHoveringImage) {
-        oss << "Image Pos: [" << info.mouseImage.x << ", " << info.mouseImage.y << "]\n"
+        oss << "Coords: [" << info.mouseImage.x << ", " << info.mouseImage.y << "]\n"
             << "RGBA: (" << (int)info.pixelColor.r << ", " << (int)info.pixelColor.g << ", " 
-                         << (int)info.pixelColor.b << ", " << (int)info.pixelColor.a << ")\n";
+                        << (int)info.pixelColor.b << ", " << (int)info.pixelColor.a << ")\n"
+            << "Zoom: " << std::fixed << std::setprecision(2) << info.currentZoom << "x";
     } else {
-        oss << "Image Pos: [OUT OF BOUNDS]\nRGBA: N/A\n";
+        oss << "Coords: [Out of bounds]\nRGBA: N/A\nZoom: " 
+            << std::fixed << std::setprecision(2) << info.currentZoom << "x";
     }
 
-    sf::Vector2f pos(10.f, window.getSize().y - 140.f);
-    DrawTextShadowed(window, oss.str(), pos);
+    sf::Text contentText;
+    contentText.setFont(m_font);
+    contentText.setString(oss.str());
+    contentText.setCharacterSize(11);
+    contentText.setFillColor(Theme::TextPrimary);
+    contentText.setPosition(posX + 8.0f, posY + Theme::HeaderHeight + 6.0f);
+    window.draw(contentText);
 }
 
 void OverlayRenderer::RenderProgress(sf::RenderWindow& window, const JobProgressInfo& info) {
@@ -86,33 +144,84 @@ void OverlayRenderer::RenderProgress(sf::RenderWindow& window, const JobProgress
     
     sf::Vector2f center(window.getSize().x / 2.0f, window.getSize().y / 2.0f);
     
-    sf::RectangleShape bg(sf::Vector2f(300, 20));
-    bg.setOrigin(150, 10);
-    bg.setPosition(center);
-    bg.setFillColor(sf::Color(50, 50, 50, 200));
-    window.draw(bg);
-    
-    sf::RectangleShape fg(sf::Vector2f(300 * info.progress, 20));
-    fg.setOrigin(150, 10);
-    fg.setPosition(center);
-    fg.setFillColor(sf::Color(0, 255, 0, 200));
-    window.draw(fg);
+    float boxWidth = 340.0f;
+    float boxHeight = 80.0f;
+
+    sf::RectangleShape panel({boxWidth, boxHeight});
+    panel.setOrigin(boxWidth / 2.0f, boxHeight / 2.0f);
+    panel.setPosition(center);
+    panel.setFillColor(Theme::InspectorBackground);
+    panel.setOutlineThickness(Theme::BorderThickness);
+    panel.setOutlineColor(Theme::BorderColor);
+    window.draw(panel);
 
     std::ostringstream oss;
-    oss << "Detecting Sprites... " << static_cast<int>(info.progress * 100) << "% (Press ESC to Cancel)";
-    DrawTextShadowed(window, oss.str(), sf::Vector2f(center.x - 140, center.y - 30));
+    oss << "Detecting Sprites... " << static_cast<int>(info.progress * 100) << "%";
+    
+    sf::Text titleText(oss.str(), m_font, 12);
+    titleText.setFillColor(Theme::TextPrimary);
+    sf::FloatRect tBounds = titleText.getLocalBounds();
+    titleText.setPosition(center.x - (tBounds.width / 2.0f), center.y - 24.0f);
+    window.draw(titleText);
+
+    // Progress bar container
+    float barWidth = 300.0f;
+    float barHeight = 8.0f;
+
+    sf::RectangleShape bgBar({barWidth, barHeight});
+    bgBar.setOrigin(barWidth / 2.0f, barHeight / 2.0f);
+    bgBar.setPosition(center.x, center.y + 10.0f);
+    bgBar.setFillColor(Theme::PanelBackground);
+    window.draw(bgBar);
+    
+    sf::RectangleShape fgBar({barWidth * info.progress, barHeight});
+    fgBar.setPosition(center.x - (barWidth / 2.0f), center.y + 10.0f - (barHeight / 2.0f));
+    fgBar.setFillColor(Theme::AccentColor);
+    window.draw(fgBar);
 }
 
 void OverlayRenderer::RenderSpriteInspector(sf::RenderWindow& window, const SpriteInspectorInfo& info) {
     if (!info.isActive || !m_hasFont) return;
     
+    float panelWidth = 230.0f;
+    float panelHeight = 120.0f;
+    float posX = window.getSize().x - panelWidth - 12.0f;
+    float posY = Theme::ToolbarHeight + 12.0f;
+
+    sf::RectangleShape bg({panelWidth, panelHeight});
+    bg.setPosition(posX, posY);
+    bg.setFillColor(Theme::InspectorBackground);
+    bg.setOutlineThickness(Theme::BorderThickness);
+    bg.setOutlineColor(Theme::BorderColor);
+    window.draw(bg);
+
+    sf::RectangleShape header({panelWidth, Theme::HeaderHeight});
+    header.setPosition(posX, posY);
+    header.setFillColor(Theme::PanelBackground);
+    window.draw(header);
+
+    sf::Text headerTitle;
+    headerTitle.setFont(m_font);
+    headerTitle.setString("SELECTED SPRITE");
+    headerTitle.setCharacterSize(11);
+    headerTitle.setFillColor(Theme::TextSecondary);
+    headerTitle.setPosition(posX + 8.0f, posY + 6.0f);
+    window.draw(headerTitle);
+
     std::ostringstream oss;
-    oss << "--- SPRITE PROPERTIES ---\n"
-        << "ID: " << info.id << "\n"
-        << "Rect: " << info.x << ", " << info.y << "  [" << info.w << "x" << info.h << "]\n"
+    oss << "ID: " << info.id << "\n"
+        << "Rect: " << static_cast<int>(info.x) << ", " << static_cast<int>(info.y) 
+        << " [" << static_cast<int>(info.w) << "x" << static_cast<int>(info.h) << "]\n"
         << "Pixels: " << info.pixelCount << "\n"
-        << "Center: " << std::fixed << std::setprecision(1) << info.cx << ", " << info.cy << "\n";
-    
-    DrawTextShadowed(window, oss.str(), sf::Vector2f(window.getSize().x - 250.f, 10.f));
+        << "Center: " << std::fixed << std::setprecision(1) << info.cx << ", " << info.cy;
+
+    sf::Text contentText;
+    contentText.setFont(m_font);
+    contentText.setString(oss.str());
+    contentText.setCharacterSize(11);
+    contentText.setFillColor(Theme::TextPrimary);
+    contentText.setPosition(posX + 8.0f, posY + Theme::HeaderHeight + 6.0f);
+    window.draw(contentText);
 }
-}
+
+} // namespace StudioUI

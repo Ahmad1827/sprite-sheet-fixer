@@ -1,122 +1,193 @@
 #include "Panels/Toolbar.h"
+#include "Theme.h"
 #include "StudioEngineFacade.h"
-#include "Utils/NativeFileDialog.h"
 #include <iostream>
+#include <cmath>
 
 namespace StudioUI {
 
-Toolbar::Toolbar() {
-    m_background.setSize({1280.f, 40.f});
-    m_background.setFillColor(sf::Color(45, 45, 48));
-}
-
-void Toolbar::Initialize(const std::string& fontPath, 
-                         std::function<void()> onOpenImage, 
+void Toolbar::Initialize(const std::string& fontPath,
+                         std::function<void()> onOpenImage,
                          std::function<void()> onLoadProject,
                          std::function<void()> onToggleUI,
                          std::function<void()> onOpenWizard) {
-    if (!m_font.loadFromFile(fontPath)) {
-        if (!m_font.loadFromFile("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")) return;
+    
+    // Robust font loading with fallback candidates
+    std::vector<std::string> fontCandidates = {
+        fontPath,
+        "Resources/font.ttf",
+        "../Resources/font.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
+    };
+
+    bool fontLoaded = false;
+    for (const auto& path : fontCandidates) {
+        if (m_font.loadFromFile(path)) {
+            fontLoaded = true;
+            break;
+        }
     }
+
+    if (!fontLoaded) {
+        std::cerr << "[Toolbar] Warning: Failed to load any font candidate." << std::endl;
+    }
+
     m_buttons.clear();
-    float currentX = 10.f;
 
-    AddButton(currentX, "Open Img", [onOpenImage](StudioCore::StudioEngineFacade& e) {
-        if (e.HasTexture()) {
-            std::cout << "[!] Image already open." << std::endl;
-            return;
-        }
-        onOpenImage();
-    });
-    currentX += 90.f;
+    // Group 1: File Actions
+    m_buttons.push_back({"open_img", "Import Image", {}, onOpenImage});
+    m_buttons.push_back({"load_proj", "Open Project", {}, onLoadProject});
 
-    AddButton(currentX, "Load Proj", [onLoadProject](StudioCore::StudioEngineFacade& e) {
-        if (e.HasTexture() || e.IsProjectActive()) {
-            std::cout << "[!] Project already active." << std::endl;
-            return;
-        }
-        onLoadProject();
-    });
-    currentX += 90.f;
+    // Group 2: Actions & Auto Detection
+    m_buttons.push_back({"wizard", "Anim Wizard", {}, onOpenWizard});
 
-    AddButton(currentX, "Save Proj", [](StudioCore::StudioEngineFacade& e) {
-        if (!e.IsProjectActive()) return;
-        std::string path = NativeFileDialog::SaveFileDialog("project.sps");
-        if (!path.empty()) {
-            if (path.find(".sps") == std::string::npos) path += ".sps";
-            if (e.SaveProject(path)) std::cout << "[✓] Saved." << std::endl;
-        }
-    });
-    currentX += 90.f;
+    // Group 3: View Options
+    m_buttons.push_back({"toggle_ui", "Hide UI", {}, onToggleUI, true, false});
 
-    AddButton(currentX, "Detect", [](StudioCore::StudioEngineFacade& e) {
-        if (e.HasTexture()) { StudioCore::DetectionConfig c; e.RunAutoDetection(c); }
-    });
-    currentX += 90.f;
-
-    AddButton(currentX, "Anim Wizard", [onOpenWizard](StudioCore::StudioEngineFacade&) {
-        onOpenWizard();
-    });
-    currentX += 95.f;
-
-    AddButton(currentX, "Export", [](StudioCore::StudioEngineFacade& e) {
-        if (!e.IsProjectActive()) return;
-        std::string path = NativeFileDialog::SaveFileDialog("aligned_spritesheet.png");
-        if (!path.empty()) { e.ExportPNG(path, 8); }
-    });
-    currentX += 90.f;
-
-    AddButton(currentX, "Undo", [](StudioCore::StudioEngineFacade& e) { e.Undo(); });
-    currentX += 90.f;
-
-    AddButton(currentX, "Redo", [](StudioCore::StudioEngineFacade& e) { e.Redo(); });
-    currentX += 90.f;
-
-    AddButton(currentX, "Toggle UI", [onToggleUI](StudioCore::StudioEngineFacade&) { onToggleUI(); });
-    currentX += 90.f;
+    LayoutButtons(1280.0f);
 }
 
-void Toolbar::AddButton(float x, const std::string& label, std::function<void(StudioCore::StudioEngineFacade&)> action) {
-    Button b;
-    b.rect.setPosition(x, 5.f);
-    b.rect.setSize({85.f, 30.f});
-    b.rect.setFillColor(sf::Color(60, 60, 65));
-    b.rect.setOutlineColor(sf::Color(90, 90, 95));
-    b.rect.setOutlineThickness(1.f);
+void Toolbar::LayoutButtons(float windowWidth) {
+    m_background.setSize({windowWidth, Theme::ToolbarHeight});
+    m_background.setFillColor(Theme::PanelBackground);
+    m_background.setPosition(0.0f, 0.0f);
 
-    b.text.setFont(m_font);
-    b.text.setString(label);
-    b.text.setCharacterSize(11);
-    b.text.setFillColor(sf::Color::White);
+    m_bottomBorder.setSize({windowWidth, Theme::BorderThickness});
+    m_bottomBorder.setFillColor(Theme::BorderColor);
+    m_bottomBorder.setPosition(0.0f, Theme::ToolbarHeight - Theme::BorderThickness);
 
-    sf::FloatRect textBounds = b.text.getLocalBounds();
-    b.text.setPosition(x + (85.f - textBounds.width) / 2.f - textBounds.left, 5.f + (30.f - textBounds.height) / 2.f - textBounds.top);
+    float startX = 10.0f;
+    float buttonHeight = Theme::ToolbarHeight - 8.0f;
+    float buttonPaddingX = 14.0f;
+    float spacing = 6.0f;
 
-    b.action = action;
-    m_buttons.push_back(b);
+    m_dividers.clear();
+
+    for (size_t i = 0; i < m_buttons.size(); ++i) {
+        sf::Text tempText;
+        tempText.setFont(m_font);
+        tempText.setString(m_buttons[i].label);
+        tempText.setCharacterSize(13);
+
+        float textWidth = tempText.getLocalBounds().width;
+        float buttonWidth = textWidth + (buttonPaddingX * 2.0f);
+
+        m_buttons[i].bounds = sf::FloatRect(startX, 4.0f, buttonWidth, buttonHeight);
+        startX += buttonWidth + spacing;
+
+        if (m_buttons[i].id == "load_proj" || m_buttons[i].id == "wizard") {
+            sf::RectangleShape divider({Theme::BorderThickness, buttonHeight - 4.0f});
+            divider.setPosition(startX - (spacing / 2.0f), 6.0f);
+            divider.setFillColor(Theme::BorderColor);
+            m_dividers.push_back(divider);
+        }
+    }
+}
+
+void Toolbar::Update(float deltaTime, sf::Vector2f mousePos) {
+    for (size_t i = 0; i < m_buttons.size(); ++i) {
+        bool isHovered = m_buttons[i].bounds.contains(mousePos);
+        float targetAlpha = isHovered ? 1.0f : 0.0f;
+
+        float speed = 10.0f;
+        if (m_buttons[i].hoverAlpha < targetAlpha) {
+            m_buttons[i].hoverAlpha = std::min(targetAlpha, m_buttons[i].hoverAlpha + deltaTime * speed);
+        } else if (m_buttons[i].hoverAlpha > targetAlpha) {
+            m_buttons[i].hoverAlpha = std::max(targetAlpha, m_buttons[i].hoverAlpha - deltaTime * speed);
+        }
+    }
 }
 
 bool Toolbar::HandleEvent(const sf::Event& event, const sf::RenderWindow& window, StudioCore::StudioEngineFacade& engine) {
-    if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
-        sf::Vector2f pos(event.mouseButton.x, event.mouseButton.y);
-        if (m_background.getGlobalBounds().contains(pos)) {
-            for (auto& b : m_buttons) {
-                if (b.rect.getGlobalBounds().contains(pos)) {
-                    b.action(engine);
-                }
+    sf::Vector2i mousePixel = sf::Mouse::getPosition(window);
+    sf::Vector2f mousePos(mousePixel.x, mousePixel.y);
+
+    if (mousePos.y > Theme::ToolbarHeight) {
+        m_hoveredIndex = -1;
+        return false;
+    }
+
+    if (event.type == sf::Event::MouseMoved) {
+        m_hoveredIndex = -1;
+        for (size_t i = 0; i < m_buttons.size(); ++i) {
+            if (m_buttons[i].bounds.contains(mousePos)) {
+                m_hoveredIndex = static_cast<int>(i);
+                break;
             }
-            return true;
         }
     }
+
+    if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
+        for (size_t i = 0; i < m_buttons.size(); ++i) {
+            if (m_buttons[i].bounds.contains(mousePos)) {
+                if (m_buttons[i].isToggle) {
+                    m_buttons[i].isToggled = !m_buttons[i].isToggled;
+                }
+                if (m_buttons[i].onClick) {
+                    m_buttons[i].onClick();
+                }
+                return true;
+            }
+        }
+    }
+
     return false;
 }
 
 void Toolbar::Render(sf::RenderWindow& window) {
+    sf::Vector2u winSize = window.getSize();
+    LayoutButtons(static_cast<float>(winSize.x));
+
+    sf::Vector2i mousePixel = sf::Mouse::getPosition(window);
+    sf::Vector2f mousePos(mousePixel.x, mousePixel.y);
+    Update(0.016f, mousePos);
+
     window.draw(m_background);
-    for (const auto& b : m_buttons) {
-        window.draw(b.rect);
-        window.draw(b.text);
+    window.draw(m_bottomBorder);
+
+    for (const auto& divider : m_dividers) {
+        window.draw(divider);
+    }
+
+    for (size_t i = 0; i < m_buttons.size(); ++i) {
+        const auto& btn = m_buttons[i];
+
+        sf::RectangleShape bg({btn.bounds.width, btn.bounds.height});
+        bg.setPosition(btn.bounds.left, btn.bounds.top);
+
+        if (btn.isToggled) {
+            bg.setFillColor(Theme::AccentColor);
+        } else {
+            sf::Color base = Theme::PanelBackground;
+            sf::Color hover = Theme::HoverColor;
+            float t = btn.hoverAlpha;
+
+            sf::Color blended(
+                static_cast<sf::Uint8>(base.r + (hover.r - base.r) * t),
+                static_cast<sf::Uint8>(base.g + (hover.g - base.g) * t),
+                static_cast<sf::Uint8>(base.b + (hover.b - base.b) * t)
+            );
+            bg.setFillColor(blended);
+        }
+
+        bg.setOutlineThickness(Theme::BorderThickness);
+        bg.setOutlineColor(btn.isToggled ? Theme::AccentHoverColor : Theme::BorderColor);
+        window.draw(bg);
+
+        sf::Text labelText;
+        labelText.setFont(m_font);
+        labelText.setString(btn.label);
+        labelText.setCharacterSize(13);
+        labelText.setFillColor(btn.isToggled ? sf::Color::White : Theme::TextPrimary);
+
+        sf::FloatRect textBounds = labelText.getLocalBounds();
+        float textX = std::floor(btn.bounds.left + (btn.bounds.width - textBounds.width) / 2.0f - textBounds.left);
+        float textY = std::floor(btn.bounds.top + (btn.bounds.height - textBounds.height) / 2.0f - textBounds.top - 1.0f);
+        labelText.setPosition(textX, textY);
+
+        window.draw(labelText);
     }
 }
 
-}
+} // namespace StudioUI

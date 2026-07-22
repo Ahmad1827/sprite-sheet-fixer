@@ -6,6 +6,8 @@
 #include <cmath>
 #include <algorithm>
 #include <iostream>
+#include "Theme.h"
+
 
 PreviewViewport::PreviewViewport() {
     m_view.setSize(800.f, 600.f);
@@ -350,16 +352,25 @@ void PreviewViewport::Update(float deltaTime) {
 }
 
 void PreviewViewport::Render(sf::RenderWindow& window, const StudioCore::StudioEngineFacade& engine) {
+    // 1. Draw viewport background void
     window.setView(m_view);
 
     if (m_hasValidTexture) {
+        if (m_showGrid) {
+            m_grid.Render(window, m_sprite.getLocalBounds());
+        }
+
         window.draw(m_sprite);
 
-        m_axes.Render(window, m_sprite.getLocalBounds(), m_currentZoom);
-    }
+        // Canvas border outline
+        sf::FloatRect bounds = m_sprite.getLocalBounds();
+        sf::RectangleShape canvasBorder(sf::Vector2f(bounds.width, bounds.height));
+        canvasBorder.setFillColor(sf::Color::Transparent);
+        canvasBorder.setOutlineThickness(1.0f / m_currentZoom);
+        canvasBorder.setOutlineColor(StudioUI::Theme::BorderColor);
+        window.draw(canvasBorder);
 
-    if (m_showGrid && m_hasValidTexture) {
-        m_grid.Render(window, m_sprite.getLocalBounds());
+        m_axes.Render(window, m_sprite.getLocalBounds(), m_currentZoom);
     }
 
     if (engine.IsProjectActive()) {
@@ -381,6 +392,7 @@ void PreviewViewport::Render(sf::RenderWindow& window, const StudioCore::StudioE
 
     m_selection.Render(window, m_currentZoom);
 
+    // 2. Reset view for UI overlays
     window.setView(window.getDefaultView());
 
     StudioUI::JobProgressInfo jobInfo;
@@ -445,5 +457,4 @@ void PreviewViewport::Render(sf::RenderWindow& window, const StudioCore::StudioE
             m_overlay.RenderSpriteInspector(window, spriteInfo);
         }
     }
-    window.setView(window.getDefaultView());
 }
