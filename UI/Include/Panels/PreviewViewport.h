@@ -50,8 +50,10 @@ public:
     void ZoomToSelection();
     void CenterOnPoint(const sf::Vector2f& worldPos);
     void TriggerNumericEdit(StudioCore::StudioEngineFacade& engine);
+    void SetBounds(const sf::FloatRect& bounds) { m_bounds = bounds; }
 
 private:
+    sf::FloatRect m_bounds{0.0f, 0.0f, 1280.0f, 720.0f};
     void RenderSprite(sf::RenderTarget& target, const StudioCore::SpriteDefinition& sprite, const StudioCore::SourceTexture& sourceTex);
     sf::Vector2i GetMouseImageCoords(const sf::RenderWindow& window) const;
     sf::Color GetPixelColor(const StudioCore::StudioEngineFacade& engine, int x, int y) const;

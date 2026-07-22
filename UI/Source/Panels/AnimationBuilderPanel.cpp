@@ -54,11 +54,14 @@ void AnimationBuilderPanel::HandleEvent(const sf::Event& event, const sf::Render
 void AnimationBuilderPanel::Render(sf::RenderWindow& window) {
     if (!m_isActive) return;
 
-    sf::Vector2u size = window.getSize();
-    m_background.setSize({static_cast<float>(size.x), static_cast<float>(size.y)});
+    m_background.setPosition(m_bounds.left, m_bounds.top);
+    m_background.setSize(sf::Vector2f(m_bounds.width, m_bounds.height));
     
-    m_modalBackground.setSize({800.f, 600.f});
-    m_modalBackground.setPosition(size.x / 2.f - 400.f, size.y / 2.f - 300.f);
+    m_modalBackground.setSize(sf::Vector2f(800.0f, 600.0f));
+    m_modalBackground.setPosition(
+        m_bounds.left + (m_bounds.width - 800.0f) / 2.0f, 
+        m_bounds.top + (m_bounds.height - 600.0f) / 2.0f
+    );
 
     window.draw(m_background);
     window.draw(m_modalBackground);

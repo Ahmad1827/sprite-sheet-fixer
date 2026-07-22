@@ -18,6 +18,7 @@ public:
     bool InitializeFont(const std::string& customPath);
     void HandleEvent(const sf::Event& event, const sf::RenderWindow& window, StudioCore::StudioEngineFacade& engine, PreviewViewport& viewport);
     void Render(sf::RenderWindow& window, const StudioCore::StudioEngineFacade& engine);
+    void SetBounds(const sf::FloatRect& bounds) { m_bounds = bounds; }
 
 private:
     sf::Font m_font;
@@ -42,6 +43,7 @@ private:
     void RenderList(sf::RenderWindow& window, const StudioCore::StudioEngineFacade& engine);
     void RenderTimeline(sf::RenderWindow& window, const StudioCore::StudioEngineFacade& engine);
     void RenderPreview(sf::RenderWindow& window, const StudioCore::StudioEngineFacade& engine);
+    sf::FloatRect m_bounds{0.0f, 0.0f, 1280.0f, 720.0f};
 };
 
 }

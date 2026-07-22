@@ -70,17 +70,16 @@ void WorkspaceEnvironment::HideContextMenu() {
 }
 
 void WorkspaceEnvironment::Render(sf::RenderWindow& window) {
-    // 1. Render Status Bar at the bottom
-    sf::Vector2u winSize = window.getSize();
-    float yPos = winSize.y - Theme::StatusBarHeight;
+    // 1. Render Status Bar at the bottom using bounds math
+    float yPos = m_bounds.top + m_bounds.height - Theme::StatusBarHeight;
 
-    m_statusBarBg.setPosition(0.0f, yPos);
-    m_statusBarBg.setSize({static_cast<float>(winSize.x), Theme::StatusBarHeight});
+    m_statusBarBg.setPosition(m_bounds.left, yPos);
+    m_statusBarBg.setSize(sf::Vector2f(m_bounds.width, Theme::StatusBarHeight));
 
-    m_statusBarTopBorder.setPosition(0.0f, yPos);
-    m_statusBarTopBorder.setSize({static_cast<float>(winSize.x), Theme::BorderThickness});
+    m_statusBarTopBorder.setPosition(m_bounds.left, yPos);
+    m_statusBarTopBorder.setSize(sf::Vector2f(m_bounds.width, Theme::BorderThickness));
 
-    m_statusText.setPosition(8.0f, yPos + 4.0f);
+    m_statusText.setPosition(m_bounds.left + 8.0f, yPos + 4.0f);
 
     window.draw(m_statusBarBg);
     window.draw(m_statusBarTopBorder);
@@ -92,7 +91,7 @@ void WorkspaceEnvironment::Render(sf::RenderWindow& window) {
         float menuWidth = 140.0f;
         float totalHeight = m_menuItems.size() * itemHeight;
 
-        sf::RectangleShape menuBg({menuWidth, totalHeight});
+        sf::RectangleShape menuBg(sf::Vector2f(menuWidth, totalHeight));
         menuBg.setPosition(m_menuPosition);
         menuBg.setFillColor(Theme::InspectorBackground);
         menuBg.setOutlineThickness(Theme::BorderThickness);
@@ -103,7 +102,7 @@ void WorkspaceEnvironment::Render(sf::RenderWindow& window) {
             float itemY = m_menuPosition.y + (i * itemHeight);
 
             if (static_cast<int>(i) == m_hoveredMenuItem) {
-                sf::RectangleShape hoverRect({menuWidth, itemHeight});
+                sf::RectangleShape hoverRect(sf::Vector2f(menuWidth, itemHeight));
                 hoverRect.setPosition(m_menuPosition.x, itemY);
                 hoverRect.setFillColor(Theme::HoverColor);
                 window.draw(hoverRect);
@@ -119,5 +118,4 @@ void WorkspaceEnvironment::Render(sf::RenderWindow& window) {
         }
     }
 }
-
 } // namespace StudioUI

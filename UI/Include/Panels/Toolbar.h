@@ -23,7 +23,7 @@ struct ToolbarButton {
 class Toolbar {
 public:
     Toolbar() = default;
-
+    void SetBounds(const sf::FloatRect& bounds) { m_bounds = bounds; }
     void Initialize(const std::string& fontPath,
                 std::function<void()> onOpenImage,
                 std::function<void()> onLoadProject,
@@ -43,7 +43,7 @@ private:
     std::vector<ToolbarButton> m_buttons;
     std::vector<sf::RectangleShape> m_dividers;
     int m_hoveredIndex{-1};
-
+    sf::FloatRect m_bounds{0.0f, 0.0f, 1280.0f, 720.0f};
     void LayoutButtons(float windowWidth);
 };
 

@@ -30,7 +30,7 @@ void Toolbar::Initialize(const std::string& fontPath,
 }
 
 void Toolbar::LayoutButtons(float windowWidth) {
-    m_background.setSize({windowWidth, Theme::ToolbarHeight});
+    m_background.setSize(sf::Vector2f(m_bounds.width, Theme::ToolbarHeight));
     m_background.setFillColor(Theme::PanelBackground);
 
     m_bottomBorder.setSize({windowWidth, Theme::BorderThickness});
@@ -111,7 +111,7 @@ bool Toolbar::HandleEvent(const sf::Event& event, const sf::RenderWindow& window
 
 void Toolbar::Render(sf::RenderWindow& window) {
     sf::Vector2u winSize = window.getSize();
-    LayoutButtons(static_cast<float>(winSize.x));
+    LayoutButtons(static_cast<float>(m_bounds.width)); // Ensure buttons are laid out correctly based on current width
 
     sf::Vector2i mousePixel = sf::Mouse::getPosition(window);
     sf::Vector2f mousePos(mousePixel.x, mousePixel.y);

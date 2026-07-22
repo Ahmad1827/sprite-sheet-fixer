@@ -186,10 +186,8 @@ void AnimationPanel::HandleEvent(const sf::Event& event, const sf::RenderWindow&
 void AnimationPanel::Render(sf::RenderWindow& window, const StudioCore::StudioEngineFacade& engine) {
     sf::Vector2u winSize = window.getSize();
     float panelHeight = 160.0f;
-    float posY = winSize.y - StudioUI::Theme::StatusBarHeight - panelHeight;
-
-    // 1. Base Panel Background
-    sf::RectangleShape bg(sf::Vector2f(static_cast<float>(winSize.x), panelHeight));
+    float posY = m_bounds.top + m_bounds.height - StudioUI::Theme::StatusBarHeight - panelHeight;
+    sf::RectangleShape bg(sf::Vector2f(m_bounds.width, panelHeight));
     bg.setPosition(0.0f, posY);
     bg.setFillColor(StudioUI::Theme::PanelBackground);
     bg.setOutlineThickness(StudioUI::Theme::BorderThickness);

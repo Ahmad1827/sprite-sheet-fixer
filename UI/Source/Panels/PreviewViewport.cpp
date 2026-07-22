@@ -56,17 +56,17 @@ void PreviewViewport::CenterImage() {
 }
 
 void PreviewViewport::FitToImage(const sf::RenderWindow& window) {
-    if (!m_hasValidTexture || window.getSize().x == 0) return;
+    if (!m_hasValidTexture || m_bounds.width == 0) return;
     sf::FloatRect bounds = m_sprite.getLocalBounds();
     m_view.setCenter(bounds.width / 2.0f, bounds.height / 2.0f);
     
-    float padX = static_cast<float>(window.getSize().x) * 0.9f;
-    float padY = static_cast<float>(window.getSize().y) * 0.9f;
+    float padX = m_bounds.width * 0.9f;
+    float padY = m_bounds.height * 0.9f;
     float ratioX = bounds.width / padX;
     float ratioY = bounds.height / padY;
     
     m_currentZoom = std::max(ratioX, ratioY);
-    m_view.setSize(static_cast<float>(window.getSize().x), static_cast<float>(window.getSize().y));
+    m_view.setSize(m_bounds.width, m_bounds.height);
     m_view.zoom(m_currentZoom);
 }
 
@@ -325,8 +325,8 @@ void PreviewViewport::HandleEvent(const sf::Event& event, const sf::RenderWindow
                 static_cast<float>(m_lastMousePos.x - currentMousePos.x),
                 static_cast<float>(m_lastMousePos.y - currentMousePos.y)
             );
-            delta.x *= (m_view.getSize().x / window.getSize().x);
-            delta.y *= (m_view.getSize().y / window.getSize().y);
+            delta.x *= (m_view.getSize().x / m_bounds.width);
+            delta.y *= (m_view.getSize().y / m_bounds.height);
             m_view.move(delta);
             m_lastMousePos = currentMousePos;
         }
