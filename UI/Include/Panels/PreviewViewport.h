@@ -27,9 +27,14 @@ public:
         m_selection.ClearSelection();
     }
 
+    void SetUIHidden(bool hidden) { m_isUIHidden = hidden; }
+    
     sf::FloatRect GetViewportBounds(const sf::RenderWindow& window) const {
         sf::Vector2u size = window.getSize();
-        return sf::FloatRect(0.f, 0.f, static_cast<float>(size.x) - 300.f, static_cast<float>(size.y) - 200.f);
+        float startY = 40.f; // Start below the Toolbar to prevent click-through!
+        float rightPad = m_isUIHidden ? 0.f : 300.f;
+        float bottomPad = m_isUIHidden ? 0.f : 200.f;
+        return sf::FloatRect(0.f, startY, static_cast<float>(size.x) - rightPad, static_cast<float>(size.y) - bottomPad - startY);
     }
     
     void RefreshTexture(const StudioCore::StudioEngineFacade& engine);
@@ -52,7 +57,7 @@ private:
     
     bool m_hasValidTexture{false};
     float m_currentZoom{1.0f};
-    
+    bool m_isUIHidden{false};
     bool m_isPanning{false};
     bool m_isDraggingPivot{false};
     bool m_isDraggingBaseline{false};

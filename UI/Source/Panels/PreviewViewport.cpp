@@ -281,13 +281,24 @@ void PreviewViewport::HandleEvent(const sf::Event& event, const sf::RenderWindow
                 }
             }
 
-            if (m_isDraggingPivot && !m_selectedSpriteIds.empty()) {
+           if (m_isDraggingPivot && !m_selectedSpriteIds.empty()) {
                 auto primary = project->GetSpriteById(m_selectedSpriteIds[0]);
                 if (primary) {
                     const auto& rect = primary->GetSourceRect();
                     float nx = std::clamp((worldPos.x - rect.x) / rect.width, 0.0f, 1.0f);
                     float ny = std::clamp((worldPos.y - rect.y) / rect.height, 0.0f, 1.0f);
-                    engine.EditPivot(m_selectedSpriteIds, {nx, ny});
+                    
+                    // Calculate Delta
+                    float dx = nx - primary->GetPivot().x;
+                    float dy = ny - primary->GetPivot().y;
+
+                    // Apply Delta to ALL selected
+                    for (const auto& id : m_selectedSpriteIds) {
+                        auto s = project->GetSpriteById(id);
+                        if (s) {
+                            engine.EditPivot({id}, {s->GetPivot().x + dx, s->GetPivot().y + dy});
+                        }
+                    }
                 }
             }
 

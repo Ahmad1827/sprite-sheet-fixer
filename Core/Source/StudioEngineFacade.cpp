@@ -9,6 +9,7 @@
 #include "Commands/AnimationCommands.h"
 #include "Processing/ImageLoader.h"
 #include "DataModels/Project.h"
+#include "Commands/BatchCommands.h"
 
 namespace StudioCore {
 
@@ -196,6 +197,18 @@ const PlaybackEngine& StudioEngineFacade::GetPlaybackEngine() const {
 
 std::shared_ptr<WorkspaceManager> StudioEngineFacade::GetWorkspace() const {
     return m_workspace;
+}
+
+void StudioEngineFacade::ExecuteBatchOperation(const std::vector<std::string>& spriteIds, BatchOp op) {
+    if (!IsProjectActive() || spriteIds.empty()) return;
+    auto cmd = std::make_unique<BatchOperationCommand>(GetCurrentProject(), spriteIds, op);
+    m_commandHistory->ExecuteCommand(std::move(cmd));
+}
+
+void StudioEngineFacade::ExecuteAlignSprites(const std::vector<std::string>& spriteIds, AlignOp op) {
+    if (!IsProjectActive() || spriteIds.empty()) return;
+    auto cmd = std::make_unique<AlignSpritesCommand>(GetCurrentProject(), spriteIds, op);
+    m_commandHistory->ExecuteCommand(std::move(cmd));
 }
 
 }

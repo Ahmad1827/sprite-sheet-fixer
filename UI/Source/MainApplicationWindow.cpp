@@ -3,9 +3,10 @@
 #include "Panels/AnimationPanel.h"
 #include <iostream>
 #include "Utils/NativeFileDialog.h"
+#include "Panels/Toolbar.h"
 
 MainApplicationWindow::MainApplicationWindow() 
-    : m_window(sf::VideoMode(1280, 720), "Sprite Sheet Studio - Milestone 8") {
+    : m_window(sf::VideoMode(1280, 720), "Sprite Sheet Studio - Milestone 9") {
     
     m_window.setFramerateLimit(60);
     m_engine.Initialize();
@@ -13,8 +14,29 @@ MainApplicationWindow::MainApplicationWindow()
     
     m_viewport.Initialize();
     
-    m_animationPanel = std::make_unique<StudioUI::AnimationPanel>();
+    // Wire up Toolbar with callbacks to the Main Window
+    m_toolbar.Initialize("Resources/font.ttf", 
+        [this]() { 
+            std::string path = StudioUI::NativeFileDialog::OpenFileDialog();
+            if (!path.empty()) LoadImage(path); 
+        },
+        [this]() { 
+            std::string path = StudioUI::NativeFileDialog::OpenFileDialog("Sprite Sheet Studio Project (*.sps)");
+            if (!path.empty()) {
+                std::string err;
+                if (m_engine.LoadProject(path, err)) {
+                    m_viewport.RefreshTexture(m_engine); // FIX: Refresh viewport!
+                    std::cout << "[✓] Project loaded." << std::endl;
+                }
+            }
+        },
+        [this]() { 
+            m_isUIHidden = !m_isUIHidden;
+            m_viewport.SetUIHidden(m_isUIHidden);
+        }
+    );
     
+    m_animationPanel = std::make_unique<StudioUI::AnimationPanel>();
     m_animationPanel->InitializeFont("Resources/font.ttf");
     m_exportPreview.InitializeFont("Resources/font.ttf");
 }
@@ -46,7 +68,11 @@ void MainApplicationWindow::ProcessEvents() {
         if (event.type == sf::Event::Closed) {
             m_window.close();
         } 
-        
+        if (!m_isExportMode) {
+            if (m_toolbar.HandleEvent(event, m_window, m_engine)) {
+                continue;
+            }
+        }
         if (m_isExportMode) {
             if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape) {
                 m_isExportMode = false;
@@ -86,6 +112,10 @@ void MainApplicationWindow::ProcessEvents() {
         }
 
         if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::L && event.key.control) {
+            if (m_engine.HasTexture() || m_engine.IsProjectActive()) {
+                std::cout << "[!] A project or image is already active. Clear or restart to load a new project." << std::endl;
+                continue;
+            }
             std::string path = StudioUI::NativeFileDialog::OpenFileDialog("Sprite Sheet Studio Project (*.sps)");
             if (!path.empty()) {
                 std::string error;
@@ -100,11 +130,16 @@ void MainApplicationWindow::ProcessEvents() {
         }
 
         if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::O) {
+            if (m_engine.HasTexture()) {
+                std::cout << "[!] An image is already loaded. Clear or restart to open a new one." << std::endl;
+                continue;
+            }
             std::string filePath = StudioUI::NativeFileDialog::OpenFileDialog();
             if (!filePath.empty()) {
                 LoadImage(filePath);
             }
-        } 
+            continue;
+        }
         else {
             m_viewport.HandleEvent(event, m_window, m_engine);
             if (m_animationPanel) {
@@ -128,9 +163,11 @@ void MainApplicationWindow::Render() {
         m_exportPreview.Render(m_window);
     } else {
         m_viewport.Render(m_window, m_engine);
-        if (m_animationPanel) {
+        
+        if (!m_isUIHidden && m_animationPanel) {
             m_animationPanel->Render(m_window, m_engine);
         }
+        m_toolbar.Render(m_window);
     }
     
     m_window.display();

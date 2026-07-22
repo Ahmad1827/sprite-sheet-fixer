@@ -5,6 +5,7 @@
 #include <SFML/Graphics/Image.hpp>
 #include "Processing/SpriteDetector.h"
 #include "DataModels/SpriteDefinition.h"
+#include "Commands/BatchCommands.h"
 
 namespace StudioCore {
 
@@ -59,6 +60,9 @@ public:
     PlaybackEngine& GetPlaybackEngine();
     const PlaybackEngine& GetPlaybackEngine() const;
     std::shared_ptr<WorkspaceManager> GetWorkspace() const;
+
+    void ExecuteBatchOperation(const std::vector<std::string>& spriteIds, BatchOp op);
+    void ExecuteAlignSprites(const std::vector<std::string>& spriteIds, AlignOp op);
 
 private:
     std::shared_ptr<WorkspaceManager> m_workspace;

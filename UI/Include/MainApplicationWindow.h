@@ -5,6 +5,8 @@
 #include "StudioEngineFacade.h"
 #include "Panels/PreviewViewport.h"
 #include "Panels/ExportPreviewPanel.h"
+#include "Panels/Toolbar.h"
+
 
 namespace StudioUI {
     class AnimationPanel;
@@ -29,4 +31,7 @@ private:
     std::unique_ptr<StudioUI::AnimationPanel> m_animationPanel;
     StudioUI::ExportPreviewPanel m_exportPreview;
     bool m_isExportMode{false};
+    bool m_isUIHidden{false};
+    
+    StudioUI::Toolbar m_toolbar;
 };
