@@ -1,44 +1,51 @@
 #pragma once
 #include <string>
+#include <vector>
+#include <memory>
+#include <cstdint>
+#include <optional>
 
 namespace StudioCore {
 
 struct Rect {
-    int x{0};
-    int y{0};
-    int width{0};
-    int height{0};
+    float x{0.0f}, y{0.0f}, width{0.0f}, height{0.0f};
 };
 
 struct Point {
-    float x{0.0f};
-    float y{0.0f};
+    float x{0.0f}, y{0.0f};
 };
+
+
 
 class SpriteDefinition {
 public:
-    SpriteDefinition(std::string id, const Rect& sourceRect);
+    SpriteDefinition(const std::string& id, const Rect& sourceRect);
 
     const std::string& GetId() const;
+
     const Rect& GetSourceRect() const;
-    
-    void SetPivot(const Point& pivot);
+    void SetSourceRect(const Rect& rect);
+
     const Point& GetPivot() const;
+    void SetPivot(const Point& pivot);
 
-    void SetBaseline(float baseline);
     float GetBaseline() const;
+    void SetBaseline(float baseline);
 
-    void SetPixelCount(int count);
     int GetPixelCount() const;
+    void SetPixelCount(int count);
 
-    void SetCenter(const Point& center);
     const Point& GetCenter() const;
+    void SetCenter(const Point& center);
+
+    bool HasCustomPixels() const;
+    void ClearCustomPixels();
 
 private:
     std::string m_id;
     Rect m_sourceRect;
-    Point m_pivot{0.5f, 0.5f};
-    float m_baseline{1.0f};
+    Point m_pivot{0.0f, 0.0f};
+    float m_baseline{0.0f};
     int m_pixelCount{0};
     Point m_center{0.0f, 0.0f};
 };

@@ -8,6 +8,9 @@
 #include "Rendering/OverlayRenderer.h"
 #include "Rendering/CoordinateAxisRenderer.h"
 #include "Rendering/SpriteGizmoRenderer.h"
+#include <unordered_map>
+#include "DataModels/SpriteDefinition.h"
+#include "DataModels/SourceTexture.h"
 
 namespace StudioCore {
     class StudioEngineFacade;
@@ -21,7 +24,7 @@ public:
     void HandleEvent(const sf::Event& event, const sf::RenderWindow& window, StudioCore::StudioEngineFacade& engine);
     void Update(float deltaTime);
     void Render(sf::RenderWindow& window, const StudioCore::StudioEngineFacade& engine);
-    
+    void RemoveCustomSpriteTexture(const std::string& spriteId);
     void ClearSelection() { 
         m_selectedSpriteIds.clear(); 
         m_selection.ClearSelection();
@@ -49,6 +52,7 @@ public:
     void TriggerNumericEdit(StudioCore::StudioEngineFacade& engine);
 
 private:
+    void RenderSprite(sf::RenderTarget& target, const StudioCore::SpriteDefinition& sprite, const StudioCore::SourceTexture& sourceTex);
     sf::Vector2i GetMouseImageCoords(const sf::RenderWindow& window) const;
     sf::Color GetPixelColor(const StudioCore::StudioEngineFacade& engine, int x, int y) const;
     void HandleSpriteSelection(const sf::Vector2f& worldPos, const StudioCore::StudioEngineFacade& engine, bool shift, bool ctrl);
@@ -56,7 +60,7 @@ private:
     sf::Texture m_gpuTexture;
     sf::Sprite m_sprite;
     sf::View m_view;
-    
+    sf::Texture m_sourceTextureGL;
     bool m_hasValidTexture{false};
     float m_currentZoom{1.0f};
     bool m_isUIHidden{false};

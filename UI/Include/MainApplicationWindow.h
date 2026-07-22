@@ -25,10 +25,6 @@ private:
     void ProcessEvents();
     void Update(float deltaTime);
     void Render();
-    bool m_isDragging{false};
-    std::vector<std::pair<std::string, StudioCore::Rect>> m_dragStartRects;
-    sf::Vector2f m_dragStartPos{0.f, 0.f};
-    std::vector<std::shared_ptr<StudioCore::SpriteDefinition>> m_draggedSprites;
     StudioUI::WorkspaceEnvironment m_workspace;
     float m_autoSaveTimer{0.0f};
     sf::RenderWindow m_window;

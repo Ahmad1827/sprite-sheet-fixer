@@ -16,6 +16,10 @@ void PreviewViewport::Initialize() {
     m_overlay.InitializeFont("Resources/font.ttf");
 }
 
+
+
+
+
 void PreviewViewport::RefreshTexture(const StudioCore::StudioEngineFacade& engine) {
     if (engine.HasTexture()) {
         auto coreTex = engine.GetCurrentTexture();
@@ -350,6 +354,7 @@ void PreviewViewport::Render(sf::RenderWindow& window, const StudioCore::StudioE
 
     if (m_hasValidTexture) {
         window.draw(m_sprite);
+
         m_axes.Render(window, m_sprite.getLocalBounds(), m_currentZoom);
     }
 
@@ -430,7 +435,6 @@ void PreviewViewport::Render(sf::RenderWindow& window, const StudioCore::StudioE
         if (sprite) {
             StudioUI::SpriteInspectorInfo spriteInfo;
             spriteInfo.isActive = true;
-            // Milestone 9: Inspector shows multi-select state
             spriteInfo.id = m_selectedSpriteIds.size() > 1 ? "Selected: " + std::to_string(m_selectedSpriteIds.size()) : sprite->GetId();
             const auto& r = sprite->GetSourceRect();
             spriteInfo.x = r.x; spriteInfo.y = r.y;

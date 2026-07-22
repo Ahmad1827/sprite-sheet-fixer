@@ -8,7 +8,6 @@
 #include "Commands/BatchCommands.h"
 #include "Systems/AnimationBuilder.h"
 
-
 namespace StudioCore {
 
 class WorkspaceManager;
@@ -30,15 +29,12 @@ public:
     bool IsProjectActive() const;
     bool ImportImage(const std::string& filePath, std::string& outErrorMessage);
 
-    // Save & Load Project (.sps)
     bool SaveProject(const std::string& filePath) const;
     bool LoadProject(const std::string& filePath, std::string& outErrorMessage);
     
     std::vector<ProposedAnimation> BuildAnimationsByRow();
     void CommitProposedAnimations(const std::vector<ProposedAnimation>& animations);
-    void DuplicateSpriteWithPixels(const std::string& spriteId);
     void DeleteSpriteWithPixels(const std::string& spriteId);
-    void MoveSprite(const std::string& spriteId, const StudioCore::Rect& oldRect, const StudioCore::Rect& newRect);
     std::shared_ptr<Project> GetCurrentProject() const;
     std::shared_ptr<const SourceTexture> GetCurrentTexture() const;
     bool HasTexture() const;

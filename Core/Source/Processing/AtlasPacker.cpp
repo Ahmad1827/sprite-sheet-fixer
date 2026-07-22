@@ -24,7 +24,7 @@ AtlasResult AtlasPacker::PackUniformGrid(const Project& project, int padding) {
         const auto& rB = b->GetSourceRect();
         int centerYA = rA.y + rA.height / 2;
         int centerYB = rB.y + rB.height / 2;
-        int threshold = std::max(1, std::min(rA.height, rB.height) / 2);
+        int threshold = std::max(1, static_cast<int>(std::min(rA.height, rB.height) / 2.0f));
         if (std::abs(centerYA - centerYB) > threshold) {
             return centerYA < centerYB; 
         }
@@ -41,7 +41,7 @@ AtlasResult AtlasPacker::PackUniformGrid(const Project& project, int padding) {
         const auto& rLast = lastSprite->GetSourceRect();
         int currCenterY = rCurr.y + rCurr.height / 2;
         int lastCenterY = rLast.y + rLast.height / 2;
-        int threshold = std::max(1, std::min(rCurr.height, rLast.height) / 2);
+        int threshold = std::max(1, static_cast<int>(std::min(rCurr.height, rLast.height) / 2.0f));
         if (std::abs(currCenterY - lastCenterY) > threshold) {
             grid.push_back({currentSprite}); 
         } else {
