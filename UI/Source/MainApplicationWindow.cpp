@@ -2,12 +2,12 @@
 #include "DataModels/SourceTexture.h"
 #include "DataModels/Project.h"
 #include "Panels/AnimationPanel.h"
-#include <iostream>
+#include "Theme.h"
 #include "Utils/NativeFileDialog.h"
-#include "Panels/Toolbar.h"
+#include <iostream>
 
 MainApplicationWindow::MainApplicationWindow() 
-    : m_window(sf::VideoMode(1280, 720), "Sprite Sheet Studio - Milestone 11") {
+    : m_window(sf::VideoMode(1280, 720), "Sprite Sheet Studio — Untitled") {
     
     m_window.setFramerateLimit(60);
     m_engine.Initialize();
@@ -152,7 +152,7 @@ void MainApplicationWindow::ProcessEvents() {
             }
         }
 
-        // 3. WORKSPACE & PANEL HANDLING
+        // 3. WORKSPACE UI EVENT HANDLING
         if (m_workspace.HandleEvent(event, m_window)) {
             continue;
         }
@@ -188,7 +188,7 @@ void MainApplicationWindow::ProcessEvents() {
             continue;
         }
 
-        // 4. VIEWPORT EVENT HANDLING (Handles sprite selecting, zooming, panning, and Alt+Click pivot editing)
+        // 4. VIEWPORT & ANIMATION PANEL EVENT HANDLING
         m_viewport.HandleEvent(event, m_window, m_engine);
         if (m_animationPanel) {
             m_animationPanel->HandleEvent(event, m_window, m_engine, m_viewport);
@@ -209,6 +209,13 @@ void MainApplicationWindow::Update(float deltaTime) {
             m_autoSaveTimer = 0.0f;
         }
 
+        // Update Window Title with Project State
+        std::string title = "Sprite Sheet Studio";
+        if (m_engine.IsProjectActive()) {
+            title += " — Active Project";
+        }
+        m_window.setTitle(title);
+
         sf::Vector2i pixelPos = sf::Mouse::getPosition(m_window);
         sf::Vector2f worldPos = m_window.mapPixelToCoords(pixelPos);
         int selectedCount = (m_engine.IsProjectActive() && m_engine.GetCurrentProject()) ? static_cast<int>(m_engine.GetCurrentProject()->GetSprites().size()) : 0;
@@ -219,13 +226,13 @@ void MainApplicationWindow::Update(float deltaTime) {
             selectedCount, 
             "None", 
             0, 
-            "1920x1080"
+            "Ready"
         );
     }
 }
 
 void MainApplicationWindow::Render() {
-    m_window.clear(sf::Color(30, 30, 30));
+    m_window.clear(StudioUI::Theme::MainBackground);
     
     if (m_isExportMode) {
         m_exportPreview.Render(m_window);
