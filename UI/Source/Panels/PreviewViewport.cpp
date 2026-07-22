@@ -440,7 +440,10 @@ void PreviewViewport::Render(sf::RenderWindow& window, const StudioCore::StudioE
         }
     }
     m_overlay.RenderInspector(window, inspector);
-
+    if (!m_hasValidTexture) {
+        window.setView(window.getDefaultView());
+        m_overlay.RenderEmptyState(window);
+    }
     if (engine.IsProjectActive() && !m_selectedSpriteIds.empty()) {
         auto project = engine.GetCurrentProject();
         auto sprite = project->GetSpriteById(m_selectedSpriteIds.back());
@@ -457,4 +460,5 @@ void PreviewViewport::Render(sf::RenderWindow& window, const StudioCore::StudioE
             m_overlay.RenderSpriteInspector(window, spriteInfo);
         }
     }
+    
 }

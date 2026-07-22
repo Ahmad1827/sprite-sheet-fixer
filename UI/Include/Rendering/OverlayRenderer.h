@@ -47,9 +47,9 @@ public:
     OverlayRenderer();
     void RenderProgress(sf::RenderWindow& window, const JobProgressInfo& info);
     void RenderSpriteInspector(sf::RenderWindow& window, const SpriteInspectorInfo& info);
-    sf::Font* GetFont() { return m_hasFont ? &m_font : nullptr; }
     bool InitializeFont(const std::string& customPath);
-
+    void RenderEmptyState(sf::RenderWindow& window);
+    sf::Font* GetFont() { return m_hasFont ? &m_font : nullptr; }
     void RenderDebug(sf::RenderWindow& window, const DebugInfo& info);
     void RenderInspector(sf::RenderWindow& window, const InspectorInfo& info);
 

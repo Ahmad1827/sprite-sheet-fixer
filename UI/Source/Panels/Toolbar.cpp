@@ -9,41 +9,22 @@ namespace StudioUI {
 void Toolbar::Initialize(const std::string& fontPath,
                          std::function<void()> onOpenImage,
                          std::function<void()> onLoadProject,
+                         std::function<void()> onSaveProject,
+                         std::function<void()> onExport,
                          std::function<void()> onToggleUI,
                          std::function<void()> onOpenWizard) {
     
-    // Robust font loading with fallback candidates
-    std::vector<std::string> fontCandidates = {
-        fontPath,
-        "Resources/font.ttf",
-        "../Resources/font.ttf",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
-    };
-
-    bool fontLoaded = false;
-    for (const auto& path : fontCandidates) {
-        if (m_font.loadFromFile(path)) {
-            fontLoaded = true;
-            break;
-        }
-    }
-
-    if (!fontLoaded) {
-        std::cerr << "[Toolbar] Warning: Failed to load any font candidate." << std::endl;
-    }
+    std::vector<std::string> fontCandidates = { fontPath, "Resources/font.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf" };
+    for (const auto& path : fontCandidates) { if (m_font.loadFromFile(path)) break; }
 
     m_buttons.clear();
-
-    // Group 1: File Actions
-    m_buttons.push_back({"open_img", "Import Image", {}, onOpenImage});
-    m_buttons.push_back({"load_proj", "Open Project", {}, onLoadProject});
-
-    // Group 2: Actions & Auto Detection
-    m_buttons.push_back({"wizard", "Anim Wizard", {}, onOpenWizard});
-
-    // Group 3: View Options
-    m_buttons.push_back({"toggle_ui", "Hide UI", {}, onToggleUI, true, false});
+    // Using SFML UTF-8 string support for Icons
+    m_buttons.push_back({"load_proj", u8"📂 Open", {}, onLoadProject});
+    m_buttons.push_back({"save_proj", u8"💾 Save", {}, onSaveProject});
+    m_buttons.push_back({"open_img", u8"🖼 Import", {}, onOpenImage});
+    m_buttons.push_back({"wizard", u8"⚙ Detect", {}, onOpenWizard});
+    m_buttons.push_back({"export", u8"⬇ Export", {}, onExport});
+    m_buttons.push_back({"toggle_ui", u8"👁 View", {}, onToggleUI, true, false});
 
     LayoutButtons(1280.0f);
 }
@@ -51,36 +32,29 @@ void Toolbar::Initialize(const std::string& fontPath,
 void Toolbar::LayoutButtons(float windowWidth) {
     m_background.setSize({windowWidth, Theme::ToolbarHeight});
     m_background.setFillColor(Theme::PanelBackground);
-    m_background.setPosition(0.0f, 0.0f);
 
     m_bottomBorder.setSize({windowWidth, Theme::BorderThickness});
     m_bottomBorder.setFillColor(Theme::BorderColor);
     m_bottomBorder.setPosition(0.0f, Theme::ToolbarHeight - Theme::BorderThickness);
 
-    float startX = 10.0f;
+    float startX = 12.0f;
     float buttonHeight = Theme::ToolbarHeight - 8.0f;
-    float buttonPaddingX = 14.0f;
-    float spacing = 6.0f;
+    float fixedButtonWidth = 95.0f; // IDENTICAL WIDTH FOR ALL BUTTONS
+    float spacing = 4.0f;
 
     m_dividers.clear();
 
     for (size_t i = 0; i < m_buttons.size(); ++i) {
-        sf::Text tempText;
-        tempText.setFont(m_font);
-        tempText.setString(m_buttons[i].label);
-        tempText.setCharacterSize(13);
+        m_buttons[i].bounds = sf::FloatRect(startX, 4.0f, fixedButtonWidth, buttonHeight);
+        startX += fixedButtonWidth + spacing;
 
-        float textWidth = tempText.getLocalBounds().width;
-        float buttonWidth = textWidth + (buttonPaddingX * 2.0f);
-
-        m_buttons[i].bounds = sf::FloatRect(startX, 4.0f, buttonWidth, buttonHeight);
-        startX += buttonWidth + spacing;
-
-        if (m_buttons[i].id == "load_proj" || m_buttons[i].id == "wizard") {
+        // Group Dividers
+        if (m_buttons[i].id == "save_proj" || m_buttons[i].id == "open_img" || m_buttons[i].id == "export") {
             sf::RectangleShape divider({Theme::BorderThickness, buttonHeight - 4.0f});
-            divider.setPosition(startX - (spacing / 2.0f), 6.0f);
+            divider.setPosition(startX + 2.0f, 6.0f);
             divider.setFillColor(Theme::BorderColor);
             m_dividers.push_back(divider);
+            startX += 8.0f; // Extra space for divider
         }
     }
 }

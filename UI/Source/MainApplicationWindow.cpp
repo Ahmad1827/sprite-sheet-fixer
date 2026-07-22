@@ -7,7 +7,7 @@
 #include <iostream>
 
 MainApplicationWindow::MainApplicationWindow() 
-    : m_window(sf::VideoMode(1280, 720), "Sprite Sheet Studio — Untitled") {
+    : m_window(sf::VideoMode(1280, 720), "Wisdom Park Asset Tools — Sprite Sheet Studio") {
     
     m_window.setFramerateLimit(60);
     m_engine.Initialize();
@@ -15,6 +15,7 @@ MainApplicationWindow::MainApplicationWindow()
     
     m_viewport.Initialize();
     
+    // Updated Toolbar Initialization with Save and Export
     m_toolbar.Initialize("Resources/font.ttf", 
         [this]() { 
             std::string path = StudioUI::NativeFileDialog::OpenFileDialog();
@@ -28,6 +29,17 @@ MainApplicationWindow::MainApplicationWindow()
                     m_viewport.RefreshTexture(m_engine);
                 }
             }
+        },
+        [this]() { // Save
+            std::string path = StudioUI::NativeFileDialog::SaveFileDialog("project.sps");
+            if (!path.empty()) {
+                if (path.find(".sps") == std::string::npos) path += ".sps";
+                m_engine.SaveProject(path);
+            }
+        },
+        [this]() { // Export
+            m_isExportMode = true;
+            m_exportPreview.Activate(m_engine);
         },
         [this]() { 
             m_isUIHidden = !m_isUIHidden;
@@ -203,30 +215,23 @@ void MainApplicationWindow::Update(float deltaTime) {
 
         m_autoSaveTimer += deltaTime;
         if (m_autoSaveTimer >= 300.0f) {
-            if (m_engine.IsProjectActive()) {
-                m_engine.SaveProject("autosave_backup.sps");
-            }
+            if (m_engine.IsProjectActive()) m_engine.SaveProject("autosave_backup.sps");
             m_autoSaveTimer = 0.0f;
         }
 
-        // Update Window Title with Project State
-        std::string title = "Sprite Sheet Studio";
-        if (m_engine.IsProjectActive()) {
-            title += " — Active Project";
-        }
+        std::string title = "Wisdom Park Asset Tools — Sprite Sheet Studio";
+        if (m_engine.IsProjectActive()) title += " *";
         m_window.setTitle(title);
 
         sf::Vector2i pixelPos = sf::Mouse::getPosition(m_window);
         sf::Vector2f worldPos = m_window.mapPixelToCoords(pixelPos);
-        int selectedCount = (m_engine.IsProjectActive() && m_engine.GetCurrentProject()) ? static_cast<int>(m_engine.GetCurrentProject()->GetSprites().size()) : 0;
+        
+        int totalSprites = (m_engine.IsProjectActive() && m_engine.GetCurrentProject()) ? static_cast<int>(m_engine.GetCurrentProject()->GetSprites().size()) : 0;
+        int selectedCount = 0; // Replace with actual selection getter if available
 
+        // Updated Status Bar Call
         m_workspace.UpdateStatusBar(
-            1.0f, 
-            worldPos, 
-            selectedCount, 
-            "None", 
-            0, 
-            "Ready"
+            1.0f, worldPos, totalSprites, selectedCount, "Ready"
         );
     }
 }
@@ -238,16 +243,9 @@ void MainApplicationWindow::Render() {
         m_exportPreview.Render(m_window);
     } else {
         m_viewport.Render(m_window, m_engine);
-        
-        if (!m_isUIHidden && m_animationPanel) {
-            m_animationPanel->Render(m_window, m_engine);
-        }
+        if (!m_isUIHidden && m_animationPanel) m_animationPanel->Render(m_window, m_engine);
         m_toolbar.Render(m_window);
-
-        if (m_isWizardMode) {
-            m_animBuilderPanel.Render(m_window);
-        }
-
+        if (m_isWizardMode) m_animBuilderPanel.Render(m_window);
         m_workspace.Render(m_window);
     }
     

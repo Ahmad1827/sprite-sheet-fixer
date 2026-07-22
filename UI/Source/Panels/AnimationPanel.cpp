@@ -9,6 +9,7 @@
 #include <iostream>
 #include <algorithm>
 #include <cmath>
+#include "Theme.h"
 
 namespace StudioUI {
 
@@ -183,18 +184,76 @@ void AnimationPanel::HandleEvent(const sf::Event& event, const sf::RenderWindow&
 }
 
 void AnimationPanel::Render(sf::RenderWindow& window, const StudioCore::StudioEngineFacade& engine) {
-    if (!engine.IsProjectActive() || !m_hasFont) return;
-    
-    window.setView(window.getDefaultView());
-
     sf::Vector2u winSize = window.getSize();
-    m_listArea = sf::FloatRect(winSize.x - 300.f, 0.f, 300.f, winSize.y / 2.f);
-    m_previewArea = sf::FloatRect(winSize.x - 300.f, winSize.y / 2.f, 300.f, winSize.y / 2.f);
-    m_timelineArea = sf::FloatRect(0.f, winSize.y - 200.f, winSize.x - 300.f, 200.f);
+    float panelHeight = 160.0f;
+    float posY = winSize.y - StudioUI::Theme::StatusBarHeight - panelHeight;
 
-    RenderList(window, engine);
-    RenderTimeline(window, engine);
-    RenderPreview(window, engine);
+    // 1. Base Panel Background
+    sf::RectangleShape bg(sf::Vector2f(static_cast<float>(winSize.x), panelHeight));
+    bg.setPosition(0.0f, posY);
+    bg.setFillColor(StudioUI::Theme::PanelBackground);
+    bg.setOutlineThickness(StudioUI::Theme::BorderThickness);
+    bg.setOutlineColor(StudioUI::Theme::BorderColor);
+    window.draw(bg);
+
+    // 2. Header Bar
+    sf::RectangleShape header(sf::Vector2f(static_cast<float>(winSize.x), StudioUI::Theme::HeaderHeight));
+    header.setPosition(0.0f, posY);
+    header.setFillColor(StudioUI::Theme::InspectorBackground);
+    window.draw(header);
+
+    sf::Text headerText("ANIMATION TIMELINE", m_font, 11);
+    headerText.setFillColor(StudioUI::Theme::TextSecondary);
+    headerText.setPosition(12.0f, posY + 6.0f);
+    window.draw(headerText);
+
+    // 3. Left Controls Panel Divider
+    float leftPanelWidth = 250.0f;
+    sf::RectangleShape leftBorder(sf::Vector2f(StudioUI::Theme::BorderThickness, panelHeight - StudioUI::Theme::HeaderHeight));
+    leftBorder.setPosition(leftPanelWidth, posY + StudioUI::Theme::HeaderHeight);
+    leftBorder.setFillColor(StudioUI::Theme::BorderColor);
+    window.draw(leftBorder);
+
+    // Playback Information
+    sf::Text controlsText("▶ Play   ⏸ Pause   ⏹ Stop\n\nFPS: 12   Loop: On\nFrame: 3 / 12", m_font, 12);
+    controlsText.setFillColor(StudioUI::Theme::TextPrimary);
+    controlsText.setPosition(20.0f, posY + StudioUI::Theme::HeaderHeight + 20.0f);
+    window.draw(controlsText);
+
+    // 4. Structured Frame Tracks
+    float timelineStartX = leftPanelWidth + 20.0f;
+    float timelineY = posY + StudioUI::Theme::HeaderHeight + 30.0f;
+    float frameWidth = 32.0f;
+    float frameHeight = 40.0f;
+
+    for (int i = 0; i < 20; ++i) {
+        float fx = timelineStartX + (i * frameWidth);
+        
+        sf::RectangleShape frameBox(sf::Vector2f(frameWidth - 2.0f, frameHeight));
+        frameBox.setPosition(fx, timelineY);
+        frameBox.setFillColor(i % 2 == 0 ? sf::Color(45, 48, 54) : sf::Color(40, 42, 48));
+        
+        if (i == 3) {
+            frameBox.setOutlineThickness(1.5f);
+            frameBox.setOutlineColor(StudioUI::Theme::AccentColor);
+            frameBox.setFillColor(StudioUI::Theme::HoverColor);
+        }
+        window.draw(frameBox);
+
+        if (i % 2 == 0) {
+            sf::Text tickText(std::to_string(i), m_font, 10);
+            tickText.setFillColor(StudioUI::Theme::TextMuted);
+            tickText.setPosition(fx + 2.0f, timelineY - 18.0f);
+            window.draw(tickText);
+        }
+    }
+
+    // 5. Playhead
+    float playheadX = timelineStartX + (3 * frameWidth) + (frameWidth / 2.0f);
+    sf::RectangleShape playheadLine(sf::Vector2f(2.0f, frameHeight + 25.0f));
+    playheadLine.setPosition(playheadX, timelineY - 15.0f);
+    playheadLine.setFillColor(sf::Color(235, 87, 87));
+    window.draw(playheadLine);
 }
 
 void AnimationPanel::RenderList(sf::RenderWindow& window, const StudioCore::StudioEngineFacade& engine) {

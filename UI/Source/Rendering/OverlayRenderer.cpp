@@ -224,4 +224,29 @@ void OverlayRenderer::RenderSpriteInspector(sf::RenderWindow& window, const Spri
     window.draw(contentText);
 }
 
+void OverlayRenderer::RenderEmptyState(sf::RenderWindow& window) {
+    if (!m_hasFont) return;
+    
+    sf::Vector2f center(window.getSize().x / 2.0f, (window.getSize().y - Theme::StatusBarHeight) / 2.0f);
+    
+    sf::Text title("Wisdom Park Asset Tools", m_font, 20);
+    title.setFillColor(Theme::TextSecondary);
+    title.setStyle(sf::Text::Bold);
+    
+    sf::Text subtitle("Sprite Sheet Studio", m_font, 14);
+    subtitle.setFillColor(Theme::AccentColor);
+    
+    sf::Text instructions("Drag & Drop PNG\n\nor\n\nClick 🖼 Import Image", m_font, 14);
+    instructions.setFillColor(Theme::TextSecondary);
+    
+    // Center alignment math
+    title.setPosition(center.x - title.getLocalBounds().width / 2.0f, center.y - 80.0f);
+    subtitle.setPosition(center.x - subtitle.getLocalBounds().width / 2.0f, center.y - 50.0f);
+    instructions.setPosition(center.x - instructions.getLocalBounds().width / 2.0f, center.y + 10.0f);
+    
+    window.draw(title);
+    window.draw(subtitle);
+    window.draw(instructions);
+}
+
 } // namespace StudioUI

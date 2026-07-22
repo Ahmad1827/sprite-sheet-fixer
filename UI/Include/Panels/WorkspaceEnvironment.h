@@ -18,8 +18,7 @@ public:
     void InitializeFont(const std::string& fontPath);
     bool HandleEvent(const sf::Event& event, const sf::RenderWindow& window);
     void Render(sf::RenderWindow& window);
-    void UpdateStatusBar(float zoom, sf::Vector2f mousePos, int selectedCount, 
-                         const std::string& currentAnim, int currentFrame, const std::string& statusText);
+    void UpdateStatusBar(float zoom, sf::Vector2f mousePos, int totalSprites, int selectedCount, const std::string& statusText);
 
     void ShowContextMenu(sf::Vector2f position, const std::vector<ContextMenuItem>& items);
     void HideContextMenu();

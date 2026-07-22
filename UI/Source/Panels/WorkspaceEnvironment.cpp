@@ -15,14 +15,14 @@ void WorkspaceEnvironment::InitializeFont(const std::string& fontPath) {
     m_statusText.setFillColor(Theme::TextSecondary);
 }
 
-void WorkspaceEnvironment::UpdateStatusBar(float zoom, sf::Vector2f mousePos, int selectedCount, 
-                                            const std::string& currentAnim, int currentFrame, const std::string& statusText) {
-    std::string statusStr = " Zoom: " + std::to_string(static_cast<int>(zoom * 100)) + "%" +
-                            "  |  Pos: (" + std::to_string(static_cast<int>(mousePos.x)) + ", " + std::to_string(static_cast<int>(mousePos.y)) + ")" +
-                            "  |  Selected: " + std::to_string(selectedCount) +
-                            "  |  Anim: " + (currentAnim.empty() ? "None" : currentAnim) +
-                            "  |  Frame: " + std::to_string(currentFrame) +
-                            "  |  Status: " + statusText;
+void WorkspaceEnvironment::UpdateStatusBar(float zoom, sf::Vector2f mousePos, int totalSprites, int selectedCount, const std::string& statusText) {
+    // Format: Ready | Zoom 100% | Mouse 235,421 | Sprites 58 | Selected 3 | Autosaved
+    std::string statusStr = statusText + 
+                            "  |  Zoom " + std::to_string(static_cast<int>(zoom * 100)) + "%" +
+                            "  |  Mouse " + std::to_string(static_cast<int>(mousePos.x)) + "," + std::to_string(static_cast<int>(mousePos.y)) +
+                            "  |  Sprites " + std::to_string(totalSprites) +
+                            "  |  Selected " + std::to_string(selectedCount) +
+                            "  |  Autosaved";
     m_statusText.setString(statusStr);
 }
 
