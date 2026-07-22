@@ -7,7 +7,7 @@
 #include "Panels/Toolbar.h"
 
 MainApplicationWindow::MainApplicationWindow() 
-    : m_window(sf::VideoMode(1280, 720), "Sprite Sheet Studio - Milestone 10") {
+    : m_window(sf::VideoMode(1280, 720), "Sprite Sheet Studio - Milestone 11") {
     
     m_window.setFramerateLimit(60);
     m_engine.Initialize();
@@ -15,7 +15,6 @@ MainApplicationWindow::MainApplicationWindow()
     
     m_viewport.Initialize();
     
-    // Wire up Toolbar with callbacks to the Main Window
     m_toolbar.Initialize("Resources/font.ttf", 
         [this]() { 
             std::string path = StudioUI::NativeFileDialog::OpenFileDialog();
@@ -27,7 +26,6 @@ MainApplicationWindow::MainApplicationWindow()
                 std::string err;
                 if (m_engine.LoadProject(path, err)) {
                     m_viewport.RefreshTexture(m_engine);
-                    std::cout << "[✓] Project loaded." << std::endl;
                 }
             }
         },
@@ -46,6 +44,7 @@ MainApplicationWindow::MainApplicationWindow()
     m_animationPanel->InitializeFont("Resources/font.ttf");
     m_exportPreview.InitializeFont("Resources/font.ttf");
     m_animBuilderPanel.InitializeFont("Resources/font.ttf");
+    m_workspace.InitializeFont("Resources/font.ttf");
 }
 
 MainApplicationWindow::~MainApplicationWindow() = default;
@@ -76,6 +75,73 @@ void MainApplicationWindow::ProcessEvents() {
             m_window.close();
         } 
 
+        if (m_workspace.HandleEvent(event, m_window)) {
+            continue;
+        }
+
+        if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Right) {
+            sf::Vector2i pixelPos(event.mouseButton.x, event.mouseButton.y);
+            sf::Vector2f worldPos = m_window.mapPixelToCoords(pixelPos);
+
+            std::string targetSpriteId = "";
+
+            if (m_engine.IsProjectActive() && m_engine.GetCurrentProject()) {
+                auto sprites = m_engine.GetCurrentProject()->GetSprites();
+                
+                for (const auto& sprite : sprites) {
+                    auto rect = sprite->GetSourceRect();
+                    sf::FloatRect bounds(rect.x, rect.y, rect.width, rect.height);
+                    if (bounds.contains(worldPos)) {
+                        targetSpriteId = sprite->GetId();
+                        break;
+                    }
+                }
+
+                if (targetSpriteId.empty() && !sprites.empty()) {
+                    targetSpriteId = sprites.back()->GetId();
+                }
+            }
+
+            if (!targetSpriteId.empty()) {
+                std::vector<StudioUI::ContextMenuItem> items = {
+                    {"Duplicate Sprite", [this, targetSpriteId]() {
+                        auto proj = m_engine.GetCurrentProject();
+                        if (!proj) return;
+                        auto sprite = proj->GetSpriteById(targetSpriteId);
+                        if (sprite) {
+                            std::string newId = "sprite_" + std::to_string(proj->GetSprites().size() + 1);
+                            auto rect = sprite->GetSourceRect();
+                            rect.x += 15.0f;
+                            rect.y += 15.0f;
+
+                            StudioCore::SpriteDefinition dup(newId, rect);
+                            dup.SetPivot({sprite->GetPivot().x + 15.0f, sprite->GetPivot().y + 15.0f});
+                            dup.SetBaseline(sprite->GetBaseline());
+
+                            proj->AddSprite(dup);
+                        }
+                    }},
+                    {"Delete Sprite", [this, targetSpriteId]() {
+                        auto proj = m_engine.GetCurrentProject();
+                        if (proj) {
+                            proj->RemoveSprite(targetSpriteId);
+                        }
+                    }},
+                    {"Reset Pivot", [this, targetSpriteId]() {
+                        auto proj = m_engine.GetCurrentProject();
+                        if (!proj) return;
+                        auto sprite = proj->GetSpriteById(targetSpriteId);
+                        if (sprite) {
+                            auto rect = sprite->GetSourceRect();
+                            sprite->SetPivot({rect.x + (rect.width / 2.0f), rect.y + (rect.height / 2.0f)});
+                        }
+                    }}
+                };
+                m_workspace.ShowContextMenu({static_cast<float>(event.mouseButton.x), static_cast<float>(event.mouseButton.y)}, items);
+            }
+            continue;
+        }
+
         if (m_isWizardMode) {
             bool exitWizard = false;
             m_animBuilderPanel.HandleEvent(event, m_window, m_engine, exitWizard);
@@ -98,10 +164,7 @@ void MainApplicationWindow::ProcessEvents() {
                 std::string savePath = StudioUI::NativeFileDialog::SaveFileDialog("aligned_spritesheet.png");
                 if (!savePath.empty()) {
                     if (m_engine.ExportPNG(savePath, 8)) {
-                        std::cout << "[✓] Exported atlas and metadata successfully to: " << savePath << std::endl;
                         m_isExportMode = false;
-                    } else {
-                        std::cerr << "[X] Failed to save exported image." << std::endl;
                     }
                 }
             } else {
@@ -120,18 +183,13 @@ void MainApplicationWindow::ProcessEvents() {
             std::string path = StudioUI::NativeFileDialog::SaveFileDialog("project.sps");
             if (!path.empty()) {
                 if (path.find(".sps") == std::string::npos) path += ".sps";
-                if (m_engine.SaveProject(path)) {
-                    std::cout << "[✓] Project saved to " << path << std::endl;
-                } else {
-                    std::cerr << "[X] Failed to save project." << std::endl;
-                }
+                m_engine.SaveProject(path);
             }
             continue;
         }
 
         if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::L && event.key.control) {
             if (m_engine.HasTexture() || m_engine.IsProjectActive()) {
-                std::cout << "[!] A project or image is already active. Clear or restart to load a new project." << std::endl;
                 continue;
             }
             std::string path = StudioUI::NativeFileDialog::OpenFileDialog("Sprite Sheet Studio Project (*.sps)");
@@ -139,9 +197,6 @@ void MainApplicationWindow::ProcessEvents() {
                 std::string error;
                 if (m_engine.LoadProject(path, error)) {
                     m_viewport.RefreshTexture(m_engine);
-                    std::cout << "[✓] Project loaded from " << path << std::endl;
-                } else {
-                    std::cerr << "[X] Failed to load project: " << error << std::endl;
                 }
             }
             continue;
@@ -149,7 +204,6 @@ void MainApplicationWindow::ProcessEvents() {
 
         if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::O) {
             if (m_engine.HasTexture()) {
-                std::cout << "[!] An image is already loaded. Clear or restart to open a new one." << std::endl;
                 continue;
             }
             std::string filePath = StudioUI::NativeFileDialog::OpenFileDialog();
@@ -171,6 +225,27 @@ void MainApplicationWindow::Update(float deltaTime) {
     if (!m_isExportMode && !m_isWizardMode) {
         m_engine.Update(deltaTime);
         m_viewport.Update(deltaTime);
+
+        m_autoSaveTimer += deltaTime;
+        if (m_autoSaveTimer >= 300.0f) {
+            if (m_engine.IsProjectActive()) {
+                m_engine.SaveProject("autosave_backup.sps");
+            }
+            m_autoSaveTimer = 0.0f;
+        }
+
+        sf::Vector2i pixelPos = sf::Mouse::getPosition(m_window);
+        sf::Vector2f worldPos = m_window.mapPixelToCoords(pixelPos);
+        int selectedCount = (m_engine.IsProjectActive() && m_engine.GetCurrentProject()) ? static_cast<int>(m_engine.GetCurrentProject()->GetSprites().size()) : 0;
+
+        m_workspace.UpdateStatusBar(
+            1.0f, 
+            worldPos, 
+            selectedCount, 
+            "None", 
+            0, 
+            "1920x1080"
+        );
     }
 }
 
@@ -190,6 +265,8 @@ void MainApplicationWindow::Render() {
         if (m_isWizardMode) {
             m_animBuilderPanel.Render(m_window);
         }
+
+        m_workspace.Render(m_window);
     }
     
     m_window.display();

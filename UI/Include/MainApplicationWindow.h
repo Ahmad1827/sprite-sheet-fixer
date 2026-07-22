@@ -7,6 +7,7 @@
 #include "Panels/ExportPreviewPanel.h"
 #include "Panels/Toolbar.h"
 #include "Panels/AnimationBuilderPanel.h"
+#include "Panels/WorkspaceEnvironment.h"
 
 namespace StudioUI {
     class AnimationPanel;
@@ -25,6 +26,8 @@ private:
     void Update(float deltaTime);
     void Render();
 
+    StudioUI::WorkspaceEnvironment m_workspace;
+    float m_autoSaveTimer{0.0f};
     sf::RenderWindow m_window;
     StudioCore::StudioEngineFacade m_engine;
     PreviewViewport m_viewport;
