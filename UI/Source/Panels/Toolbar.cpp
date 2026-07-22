@@ -10,7 +10,11 @@ Toolbar::Toolbar() {
     m_background.setFillColor(sf::Color(45, 45, 48));
 }
 
-void Toolbar::Initialize(const std::string& fontPath, std::function<void()> onOpenImage, std::function<void()> onLoadProject, std::function<void()> onToggleUI) {
+void Toolbar::Initialize(const std::string& fontPath, 
+                         std::function<void()> onOpenImage, 
+                         std::function<void()> onLoadProject,
+                         std::function<void()> onToggleUI,
+                         std::function<void()> onOpenWizard) {
     if (!m_font.loadFromFile(fontPath)) {
         if (!m_font.loadFromFile("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")) return;
     }
@@ -19,7 +23,7 @@ void Toolbar::Initialize(const std::string& fontPath, std::function<void()> onOp
 
     AddButton(currentX, "Open Img", [onOpenImage](StudioCore::StudioEngineFacade& e) {
         if (e.HasTexture()) {
-            std::cout << "[!] An image is already opened. Please save or create a new project before opening a new image." << std::endl;
+            std::cout << "[!] Image already open." << std::endl;
             return;
         }
         onOpenImage();
@@ -28,7 +32,7 @@ void Toolbar::Initialize(const std::string& fontPath, std::function<void()> onOp
 
     AddButton(currentX, "Load Proj", [onLoadProject](StudioCore::StudioEngineFacade& e) {
         if (e.HasTexture() || e.IsProjectActive()) {
-            std::cout << "[!] A project or image is already active. Please restart or clear the workspace before loading another project." << std::endl;
+            std::cout << "[!] Project already active." << std::endl;
             return;
         }
         onLoadProject();
@@ -50,6 +54,11 @@ void Toolbar::Initialize(const std::string& fontPath, std::function<void()> onOp
     });
     currentX += 90.f;
 
+    AddButton(currentX, "Anim Wizard", [onOpenWizard](StudioCore::StudioEngineFacade&) {
+        onOpenWizard();
+    });
+    currentX += 95.f;
+
     AddButton(currentX, "Export", [](StudioCore::StudioEngineFacade& e) {
         if (!e.IsProjectActive()) return;
         std::string path = NativeFileDialog::SaveFileDialog("aligned_spritesheet.png");
@@ -70,18 +79,18 @@ void Toolbar::Initialize(const std::string& fontPath, std::function<void()> onOp
 void Toolbar::AddButton(float x, const std::string& label, std::function<void(StudioCore::StudioEngineFacade&)> action) {
     Button b;
     b.rect.setPosition(x, 5.f);
-    b.rect.setSize({80.f, 30.f});
+    b.rect.setSize({85.f, 30.f});
     b.rect.setFillColor(sf::Color(60, 60, 65));
     b.rect.setOutlineColor(sf::Color(90, 90, 95));
     b.rect.setOutlineThickness(1.f);
 
     b.text.setFont(m_font);
     b.text.setString(label);
-    b.text.setCharacterSize(12);
+    b.text.setCharacterSize(11);
     b.text.setFillColor(sf::Color::White);
 
     sf::FloatRect textBounds = b.text.getLocalBounds();
-    b.text.setPosition(x + (80.f - textBounds.width) / 2.f - textBounds.left, 5.f + (30.f - textBounds.height) / 2.f - textBounds.top);
+    b.text.setPosition(x + (85.f - textBounds.width) / 2.f - textBounds.left, 5.f + (30.f - textBounds.height) / 2.f - textBounds.top);
 
     b.action = action;
     m_buttons.push_back(b);
@@ -96,7 +105,7 @@ bool Toolbar::HandleEvent(const sf::Event& event, const sf::RenderWindow& window
                     b.action(engine);
                 }
             }
-            return true; // Click consumed by toolbar!
+            return true;
         }
     }
     return false;

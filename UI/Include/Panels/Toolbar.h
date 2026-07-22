@@ -14,7 +14,8 @@ public:
     void Initialize(const std::string& fontPath, 
                     std::function<void()> onOpenImage, 
                     std::function<void()> onLoadProject,
-                    std::function<void()> onToggleUI);
+                    std::function<void()> onToggleUI,
+                    std::function<void()> onOpenWizard);
     
     bool HandleEvent(const sf::Event& event, const sf::RenderWindow& window, StudioCore::StudioEngineFacade& engine);
     void Render(sf::RenderWindow& window);

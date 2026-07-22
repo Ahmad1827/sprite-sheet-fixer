@@ -6,6 +6,8 @@
 #include "Processing/SpriteDetector.h"
 #include "DataModels/SpriteDefinition.h"
 #include "Commands/BatchCommands.h"
+#include "Systems/AnimationBuilder.h"
+
 
 namespace StudioCore {
 
@@ -32,6 +34,9 @@ public:
     bool SaveProject(const std::string& filePath) const;
     bool LoadProject(const std::string& filePath, std::string& outErrorMessage);
     
+    std::vector<ProposedAnimation> BuildAnimationsByRow();
+void CommitProposedAnimations(const std::vector<ProposedAnimation>& animations);
+
     std::shared_ptr<Project> GetCurrentProject() const;
     std::shared_ptr<const SourceTexture> GetCurrentTexture() const;
     bool HasTexture() const;

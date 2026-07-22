@@ -6,7 +6,7 @@
 #include "Panels/PreviewViewport.h"
 #include "Panels/ExportPreviewPanel.h"
 #include "Panels/Toolbar.h"
-
+#include "Panels/AnimationBuilderPanel.h"
 
 namespace StudioUI {
     class AnimationPanel;
@@ -32,6 +32,8 @@ private:
     StudioUI::ExportPreviewPanel m_exportPreview;
     bool m_isExportMode{false};
     bool m_isUIHidden{false};
-    
+
+    StudioUI::AnimationBuilderPanel m_animBuilderPanel;
+    bool m_isWizardMode{false};
     StudioUI::Toolbar m_toolbar;
 };

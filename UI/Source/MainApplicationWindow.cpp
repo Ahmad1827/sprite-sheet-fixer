@@ -1,12 +1,13 @@
 #include "MainApplicationWindow.h"
 #include "DataModels/SourceTexture.h"
+#include "DataModels/Project.h"
 #include "Panels/AnimationPanel.h"
 #include <iostream>
 #include "Utils/NativeFileDialog.h"
 #include "Panels/Toolbar.h"
 
 MainApplicationWindow::MainApplicationWindow() 
-    : m_window(sf::VideoMode(1280, 720), "Sprite Sheet Studio - Milestone 9") {
+    : m_window(sf::VideoMode(1280, 720), "Sprite Sheet Studio - Milestone 10") {
     
     m_window.setFramerateLimit(60);
     m_engine.Initialize();
@@ -25,7 +26,7 @@ MainApplicationWindow::MainApplicationWindow()
             if (!path.empty()) {
                 std::string err;
                 if (m_engine.LoadProject(path, err)) {
-                    m_viewport.RefreshTexture(m_engine); // FIX: Refresh viewport!
+                    m_viewport.RefreshTexture(m_engine);
                     std::cout << "[✓] Project loaded." << std::endl;
                 }
             }
@@ -33,12 +34,18 @@ MainApplicationWindow::MainApplicationWindow()
         [this]() { 
             m_isUIHidden = !m_isUIHidden;
             m_viewport.SetUIHidden(m_isUIHidden);
+        },
+        [this]() {
+            if (!m_engine.IsProjectActive() || !m_engine.GetCurrentProject() || m_engine.GetCurrentProject()->GetSprites().empty()) return;
+            m_isWizardMode = true;
+            m_animBuilderPanel.Activate(m_engine);
         }
     );
     
     m_animationPanel = std::make_unique<StudioUI::AnimationPanel>();
     m_animationPanel->InitializeFont("Resources/font.ttf");
     m_exportPreview.InitializeFont("Resources/font.ttf");
+    m_animBuilderPanel.InitializeFont("Resources/font.ttf");
 }
 
 MainApplicationWindow::~MainApplicationWindow() = default;
@@ -68,11 +75,22 @@ void MainApplicationWindow::ProcessEvents() {
         if (event.type == sf::Event::Closed) {
             m_window.close();
         } 
+
+        if (m_isWizardMode) {
+            bool exitWizard = false;
+            m_animBuilderPanel.HandleEvent(event, m_window, m_engine, exitWizard);
+            if (exitWizard) {
+                m_isWizardMode = false;
+            }
+            continue;
+        }
+
         if (!m_isExportMode) {
             if (m_toolbar.HandleEvent(event, m_window, m_engine)) {
                 continue;
             }
         }
+
         if (m_isExportMode) {
             if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape) {
                 m_isExportMode = false;
@@ -139,7 +157,7 @@ void MainApplicationWindow::ProcessEvents() {
                 LoadImage(filePath);
             }
             continue;
-        }
+        } 
         else {
             m_viewport.HandleEvent(event, m_window, m_engine);
             if (m_animationPanel) {
@@ -150,7 +168,7 @@ void MainApplicationWindow::ProcessEvents() {
 }
 
 void MainApplicationWindow::Update(float deltaTime) {
-    if (!m_isExportMode) {
+    if (!m_isExportMode && !m_isWizardMode) {
         m_engine.Update(deltaTime);
         m_viewport.Update(deltaTime);
     }
@@ -168,6 +186,10 @@ void MainApplicationWindow::Render() {
             m_animationPanel->Render(m_window, m_engine);
         }
         m_toolbar.Render(m_window);
+
+        if (m_isWizardMode) {
+            m_animBuilderPanel.Render(m_window);
+        }
     }
     
     m_window.display();

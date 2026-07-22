@@ -211,4 +211,36 @@ void StudioEngineFacade::ExecuteAlignSprites(const std::vector<std::string>& spr
     m_commandHistory->ExecuteCommand(std::move(cmd));
 }
 
+// Implementation for Facade:
+std::vector<ProposedAnimation> StudioEngineFacade::BuildAnimationsByRow() {
+    auto proj = GetCurrentProject();
+    if (!proj) return {};
+    
+    AnimationBuilder builder;
+    return builder.DetectByRows(proj->GetSprites());
+}
+
+void StudioEngineFacade::CommitProposedAnimations(const std::vector<ProposedAnimation>& animations) {
+    auto proj = GetCurrentProject();
+    if (!proj) return;
+
+    for (const auto& prop : animations) {
+        std::string animId = "anim_" + prop.name;
+        
+        auto group = std::make_shared<AnimationGroup>(animId, prop.name);
+        group->SetFPS(static_cast<float>(prop.fps));
+        group->SetLooping(prop.isLooping);
+        
+        auto idsToAdd = prop.spriteIds;
+        if (prop.reverseOrder) {
+            std::reverse(idsToAdd.begin(), idsToAdd.end());
+        }
+
+        // Set all frames at once using the built-in method
+        group->SetFrames(idsToAdd);
+
+        proj->AddAnimationGroup(group);
+    }
+}
+
 }
