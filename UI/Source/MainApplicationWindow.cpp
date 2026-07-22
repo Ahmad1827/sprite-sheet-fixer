@@ -4,7 +4,6 @@
 #include <iostream>
 #include "Utils/NativeFileDialog.h"
 
-
 MainApplicationWindow::MainApplicationWindow() 
     : m_window(sf::VideoMode(1280, 720), "Sprite Sheet Studio - Milestone 8") {
     

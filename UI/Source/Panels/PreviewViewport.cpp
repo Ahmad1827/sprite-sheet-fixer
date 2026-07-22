@@ -144,12 +144,26 @@ void PreviewViewport::HandleEvent(const sf::Event& event, const sf::RenderWindow
             if (event.key.shift) engine.Redo();
             else engine.Undo();
         }
+        else if (event.key.code == sf::Keyboard::Y && event.key.control) {
+            engine.Redo();
+        }
+        else if (event.key.code == sf::Keyboard::A && event.key.control) {
+            // Milestone 9: Select All
+            m_selectedSpriteIds.clear();
+            if (engine.IsProjectActive()) {
+                for (const auto& s : engine.GetCurrentProject()->GetSprites()) {
+                    m_selectedSpriteIds.push_back(s->GetId());
+                }
+            }
+        }
         else if (event.key.code == sf::Keyboard::D && event.key.control) {
             StudioCore::DetectionConfig config;
             engine.RunAutoDetection(config);
         }
         else if (event.key.code == sf::Keyboard::Escape) {
             if (engine.IsDetectionRunning()) engine.CancelDetection();
+            m_selectedSpriteIds.clear(); // Milestone 9: Clear Selection
+            m_selection.ClearSelection();
         }
         else if (event.key.code == sf::Keyboard::G) m_showGrid = !m_showGrid;
         else if (event.key.code == sf::Keyboard::F3) m_showDebug = !m_showDebug;
@@ -178,9 +192,8 @@ void PreviewViewport::HandleEvent(const sf::Event& event, const sf::RenderWindow
         sf::Vector2i clickScreenPos(event.mouseButton.x, event.mouseButton.y);
         sf::FloatRect canvasBounds = GetViewportBounds(window);
 
-        // ONLY process mouse clicks if they land INSIDE the main viewport canvas!
         if (!canvasBounds.contains(static_cast<float>(clickScreenPos.x), static_cast<float>(clickScreenPos.y))) {
-            return; // Ignore click—let AnimationPanel handle it
+            return;
         }
 
         if (event.mouseButton.button == sf::Mouse::Middle) {
@@ -210,7 +223,9 @@ void PreviewViewport::HandleEvent(const sf::Event& event, const sf::RenderWindow
                     m_isDraggingBaseline = false;
                 } else {
                     HandleSpriteSelection(clickedImagePos, engine, shift, ctrl);
-                    if (m_selectedSpriteIds.empty()) {
+                    
+                    // If we clicked empty space, start the Marquee Selection
+                    if (m_selectedSpriteIds.empty() || shift || ctrl) { 
                         m_selection.BeginSelection(clickedImagePos);
                     }
                 }
@@ -223,7 +238,28 @@ void PreviewViewport::HandleEvent(const sf::Event& event, const sf::RenderWindow
         if (event.mouseButton.button == sf::Mouse::Middle) {
             m_isPanning = false;
         } else if (event.mouseButton.button == sf::Mouse::Left) {
+            // Milestone 9: Marquee Intersection Logic
+            if (m_selection.HasValidSelection() && engine.IsProjectActive()) {
+                sf::FloatRect marquee = m_selection.GetSelectionRect();
+                auto project = engine.GetCurrentProject();
+                
+                bool shift = sf::Keyboard::isKeyPressed(sf::Keyboard::LShift) || sf::Keyboard::isKeyPressed(sf::Keyboard::RShift);
+                bool ctrl = sf::Keyboard::isKeyPressed(sf::Keyboard::LControl) || sf::Keyboard::isKeyPressed(sf::Keyboard::RControl);
+                if (!shift && !ctrl) m_selectedSpriteIds.clear();
+
+                for (const auto& sprite : project->GetSprites()) {
+                    const auto& rect = sprite->GetSourceRect();
+                    sf::FloatRect bounds(rect.x, rect.y, rect.width, rect.height);
+                    
+                    if (marquee.intersects(bounds)) {
+                        if (std::find(m_selectedSpriteIds.begin(), m_selectedSpriteIds.end(), sprite->GetId()) == m_selectedSpriteIds.end()) {
+                            m_selectedSpriteIds.push_back(sprite->GetId());
+                        }
+                    }
+                }
+            }
             m_selection.EndSelection();
+            m_selection.ClearSelection(); // Clear box visual
             m_isDraggingPivot = false;
             m_isDraggingBaseline = false;
         }
@@ -383,7 +419,8 @@ void PreviewViewport::Render(sf::RenderWindow& window, const StudioCore::StudioE
         if (sprite) {
             StudioUI::SpriteInspectorInfo spriteInfo;
             spriteInfo.isActive = true;
-            spriteInfo.id = m_selectedSpriteIds.size() > 1 ? "Multiple Selected" : sprite->GetId();
+            // Milestone 9: Inspector shows multi-select state
+            spriteInfo.id = m_selectedSpriteIds.size() > 1 ? "Selected: " + std::to_string(m_selectedSpriteIds.size()) : sprite->GetId();
             const auto& r = sprite->GetSourceRect();
             spriteInfo.x = r.x; spriteInfo.y = r.y;
             spriteInfo.w = r.width; spriteInfo.h = r.height;
