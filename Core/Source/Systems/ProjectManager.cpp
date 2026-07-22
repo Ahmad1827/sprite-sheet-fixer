@@ -5,59 +5,78 @@
 #include "json.hpp"
 #include <fstream>
 #include <set>
+#include <filesystem>
+#include <iostream>
 
 using json = nlohmann::json;
+namespace fs = std::filesystem;
 
 namespace StudioCore {
 
 bool ProjectManager::SaveProject(const Project& project, const std::string& filePath) {
-    json j;
-    j["imagePath"] = project.GetImagePath();
-    
-    json spritesArray = json::array();
-    for (const auto& s : project.GetSprites()) {
-        const auto& rect = s->GetSourceRect();
-        const auto& pivot = s->GetPivot();
-        const auto& center = s->GetCenter(); // Get Center of Mass
+    if (filePath.empty()) return false;
 
-        spritesArray.push_back({
-            {"id", s->GetId()},
-            {"x", rect.x},
-            {"y", rect.y},
-            {"width", rect.width},
-            {"height", rect.height},
-            {"pivotX", pivot.x},
-            {"pivotY", pivot.y},
-            {"baseline", s->GetBaseline()},
-            {"pixelCount", s->GetPixelCount()},
-            {"centerX", center.x},
-            {"centerY", center.y}
-        });
+    try {
+        fs::path p(filePath);
+        if (p.has_parent_path()) {
+            fs::create_directories(p.parent_path());
+        }
+
+        json j;
+        j["imagePath"] = project.GetImagePath();
+        
+        json spritesArray = json::array();
+        for (const auto& s : project.GetSprites()) {
+            const auto& rect = s->GetSourceRect();
+            const auto& pivot = s->GetPivot();
+            const auto& center = s->GetCenter();
+
+            spritesArray.push_back({
+                {"id", s->GetId()},
+                {"x", rect.x},
+                {"y", rect.y},
+                {"width", rect.width},
+                {"height", rect.height},
+                {"pivotX", pivot.x},
+                {"pivotY", pivot.y},
+                {"baseline", s->GetBaseline()},
+                {"pixelCount", s->GetPixelCount()},
+                {"centerX", center.x},
+                {"centerY", center.y}
+            });
+        }
+        j["sprites"] = spritesArray;
+
+        json animsArray = json::array();
+        for (const auto& a : project.GetAnimationGroups()) {
+            animsArray.push_back({
+                {"id", a->GetId()},
+                {"name", a->GetName()},
+                {"fps", a->GetFPS()},
+                {"looping", a->IsLooping()},
+                {"frames", a->GetFrames()}
+            });
+        }
+        j["animations"] = animsArray;
+
+        std::ofstream file(p.string());
+        if (!file.is_open()) {
+            std::cerr << "[X] Failed to open path for writing: " << p.string() << std::endl;
+            return false;
+        }
+        file << j.dump(4);
+        std::cout << "[✓] Project file successfully written to: " << p.string() << std::endl;
+        return true;
+    } catch (const std::exception& e) {
+        std::cerr << "[X] Exception during project save: " << e.what() << std::endl;
+        return false;
     }
-    j["sprites"] = spritesArray;
-
-    json animsArray = json::array();
-    for (const auto& a : project.GetAnimationGroups()) {
-        animsArray.push_back({
-            {"id", a->GetId()},
-            {"name", a->GetName()},
-            {"fps", a->GetFPS()},
-            {"looping", a->IsLooping()},
-            {"frames", a->GetFrames()}
-        });
-    }
-    j["animations"] = animsArray;
-
-    std::ofstream file(filePath);
-    if (!file.is_open()) return false;
-    file << j.dump(4);
-    return true;
 }
 
 std::shared_ptr<Project> ProjectManager::LoadProject(const std::string& filePath, std::string& outError) {
     std::ifstream file(filePath);
     if (!file.is_open()) {
-        outError = "Could not open project file.";
+        outError = "Could not open project file: " + filePath;
         return nullptr;
     }
 
@@ -72,7 +91,7 @@ std::shared_ptr<Project> ProjectManager::LoadProject(const std::string& filePath
     std::string imgPath = j.value("imagePath", "");
     std::ifstream imgCheck(imgPath);
     if (!imgCheck.good()) {
-        outError = "Missing source image: " + imgPath;
+        outError = "Missing source image at stored path: " + imgPath;
         return nullptr;
     }
 
@@ -97,7 +116,6 @@ std::shared_ptr<Project> ProjectManager::LoadProject(const std::string& filePath
             def.SetPivot({s["pivotX"], s["pivotY"]});
             def.SetBaseline(s["baseline"]);
             
-            // Restore Center of Mass for Auto-Align
             if (s.contains("pixelCount")) {
                 def.SetPixelCount(s["pixelCount"]);
             }

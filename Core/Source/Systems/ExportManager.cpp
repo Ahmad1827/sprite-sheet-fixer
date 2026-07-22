@@ -4,8 +4,11 @@
 #include "DataModels/AnimationGroup.h"
 #include "json.hpp"
 #include <fstream>
+#include <filesystem>
+#include <iostream>
 
 using json = nlohmann::json;
+namespace fs = std::filesystem;
 
 namespace StudioCore {
 
@@ -14,17 +17,27 @@ sf::Image ExportManager::GeneratePreview(const Project& project, int padding) co
 }
 
 bool ExportManager::ExportPNG(const Project& project, const std::string& filePath, int padding) const {
-    AtlasResult result = AtlasPacker::PackUniformGrid(project, padding);
-    if (result.image.getSize().x == 0 || result.image.getSize().y == 0) return false;
-    if (!result.image.saveToFile(filePath)) return false;
+    if (filePath.empty()) return false;
 
-    std::string baseDir = filePath;
-    size_t lastSlash = baseDir.find_last_of("/\\");
-    if (lastSlash != std::string::npos) {
-        baseDir = baseDir.substr(0, lastSlash + 1);
-    } else {
-        baseDir = "";
+    fs::path exportPath(filePath);
+    if (exportPath.has_parent_path()) {
+        fs::create_directories(exportPath.parent_path());
     }
+
+    AtlasResult result = AtlasPacker::PackUniformGrid(project, padding);
+    if (result.image.getSize().x == 0 || result.image.getSize().y == 0) {
+        std::cerr << "[X] Export failed: Generated atlas grid size is 0x0." << std::endl;
+        return false;
+    }
+
+    if (!result.image.saveToFile(exportPath.string())) {
+        std::cerr << "[X] Failed to save PNG to: " << exportPath.string() << std::endl;
+        return false;
+    }
+
+    fs::path parentDir = exportPath.parent_path();
+    fs::path atlasJsonPath = parentDir.empty() ? "atlas.json" : parentDir / "atlas.json";
+    fs::path animJsonPath = parentDir.empty() ? "animations.json" : parentDir / "animations.json";
 
     json atlasJson = json::array();
     for (const auto& s : result.sprites) {
@@ -39,7 +52,7 @@ bool ExportManager::ExportPNG(const Project& project, const std::string& filePat
             {"baseline", s.baseline}
         });
     }
-    std::ofstream atlasFile(baseDir + "atlas.json");
+    std::ofstream atlasFile(atlasJsonPath.string());
     atlasFile << atlasJson.dump(4);
 
     json animJson = json::array();
@@ -51,8 +64,13 @@ bool ExportManager::ExportPNG(const Project& project, const std::string& filePat
             {"frames", a->GetFrames()}
         });
     }
-    std::ofstream animFile(baseDir + "animations.json");
+    std::ofstream animFile(animJsonPath.string());
     animFile << animJson.dump(4);
+
+    std::cout << "[✓] Export successful!" << std::endl;
+    std::cout << "    - PNG: " << exportPath.string() << std::endl;
+    std::cout << "    - Metadata: " << atlasJsonPath.string() << std::endl;
+    std::cout << "    - Animations: " << animJsonPath.string() << std::endl;
 
     return true;
 }
