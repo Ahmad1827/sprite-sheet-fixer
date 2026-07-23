@@ -1,7 +1,9 @@
 #include "SpriteSheetStudioPanel.h"
 #include "Utils/NativeFileDialog.h"
 #include "DataModels/Project.h"
-
+#ifdef LoadImage
+#undef LoadImage
+#endif
 namespace StudioUI {
 
 SpriteSheetStudioPanel::SpriteSheetStudioPanel() {

@@ -6,6 +6,8 @@
 #ifdef _WIN32
 #include <windows.h>
 #include <commdlg.h>
+#define popen _popen
+#define pclose _pclose
 #endif
 
 namespace StudioUI {

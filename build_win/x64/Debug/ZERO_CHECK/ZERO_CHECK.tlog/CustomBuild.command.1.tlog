@@ -1,0 +1,10 @@
+^\\WSL.LOCALHOST\UBUNTU\HOME\AHMAD\PROIECTE\SPRITESHEETSTUDIO\BUILD_WIN\CMAKEFILES\CA40785DBD54CA1FB657BB5AC6E4A6E6\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -S//wsl.localhost/Ubuntu/home/ahmad/proiecte/SpriteSheetStudio -B//wsl.localhost/Ubuntu/home/ahmad/proiecte/SpriteSheetStudio/build_win --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file //wsl.localhost/Ubuntu/home/ahmad/proiecte/SpriteSheetStudio/build_win/SpriteSheetStudio.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

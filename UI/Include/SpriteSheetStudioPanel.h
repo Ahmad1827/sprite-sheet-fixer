@@ -8,7 +8,9 @@
 #include "Panels/WorkspaceEnvironment.h"
 #include "Panels/ExportPreviewPanel.h"
 #include "Panels/AnimationBuilderPanel.h"
-
+#ifdef LoadImage
+#undef LoadImage
+#endif
 namespace StudioUI {
 
 class SpriteSheetStudioPanel {

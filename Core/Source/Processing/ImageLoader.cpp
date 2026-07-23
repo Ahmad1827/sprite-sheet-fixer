@@ -1,6 +1,6 @@
 #include "Processing/ImageLoader.h"
 #include "DataModels/SourceTexture.h"
-
+#define STB_IMAGE_STATIC
 #define STB_IMAGE_IMPLEMENTATION
 #include "ThirdParty/stb_image.h"
 
