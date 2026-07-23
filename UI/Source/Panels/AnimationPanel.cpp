@@ -213,7 +213,7 @@ void AnimationPanel::Render(sf::RenderWindow& window, const StudioCore::StudioEn
     window.draw(leftBorder);
 
     // Playback Information
-    sf::Text controlsText("▶ Play   ⏸ Pause   ⏹ Stop\n\nFPS: 12   Loop: On\nFrame: 3 / 12", m_font, 12);
+    sf::Text controlsText("Play   Pause   Stop\n\nFPS: 12   Loop: On\nFrame: 3 / 12", m_font, 12);
     controlsText.setFillColor(StudioUI::Theme::TextPrimary);
     controlsText.setPosition(20.0f, posY + StudioUI::Theme::HeaderHeight + 20.0f);
     window.draw(controlsText);

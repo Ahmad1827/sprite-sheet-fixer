@@ -19,12 +19,12 @@ void Toolbar::Initialize(const std::string& fontPath,
 
     m_buttons.clear();
     // Using SFML UTF-8 string support for Icons
-    m_buttons.push_back({"load_proj", u8"📂 Open", {}, onLoadProject});
-    m_buttons.push_back({"save_proj", u8"💾 Save", {}, onSaveProject});
-    m_buttons.push_back({"open_img", u8"🖼 Import", {}, onOpenImage});
-    m_buttons.push_back({"wizard", u8"⚙ Detect", {}, onOpenWizard});
-    m_buttons.push_back({"export", u8"⬇ Export", {}, onExport});
-    m_buttons.push_back({"toggle_ui", u8"👁 View", {}, onToggleUI, true, false});
+    m_buttons.push_back({"load_proj", u8"Open", {}, onLoadProject});
+    m_buttons.push_back({"save_proj", u8"Save", {}, onSaveProject});
+    m_buttons.push_back({"open_img", u8"Import", {}, onOpenImage});
+    m_buttons.push_back({"wizard", u8"Detect", {}, onOpenWizard});
+    m_buttons.push_back({"export", u8"Export", {}, onExport});
+    m_buttons.push_back({"toggle_ui", u8"View", {}, onToggleUI, true, false});
 
     LayoutButtons(1280.0f);
 }

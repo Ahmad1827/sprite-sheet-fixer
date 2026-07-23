@@ -236,7 +236,7 @@ void OverlayRenderer::RenderEmptyState(sf::RenderWindow& window) {
     sf::Text subtitle("Sprite Sheet Studio", m_font, 14);
     subtitle.setFillColor(Theme::AccentColor);
     
-    sf::Text instructions("Drag & Drop PNG\n\nor\n\nClick 🖼 Import Image", m_font, 14);
+    sf::Text instructions("Drag & Drop PNG\n\nor\n\nClick Import Image", m_font, 14);
     instructions.setFillColor(Theme::TextSecondary);
     
     // Center alignment math
