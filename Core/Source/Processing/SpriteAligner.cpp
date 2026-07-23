@@ -9,18 +9,18 @@ AlignmentResult SpriteAligner::ComputeAlignment(const SpriteDefinition& sprite) 
     const auto& rect = sprite.GetSourceRect();
     const auto& center = sprite.GetCenter();
 
-    
+    // Pivot X: Center of Mass relative to the local bounding box
     if (rect.width > 0) {
         res.alignedPivot.x = (center.x - rect.x) / static_cast<float>(rect.width);
     } else {
         res.alignedPivot.x = 0.5f;
     }
 
-    
+    // Pivot Y / Baseline: Anchor feet to the bottom edge of the sprite's tight bounding box
     res.alignedPivot.y = 1.0f;
     res.alignedBaseline = 0.0f;
 
-    
+    // Render Offset: Pixel shift required if rendering to a unified canvas (Future Export)
     res.renderOffset.x = rect.width * res.alignedPivot.x;
     res.renderOffset.y = rect.height - res.alignedBaseline;
 

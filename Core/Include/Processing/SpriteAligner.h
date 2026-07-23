@@ -16,10 +16,10 @@ struct AlignmentResult {
 
 class SpriteAligner {
 public:
-    
+    // Computes the ideal alignment for a single sprite using its Center of Mass and Bounds
     static AlignmentResult ComputeAlignment(const SpriteDefinition& sprite);
     
-    
+    // Future-proof: Computes all offsets for an animation group (used later by the Exporter)
     static std::map<std::string, AlignmentResult> ComputeAnimationAlignment(const AnimationGroup& anim, const Project& project);
 };
 
