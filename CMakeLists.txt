@@ -5,7 +5,6 @@ set(CMAKE_CXX_STANDARD 17)
 
 # SFML Dependency
 find_package(SFML 2.5 COMPONENTS graphics window system REQUIRED)
-
 # Core Engine Logic
 add_subdirectory(Core)
 

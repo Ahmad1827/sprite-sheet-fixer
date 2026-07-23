@@ -2,6 +2,7 @@
 # Build Directories & Artifacts
 # ==============================================================================
 build/
+build_win/
 bin/
 lib/
 out/
