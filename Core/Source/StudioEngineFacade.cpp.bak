@@ -35,7 +35,7 @@ void StudioEngineFacade::Update(float deltaTime) {
         auto results = m_jobQueue->ConsumeResults();
         if (IsProjectActive()) {
             for (auto& sprite : results) {
-                m_workspace->GetActiveProject()->AddSprite(*sprite); 
+                m_workspace->GetActiveProject()->AddSprite(*sprite); // <-- Added dereference here
             }
         }
     }
@@ -73,7 +73,7 @@ bool StudioEngineFacade::LoadProject(const std::string& filePath, std::string& o
     auto proj = ProjectManager::LoadProject(filePath, outErrorMessage);
     if (!proj) return false;
 
-    
+    // Use std::const_pointer_cast to pass the loaded texture to SetTexture cleanly
     m_workspace->CreateNewProject();
     auto tex = std::const_pointer_cast<SourceTexture>(proj->GetTexture());
     m_workspace->GetActiveProject()->SetTexture(tex);
@@ -221,7 +221,7 @@ void StudioEngineFacade::ExecuteAlignSprites(const std::vector<std::string>& spr
     m_commandHistory->ExecuteCommand(std::move(cmd));
 }
 
-
+// Implementation for Facade:
 std::vector<ProposedAnimation> StudioEngineFacade::BuildAnimationsByRow() {
     auto proj = GetCurrentProject();
     if (!proj) return {};
@@ -246,7 +246,7 @@ void StudioEngineFacade::CommitProposedAnimations(const std::vector<ProposedAnim
             std::reverse(idsToAdd.begin(), idsToAdd.end());
         }
 
-        
+        // Set all frames at once using the built-in method
         group->SetFrames(idsToAdd);
 
         proj->AddAnimationGroup(group);
