@@ -43,6 +43,7 @@ private:
     void RenderList(sf::RenderWindow& window, const StudioCore::StudioEngineFacade& engine);
     void RenderTimeline(sf::RenderWindow& window, const StudioCore::StudioEngineFacade& engine);
     void RenderPreview(sf::RenderWindow& window, const StudioCore::StudioEngineFacade& engine);
+    
     sf::FloatRect m_bounds{0.0f, 0.0f, 1280.0f, 720.0f};
 };
 

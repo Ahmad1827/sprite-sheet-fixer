@@ -30,13 +30,18 @@ public:
         m_selection.ClearSelection();
     }
     sf::Vector2f MapPixelToWorld(const sf::Vector2i& pixelPos, const sf::RenderWindow& window) const {
-        return window.mapPixelToCoords(pixelPos, m_view); // or m_cameraView / whatever view member name exists inside PreviewViewport
+        return window.mapPixelToCoords(pixelPos, m_view); 
     }
     void SetUIHidden(bool hidden) { m_isUIHidden = hidden; }
     
+    // Restored Dynamic Bounds to prevent Timeline click hijacking
     sf::FloatRect GetViewportBounds(const sf::RenderWindow& window) const {
+        if (m_bounds.width > 0.0f && m_bounds.height > 0.0f) {
+            return m_bounds;
+        }
+        // Fallback for standalone safety
         sf::Vector2u size = window.getSize();
-        float startY = 40.f; // Start below the Toolbar to prevent click-through!
+        float startY = 40.f; 
         float rightPad = m_isUIHidden ? 0.f : 300.f;
         float bottomPad = m_isUIHidden ? 0.f : 200.f;
         return sf::FloatRect(0.f, startY, static_cast<float>(size.x) - rightPad, static_cast<float>(size.y) - bottomPad - startY);

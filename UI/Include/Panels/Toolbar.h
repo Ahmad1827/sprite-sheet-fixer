@@ -14,7 +14,7 @@ struct ToolbarButton {
     std::string id;
     std::string label;
     sf::FloatRect bounds;
-    std::function<void()> onClick;
+    std::function<void(StudioCore::StudioEngineFacade&)> onClick;
     bool isToggle{false};
     bool isToggled{false};
     float hoverAlpha{0.0f}; // Smooth hover transition state
@@ -30,7 +30,8 @@ public:
                 std::function<void()> onSaveProject,
                 std::function<void()> onExport,
                 std::function<void()> onToggleUI,
-                std::function<void()> onOpenWizard);
+                std::function<void()> onOpenWizard,
+                std::function<void()> onDetect);
 
     bool HandleEvent(const sf::Event& event, const sf::RenderWindow& window, StudioCore::StudioEngineFacade& engine);
     void Update(float deltaTime, sf::Vector2f mousePos);

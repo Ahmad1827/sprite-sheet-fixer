@@ -12,19 +12,30 @@ void Toolbar::Initialize(const std::string& fontPath,
                          std::function<void()> onSaveProject,
                          std::function<void()> onExport,
                          std::function<void()> onToggleUI,
-                         std::function<void()> onOpenWizard) {
+                         std::function<void()> onOpenWizard,
+                         std::function<void()> onDetect) {
     
     std::vector<std::string> fontCandidates = { fontPath, "Resources/font.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf" };
     for (const auto& path : fontCandidates) { if (m_font.loadFromFile(path)) break; }
 
     m_buttons.clear();
-    // Using SFML UTF-8 string support for Icons
-    m_buttons.push_back({"load_proj", u8"Open", {}, onLoadProject});
-    m_buttons.push_back({"save_proj", u8"Save", {}, onSaveProject});
-    m_buttons.push_back({"open_img", u8"Import", {}, onOpenImage});
-    m_buttons.push_back({"wizard", u8"Detect", {}, onOpenWizard});
-    m_buttons.push_back({"export", u8"Export", {}, onExport});
-    m_buttons.push_back({"toggle_ui", u8"View", {}, onToggleUI, true, false});
+    
+    // Core Project and File Operations
+    m_buttons.push_back({"open_img", u8"Import", {}, [onOpenImage](StudioCore::StudioEngineFacade&){ onOpenImage(); }});
+    m_buttons.push_back({"load_proj", u8"Open", {}, [onLoadProject](StudioCore::StudioEngineFacade&){ onLoadProject(); }});
+    m_buttons.push_back({"save_proj", u8"Save", {}, [onSaveProject](StudioCore::StudioEngineFacade&){ onSaveProject(); }});
+    m_buttons.push_back({"export", u8"Export", {}, [onExport](StudioCore::StudioEngineFacade&){ onExport(); }});
+    
+    // Engine State Operations
+    m_buttons.push_back({"undo", u8"Undo", {}, [](StudioCore::StudioEngineFacade& engine){ engine.Undo(); }});
+    m_buttons.push_back({"redo", u8"Redo", {}, [](StudioCore::StudioEngineFacade& engine){ engine.Redo(); }});
+    
+    // Sprite Detection and Wizards
+    m_buttons.push_back({"detect", u8"Detect", {}, [onDetect](StudioCore::StudioEngineFacade&){ onDetect(); }});
+    m_buttons.push_back({"wizard", u8"Wizard", {}, [onOpenWizard](StudioCore::StudioEngineFacade&){ onOpenWizard(); }});
+    
+    // View Options
+    m_buttons.push_back({"toggle_ui", u8"View", {}, [onToggleUI](StudioCore::StudioEngineFacade&){ onToggleUI(); }, true, false});
 
     LayoutButtons(1280.0f);
 }
@@ -39,7 +50,7 @@ void Toolbar::LayoutButtons(float windowWidth) {
 
     float startX = 12.0f;
     float buttonHeight = Theme::ToolbarHeight - 8.0f;
-    float fixedButtonWidth = 95.0f; // IDENTICAL WIDTH FOR ALL BUTTONS
+    float fixedButtonWidth = 85.0f; // Adjusted width to fit all 9 tools perfectly
     float spacing = 4.0f;
 
     m_dividers.clear();
@@ -48,8 +59,8 @@ void Toolbar::LayoutButtons(float windowWidth) {
         m_buttons[i].bounds = sf::FloatRect(startX, 4.0f, fixedButtonWidth, buttonHeight);
         startX += fixedButtonWidth + spacing;
 
-        // Group Dividers
-        if (m_buttons[i].id == "save_proj" || m_buttons[i].id == "open_img" || m_buttons[i].id == "export") {
+        // Group Dividers to visually separate functional groups
+        if (m_buttons[i].id == "export" || m_buttons[i].id == "redo" || m_buttons[i].id == "wizard") {
             sf::RectangleShape divider({Theme::BorderThickness, buttonHeight - 4.0f});
             divider.setPosition(startX + 2.0f, 6.0f);
             divider.setFillColor(Theme::BorderColor);
@@ -99,7 +110,7 @@ bool Toolbar::HandleEvent(const sf::Event& event, const sf::RenderWindow& window
                     m_buttons[i].isToggled = !m_buttons[i].isToggled;
                 }
                 if (m_buttons[i].onClick) {
-                    m_buttons[i].onClick();
+                    m_buttons[i].onClick(engine); // Restored callback directly into Engine
                 }
                 return true;
             }
@@ -111,7 +122,7 @@ bool Toolbar::HandleEvent(const sf::Event& event, const sf::RenderWindow& window
 
 void Toolbar::Render(sf::RenderWindow& window) {
     sf::Vector2u winSize = window.getSize();
-    LayoutButtons(static_cast<float>(m_bounds.width)); // Ensure buttons are laid out correctly based on current width
+    LayoutButtons(static_cast<float>(m_bounds.width));
 
     sf::Vector2i mousePixel = sf::Mouse::getPosition(window);
     sf::Vector2f mousePos(mousePixel.x, mousePixel.y);

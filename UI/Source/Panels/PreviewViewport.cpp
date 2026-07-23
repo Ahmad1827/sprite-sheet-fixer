@@ -8,7 +8,6 @@
 #include <iostream>
 #include "Theme.h"
 
-
 PreviewViewport::PreviewViewport() {
     m_view.setSize(800.f, 600.f);
     m_view.setCenter(400.f, 300.f);
@@ -17,10 +16,6 @@ PreviewViewport::PreviewViewport() {
 void PreviewViewport::Initialize() {
     m_overlay.InitializeFont("Resources/font.ttf");
 }
-
-
-
-
 
 void PreviewViewport::RefreshTexture(const StudioCore::StudioEngineFacade& engine) {
     if (engine.HasTexture()) {
@@ -76,7 +71,8 @@ void PreviewViewport::ZoomToSelection() {
     if (rect.width > 0 && rect.height > 0) {
         m_view.setCenter(rect.left + rect.width / 2.0f, rect.top + rect.height / 2.0f);
         m_view.setSize(rect.width * 1.2f, rect.height * 1.2f); 
-        m_currentZoom = m_view.getSize().x / 1280.f; 
+        float baseWidth = m_bounds.width > 0 ? m_bounds.width : 1280.f;
+        m_currentZoom = m_view.getSize().x / baseWidth; 
     }
 }
 
@@ -154,7 +150,6 @@ void PreviewViewport::HandleEvent(const sf::Event& event, const sf::RenderWindow
             engine.Redo();
         }
         else if (event.key.code == sf::Keyboard::A && event.key.control) {
-            // Milestone 9: Select All
             m_selectedSpriteIds.clear();
             if (engine.IsProjectActive()) {
                 for (const auto& s : engine.GetCurrentProject()->GetSprites()) {
@@ -168,7 +163,7 @@ void PreviewViewport::HandleEvent(const sf::Event& event, const sf::RenderWindow
         }
         else if (event.key.code == sf::Keyboard::Escape) {
             if (engine.IsDetectionRunning()) engine.CancelDetection();
-            m_selectedSpriteIds.clear(); // Milestone 9: Clear Selection
+            m_selectedSpriteIds.clear();
             m_selection.ClearSelection();
         }
         else if (event.key.code == sf::Keyboard::G) m_showGrid = !m_showGrid;
@@ -185,7 +180,8 @@ void PreviewViewport::HandleEvent(const sf::Event& event, const sf::RenderWindow
         else if (event.key.code == sf::Keyboard::P) m_showPivots = !m_showPivots;
         else if (event.key.code == sf::Keyboard::L) m_showBaselines = !m_showBaselines;
         else if (event.key.code == sf::Keyboard::N) TriggerNumericEdit(engine);
-    } else if (event.type == sf::Event::MouseWheelScrolled) {
+    } 
+    else if (event.type == sf::Event::MouseWheelScrolled) {
         sf::Vector2i mousePos(event.mouseWheelScroll.x, event.mouseWheelScroll.y);
         if (GetViewportBounds(window).contains(static_cast<float>(mousePos.x), static_cast<float>(mousePos.y))) {
             float zoomFactor = (event.mouseWheelScroll.delta > 0) ? 0.8f : 1.25f;
@@ -193,11 +189,11 @@ void PreviewViewport::HandleEvent(const sf::Event& event, const sf::RenderWindow
             m_currentZoom *= zoomFactor;
         }
     }
-    
     else if (event.type == sf::Event::MouseButtonPressed) {
         sf::Vector2i clickScreenPos(event.mouseButton.x, event.mouseButton.y);
         sf::FloatRect canvasBounds = GetViewportBounds(window);
 
+        // Prevents Canvas from stealing clicks meant for Timeline/Toolbar
         if (!canvasBounds.contains(static_cast<float>(clickScreenPos.x), static_cast<float>(clickScreenPos.y))) {
             return;
         }
@@ -230,7 +226,6 @@ void PreviewViewport::HandleEvent(const sf::Event& event, const sf::RenderWindow
                 } else {
                     HandleSpriteSelection(clickedImagePos, engine, shift, ctrl);
                     
-                    // If we clicked empty space, start the Marquee Selection
                     if (m_selectedSpriteIds.empty() || shift || ctrl) { 
                         m_selection.BeginSelection(clickedImagePos);
                     }
@@ -239,12 +234,10 @@ void PreviewViewport::HandleEvent(const sf::Event& event, const sf::RenderWindow
             m_doubleClickTimer.restart();
         }
     }
-    
     else if (event.type == sf::Event::MouseButtonReleased) {
         if (event.mouseButton.button == sf::Mouse::Middle) {
             m_isPanning = false;
         } else if (event.mouseButton.button == sf::Mouse::Left) {
-            // Milestone 9: Marquee Intersection Logic
             if (m_selection.HasValidSelection() && engine.IsProjectActive()) {
                 sf::FloatRect marquee = m_selection.GetSelectionRect();
                 auto project = engine.GetCurrentProject();
@@ -265,12 +258,11 @@ void PreviewViewport::HandleEvent(const sf::Event& event, const sf::RenderWindow
                 }
             }
             m_selection.EndSelection();
-            m_selection.ClearSelection(); // Clear box visual
+            m_selection.ClearSelection();
             m_isDraggingPivot = false;
             m_isDraggingBaseline = false;
         }
     } 
-    
     else if (event.type == sf::Event::MouseMoved) {
         sf::Vector2i currentMousePos = sf::Mouse::getPosition(window);
         sf::Vector2f worldPos = window.mapPixelToCoords(currentMousePos, m_view);
@@ -287,18 +279,16 @@ void PreviewViewport::HandleEvent(const sf::Event& event, const sf::RenderWindow
                 }
             }
 
-           if (m_isDraggingPivot && !m_selectedSpriteIds.empty()) {
+            if (m_isDraggingPivot && !m_selectedSpriteIds.empty()) {
                 auto primary = project->GetSpriteById(m_selectedSpriteIds[0]);
                 if (primary) {
                     const auto& rect = primary->GetSourceRect();
                     float nx = std::clamp((worldPos.x - rect.x) / rect.width, 0.0f, 1.0f);
                     float ny = std::clamp((worldPos.y - rect.y) / rect.height, 0.0f, 1.0f);
                     
-                    // Calculate Delta
                     float dx = nx - primary->GetPivot().x;
                     float dy = ny - primary->GetPivot().y;
 
-                    // Apply Delta to ALL selected
                     for (const auto& id : m_selectedSpriteIds) {
                         auto s = project->GetSpriteById(id);
                         if (s) {
@@ -325,13 +315,14 @@ void PreviewViewport::HandleEvent(const sf::Event& event, const sf::RenderWindow
                 static_cast<float>(m_lastMousePos.x - currentMousePos.x),
                 static_cast<float>(m_lastMousePos.y - currentMousePos.y)
             );
-            delta.x *= (m_view.getSize().x / m_bounds.width);
-            delta.y *= (m_view.getSize().y / m_bounds.height);
+            float baseWidth = m_bounds.width > 0 ? m_bounds.width : window.getSize().x;
+            float baseHeight = m_bounds.height > 0 ? m_bounds.height : window.getSize().y;
+            delta.x *= (m_view.getSize().x / baseWidth);
+            delta.y *= (m_view.getSize().y / baseHeight);
             m_view.move(delta);
             m_lastMousePos = currentMousePos;
         }
     } 
-    
     else if (event.type == sf::Event::Resized) {
         sf::Vector2f center = m_view.getCenter();
         m_view.setSize(static_cast<float>(event.size.width) * m_currentZoom, 
@@ -352,7 +343,6 @@ void PreviewViewport::Update(float deltaTime) {
 }
 
 void PreviewViewport::Render(sf::RenderWindow& window, const StudioCore::StudioEngineFacade& engine) {
-    // 1. Draw viewport background void
     window.setView(m_view);
 
     if (m_hasValidTexture) {
@@ -392,7 +382,7 @@ void PreviewViewport::Render(sf::RenderWindow& window, const StudioCore::StudioE
 
     m_selection.Render(window, m_currentZoom);
 
-    // 2. Reset view for UI overlays
+    // Reset view for UI overlays
     window.setView(window.getDefaultView());
 
     StudioUI::JobProgressInfo jobInfo;
@@ -440,10 +430,12 @@ void PreviewViewport::Render(sf::RenderWindow& window, const StudioCore::StudioE
         }
     }
     m_overlay.RenderInspector(window, inspector);
+    
     if (!m_hasValidTexture) {
         window.setView(window.getDefaultView());
         m_overlay.RenderEmptyState(window);
     }
+    
     if (engine.IsProjectActive() && !m_selectedSpriteIds.empty()) {
         auto project = engine.GetCurrentProject();
         auto sprite = project->GetSpriteById(m_selectedSpriteIds.back());
@@ -460,5 +452,4 @@ void PreviewViewport::Render(sf::RenderWindow& window, const StudioCore::StudioE
             m_overlay.RenderSpriteInspector(window, spriteInfo);
         }
     }
-    
 }

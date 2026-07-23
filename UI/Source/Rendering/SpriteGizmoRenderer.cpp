@@ -1,10 +1,20 @@
 #include "Rendering/SpriteGizmoRenderer.h"
 #include "DataModels/SpriteDefinition.h"
-#include "Theme.h"
+#include <algorithm>
 
 namespace StudioUI {
 
-SpriteGizmoRenderer::SpriteGizmoRenderer() = default;
+SpriteGizmoRenderer::SpriteGizmoRenderer() {
+    m_box.setFillColor(sf::Color::Transparent);
+    
+    m_centerDot.setFillColor(sf::Color(255, 50, 50, 255));
+    m_centerDot.setOutlineColor(sf::Color::White);
+    
+    m_pivotDot.setFillColor(sf::Color(50, 255, 50, 255));
+    m_pivotDot.setOutlineColor(sf::Color::Black);
+
+    m_baselineLine.setFillColor(sf::Color(255, 170, 0, 230));
+}
 
 void SpriteGizmoRenderer::SetHoveredSprite(const std::string& id) {
     m_hoveredId = id;
@@ -14,81 +24,95 @@ void SpriteGizmoRenderer::SetSelectedSprites(const std::vector<std::string>& ids
     m_selectedIds = ids;
 }
 
-void SpriteGizmoRenderer::Render(
-    sf::RenderWindow& window,
-    const std::vector<std::shared_ptr<StudioCore::SpriteDefinition>>& sprites,
-    float currentZoom,
-    bool showBoxes,
-    bool showCenters,
-    bool showPivots,
-    bool showBaselines,
-    bool showIds,
-    sf::Font* font
-) {
+void SpriteGizmoRenderer::Render(sf::RenderWindow& window, 
+                                 const std::vector<std::shared_ptr<StudioCore::SpriteDefinition>>& sprites, 
+                                 float currentZoom,
+                                 bool showBoxes,
+                                 bool showCenters,
+                                 bool showPivots,
+                                 bool showBaselines,
+                                 bool showIds, 
+                                 sf::Font* font) {
+    
+    float scaleFactor = (currentZoom > 0.0001f) ? (1.0f / currentZoom) : 1.0f;
+    float boxThickness = std::max(1.0f, 1.5f * scaleFactor);
+    float selectedThickness = std::max(2.0f, 2.5f * scaleFactor);
+    float hoverThickness = std::max(1.5f, 2.0f * scaleFactor);
+
     for (const auto& sprite : sprites) {
         if (!sprite) continue;
 
-        std::string id = sprite->GetId();
-        auto rect = sprite->GetSourceRect();
+        const auto& rect = sprite->GetSourceRect();
+        bool isHovered = (sprite->GetId() == m_hoveredId);
+        bool isSelected = std::find(m_selectedIds.begin(), m_selectedIds.end(), sprite->GetId()) != m_selectedIds.end();
+        bool isMultiSelect = (m_selectedIds.size() > 1);
 
-        bool isSelected = false;
-        for (const auto& selId : m_selectedIds) {
-            if (selId == id) {
-                isSelected = true;
-                break;
-            }
-        }
-        bool isHovered = (id == m_hoveredId);
-
-        // 1. BOUNDING BOXES
-        if (showBoxes || isSelected || isHovered) {
-            sf::RectangleShape box(sf::Vector2f(rect.width, rect.height));
-            box.setPosition(rect.x, rect.y);
-            box.setFillColor(sf::Color::Transparent);
-
-            if (isSelected) {
-                box.setOutlineThickness(2.0f / currentZoom);
-                box.setOutlineColor(Theme::AccentColor);
-            } else if (isHovered) {
-                box.setOutlineThickness(1.5f / currentZoom);
-                box.setOutlineColor(Theme::HoverColor);
-            } else {
-                box.setOutlineThickness(1.0f / currentZoom);
-                box.setOutlineColor(sf::Color(Theme::BorderColor.r, Theme::BorderColor.g, Theme::BorderColor.b, 120));
-            }
-            window.draw(box);
-        }
-
-        // 2. PIVOT POINT
-        if (showPivots || isSelected) {
-            auto pivot = sprite->GetPivot();
-            float pivotX = rect.x + pivot.x;
-            float pivotY = rect.y + pivot.y;
-
-            float crossSize = 5.0f / currentZoom;
+        // 1. Sprite Bounding Boxes & Outlines
+        if (showBoxes || isHovered || isSelected) {
+            m_box.setPosition(static_cast<float>(rect.x), static_cast<float>(rect.y));
+            m_box.setSize(sf::Vector2f(static_cast<float>(rect.width), static_cast<float>(rect.height)));
             
-            sf::RectangleShape lineH(sf::Vector2f(crossSize * 2.0f, 1.0f / currentZoom));
-            lineH.setOrigin(crossSize, 0.5f / currentZoom);
-            lineH.setPosition(pivotX, pivotY);
-            lineH.setFillColor(isSelected ? Theme::AccentColor : Theme::TextSecondary);
-
-            sf::RectangleShape lineV(sf::Vector2f(1.0f / currentZoom, crossSize * 2.0f));
-            lineV.setOrigin(0.5f / currentZoom, crossSize);
-            lineV.setPosition(pivotX, pivotY);
-            lineV.setFillColor(isSelected ? Theme::AccentColor : Theme::TextSecondary);
-
-            window.draw(lineH);
-            window.draw(lineV);
+            if (isSelected) {
+                m_box.setOutlineColor(isMultiSelect ? sf::Color(255, 120, 0, 255) : sf::Color(255, 235, 0, 255));
+                m_box.setOutlineThickness(selectedThickness);
+            } else if (isHovered) {
+                m_box.setOutlineColor(sf::Color(0, 240, 255, 255));
+                m_box.setOutlineThickness(hoverThickness);
+            } else {
+                m_box.setOutlineColor(sf::Color(255, 0, 200, 180));
+                m_box.setOutlineThickness(boxThickness);
+            }
+            window.draw(m_box);
         }
 
-        // 3. BASELINE
-        if (showBaselines) {
-            float baselineY = rect.y + rect.height - sprite->GetBaseline();
+        // 2. Sprite Geometric Center
+        if (showCenters) {
+            const auto& c = sprite->GetCenter();
+            float radius = std::max(2.5f, 3.0f * scaleFactor);
+            m_centerDot.setRadius(radius);
+            m_centerDot.setOutlineThickness(std::max(1.0f, 1.0f * scaleFactor));
+            m_centerDot.setOrigin(radius, radius);
+            m_centerDot.setPosition(c.x, c.y);
+            window.draw(m_centerDot);
+        }
 
-            sf::RectangleShape line(sf::Vector2f(rect.width, 1.0f / currentZoom));
-            line.setPosition(rect.x, baselineY);
-            line.setFillColor(sf::Color(235, 87, 87, 180));
-            window.draw(line);
+        // 3. Pivot Dot Indicator
+        if (showPivots || isSelected) {
+            const auto& p = sprite->GetPivot();
+            float px = rect.x + (p.x * rect.width);
+            float py = rect.y + (p.y * rect.height);
+
+            float radius = std::max(3.5f, 4.0f * scaleFactor);
+            m_pivotDot.setRadius(radius);
+            m_pivotDot.setOutlineThickness(std::max(1.0f, 1.0f * scaleFactor));
+            m_pivotDot.setOrigin(radius, radius);
+            m_pivotDot.setPosition(px, py);
+            window.draw(m_pivotDot);
+        }
+
+        // 4. Baseline Line Marker
+        if (showBaselines || isSelected) {
+            float by = rect.y + rect.height - sprite->GetBaseline();
+            float lineH = std::max(1.0f, 1.5f * scaleFactor);
+            m_baselineLine.setPosition(static_cast<float>(rect.x), by);
+            m_baselineLine.setSize(sf::Vector2f(static_cast<float>(rect.width), lineH));
+            window.draw(m_baselineLine);
+        }
+
+        // 5. Sprite ID Text Overlay
+        if (showIds && font) {
+            unsigned int fontSize = static_cast<unsigned int>(std::max(10.0f, 13.0f * scaleFactor));
+            sf::Text idText(sprite->GetId(), *font, fontSize);
+            idText.setPosition(static_cast<float>(rect.x), rect.y - (fontSize + 3.0f * scaleFactor));
+            idText.setFillColor(isSelected ? sf::Color(255, 235, 0, 255) : sf::Color(220, 220, 220, 255));
+            
+            // Text shadow for high contrast over any sheet background
+            sf::Text idShadow = idText;
+            idShadow.setPosition(idText.getPosition().x + (1.0f * scaleFactor), idText.getPosition().y + (1.0f * scaleFactor));
+            idShadow.setFillColor(sf::Color(0, 0, 0, 220));
+
+            window.draw(idShadow);
+            window.draw(idText);
         }
     }
 }

@@ -1,9 +1,77 @@
 #include "SpriteSheetStudioPanel.h"
 #include "Utils/NativeFileDialog.h"
 #include "DataModels/Project.h"
+
 #ifdef LoadImage
 #undef LoadImage
 #endif
+
+#if defined(_WIN32)
+#include <windows.h>
+#include <commdlg.h>
+
+enum class DialogMode {
+    ImageOnly,
+    CombinedOpen,
+    ProjectSave
+};
+
+static std::string openWindowsFileDialog(DialogMode mode) {
+    char currentDir[MAX_PATH];
+    GetCurrentDirectoryA(MAX_PATH, currentDir);
+
+    OPENFILENAMEA ofn;
+    char szFile[MAX_PATH] = { 0 };
+    ZeroMemory(&ofn, sizeof(ofn));
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = NULL;
+    ofn.lpstrFile = szFile;
+    ofn.nMaxFile = sizeof(szFile);
+
+    const char imageFilter[] = "Image Files (*.png;*.jpg;*.jpeg)\0*.png;*.jpg;*.jpeg\0All Files (*.*)\0*.*\0\0";
+    const char combinedFilter[] = "All Supported Files (*.png;*.jpg;*.jpeg;*.sps)\0*.png;*.jpg;*.jpeg;*.sps\0Image Files (*.png;*.jpg;*.jpeg)\0*.png;*.jpg;*.jpeg\0Sprite Sheet Studio (*.sps)\0*.sps\0All Files (*.*)\0*.*\0\0";
+
+    ofn.lpstrFilter = (mode == DialogMode::CombinedOpen) ? combinedFilter : imageFilter;
+    ofn.nFilterIndex = 1;
+    ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
+
+    std::string result = "";
+    if (GetOpenFileNameA(&ofn)) {
+        result = std::string(ofn.lpstrFile);
+    }
+
+    SetCurrentDirectoryA(currentDir);
+    return result;
+}
+
+static std::string saveWindowsFileDialog(const char* defaultName = "project.sps") {
+    char currentDir[MAX_PATH];
+    GetCurrentDirectoryA(MAX_PATH, currentDir);
+
+    OPENFILENAMEA ofn;
+    char szFile[MAX_PATH] = { 0 };
+    strcpy_s(szFile, defaultName);
+    ZeroMemory(&ofn, sizeof(ofn));
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = NULL;
+    ofn.lpstrFile = szFile;
+    ofn.nMaxFile = sizeof(szFile);
+
+    const char saveFilter[] = "Sprite Sheet Studio (*.sps)\0*.sps\0All Files (*.*)\0*.*\0\0";
+    ofn.lpstrFilter = saveFilter;
+    ofn.nFilterIndex = 1;
+    ofn.Flags = OFN_PATHMUSTEXIST | OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR;
+
+    std::string result = "";
+    if (GetSaveFileNameA(&ofn)) {
+        result = std::string(ofn.lpstrFile);
+    }
+
+    SetCurrentDirectoryA(currentDir);
+    return result;
+}
+#endif
+
 namespace StudioUI {
 
 SpriteSheetStudioPanel::SpriteSheetStudioPanel() {
@@ -19,18 +87,34 @@ void SpriteSheetStudioPanel::Initialize() {
 
     m_toolbar.Initialize("Resources/font.ttf",
         [this]() {
+#if defined(_WIN32)
+            std::string path = openWindowsFileDialog(DialogMode::ImageOnly);
+#else
             std::string path = NativeFileDialog::OpenFileDialog();
+#endif
             if (!path.empty()) LoadImage(path);
         },
         [this]() {
-            std::string path = NativeFileDialog::OpenFileDialog("Sprite Sheet Studio Project (*.sps)");
+#if defined(_WIN32)
+            std::string path = openWindowsFileDialog(DialogMode::CombinedOpen);
+#else
+            std::string path = NativeFileDialog::OpenFileDialog("Supported Files (*.png;*.jpg;*.jpeg;*.sps)");
+#endif
             if (!path.empty()) {
-                std::string err;
-                if (m_engine.LoadProject(path, err)) m_viewport.RefreshTexture(m_engine);
+                if (path.find(".sps") != std::string::npos) {
+                    std::string err;
+                    if (m_engine.LoadProject(path, err)) m_viewport.RefreshTexture(m_engine);
+                } else {
+                    LoadImage(path);
+                }
             }
         },
         [this]() {
+#if defined(_WIN32)
+            std::string path = saveWindowsFileDialog("project.sps");
+#else
             std::string path = NativeFileDialog::SaveFileDialog("project.sps");
+#endif
             if (!path.empty()) m_engine.SaveProject(path);
         },
         [this]() { m_isExportMode = true; m_exportPreview.Activate(m_engine); },
@@ -42,6 +126,13 @@ void SpriteSheetStudioPanel::Initialize() {
             if (!m_engine.IsProjectActive() || !m_engine.GetCurrentProject() || m_engine.GetCurrentProject()->GetSprites().empty()) return;
             m_isWizardMode = true;
             m_animBuilderPanel.Activate(m_engine);
+        },
+        [this]() {
+            if (m_engine.IsProjectActive()) {
+                StudioCore::DetectionConfig config;
+                m_engine.RunAutoDetection(config);
+                m_viewport.RefreshTexture(m_engine);
+            }
         }
     );
 
@@ -50,7 +141,6 @@ void SpriteSheetStudioPanel::Initialize() {
     m_animBuilderPanel.InitializeFont("Resources/font.ttf");
     m_workspace.InitializeFont("Resources/font.ttf");
 }
-
 
 void SpriteSheetStudioPanel::LoadImage(const std::string& filePath) {
     std::string errorMsg;
@@ -63,16 +153,54 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
     if (!m_isActive) return;
 
     if (event.type == sf::Event::KeyPressed) {
+        bool isShift = sf::Keyboard::isKeyPressed(sf::Keyboard::LShift) || sf::Keyboard::isKeyPressed(sf::Keyboard::RShift);
         bool isControl = sf::Keyboard::isKeyPressed(sf::Keyboard::LControl) || sf::Keyboard::isKeyPressed(sf::Keyboard::RControl);
+
+        if (isShift && event.key.code == sf::Keyboard::N) {
+            if (m_engine.IsProjectActive() && m_engine.GetCurrentProject() && !m_engine.GetCurrentProject()->GetSprites().empty()) {
+                m_isWizardMode = true;
+                m_animBuilderPanel.Activate(m_engine);
+                return;
+            }
+        }
+
         if (isControl) {
             if (event.key.code == sf::Keyboard::Z) { m_engine.Undo(); m_viewport.RefreshTexture(m_engine); return; }
             if (event.key.code == sf::Keyboard::Y) { m_engine.Redo(); m_viewport.RefreshTexture(m_engine); return; }
             if (event.key.code == sf::Keyboard::E) { m_isExportMode = true; m_exportPreview.Activate(m_engine); return; }
+            
+            if (event.key.code == sf::Keyboard::L) {
+#if defined(_WIN32)
+                std::string path = openWindowsFileDialog(DialogMode::CombinedOpen);
+#else
+                std::string path = NativeFileDialog::OpenFileDialog("Supported Files (*.png;*.jpg;*.jpeg;*.sps)");
+#endif
+                if (!path.empty()) {
+                    if (path.find(".sps") != std::string::npos) {
+                        std::string err;
+                        if (m_engine.LoadProject(path, err)) m_viewport.RefreshTexture(m_engine);
+                    } else {
+                        LoadImage(path);
+                    }
+                }
+                return;
+            }
+            
             if (event.key.code == sf::Keyboard::S) {
+#if defined(_WIN32)
+                std::string path = saveWindowsFileDialog("project.sps");
+#else
                 std::string path = NativeFileDialog::SaveFileDialog("project.sps");
+#endif
                 if (!path.empty()) m_engine.SaveProject(path);
                 return;
             }
+        }
+
+        if (event.key.code == sf::Keyboard::A) {
+            m_engine.ToggleAutoAlign();
+            m_viewport.RefreshTexture(m_engine);
+            return;
         }
     }
 
@@ -133,7 +261,6 @@ void SpriteSheetStudioPanel::SetBounds(const sf::FloatRect& bounds) {
 void SpriteSheetStudioPanel::Render(sf::RenderWindow& window) {
     if (!m_isActive) return;
 
-    // Apply viewport view matching m_bounds so panels render correctly in sub-regions
     sf::View originalView = window.getView();
     sf::View panelView(m_bounds);
     window.setView(panelView);
@@ -148,7 +275,6 @@ void SpriteSheetStudioPanel::Render(sf::RenderWindow& window) {
         m_workspace.Render(window);
     }
 
-    // Restore original view for host window
     window.setView(originalView);
 }
 

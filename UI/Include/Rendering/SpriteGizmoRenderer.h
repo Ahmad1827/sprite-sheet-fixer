@@ -24,7 +24,7 @@ public:
                 bool showCenters,
                 bool showPivots,
                 bool showBaselines,
-                bool showIds,
+                bool showIds, 
                 sf::Font* font);
 
 private:
@@ -37,4 +37,4 @@ private:
     sf::RectangleShape m_baselineLine;
 };
 
-}
+} // namespace StudioUI
