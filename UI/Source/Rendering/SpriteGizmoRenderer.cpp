@@ -34,10 +34,10 @@ void SpriteGizmoRenderer::Render(sf::RenderWindow& window,
                                  bool showIds, 
                                  sf::Font* font) {
     
-    float scaleFactor = (currentZoom > 0.0001f) ? (1.0f / currentZoom) : 1.0f;
-    float boxThickness = std::max(1.0f, 1.5f * scaleFactor);
-    float selectedThickness = std::max(2.0f, 2.5f * scaleFactor);
-    float hoverThickness = std::max(1.5f, 2.0f * scaleFactor);
+    float scaleFactor = (currentZoom > 0.0001f) ? currentZoom : 1.0f;
+    float boxThickness = 3.0f * scaleFactor;
+    float selectedThickness = 5.0f * scaleFactor;
+    float hoverThickness = 4.0f * scaleFactor;
 
     for (const auto& sprite : sprites) {
         if (!sprite) continue;
@@ -47,7 +47,7 @@ void SpriteGizmoRenderer::Render(sf::RenderWindow& window,
         bool isSelected = std::find(m_selectedIds.begin(), m_selectedIds.end(), sprite->GetId()) != m_selectedIds.end();
         bool isMultiSelect = (m_selectedIds.size() > 1);
 
-        // 1. Sprite Bounding Boxes & Outlines
+        // 1. Sprite Bounding Boxes & Outlines (Bright & Thick)
         if (showBoxes || isHovered || isSelected) {
             m_box.setPosition(static_cast<float>(rect.x), static_cast<float>(rect.y));
             m_box.setSize(sf::Vector2f(static_cast<float>(rect.width), static_cast<float>(rect.height)));
@@ -59,7 +59,7 @@ void SpriteGizmoRenderer::Render(sf::RenderWindow& window,
                 m_box.setOutlineColor(sf::Color(0, 240, 255, 255));
                 m_box.setOutlineThickness(hoverThickness);
             } else {
-                m_box.setOutlineColor(sf::Color(255, 0, 200, 180));
+                m_box.setOutlineColor(sf::Color(255, 0, 220, 255));
                 m_box.setOutlineThickness(boxThickness);
             }
             window.draw(m_box);
@@ -68,9 +68,9 @@ void SpriteGizmoRenderer::Render(sf::RenderWindow& window,
         // 2. Sprite Geometric Center
         if (showCenters) {
             const auto& c = sprite->GetCenter();
-            float radius = std::max(2.5f, 3.0f * scaleFactor);
+            float radius = 4.0f * scaleFactor;
             m_centerDot.setRadius(radius);
-            m_centerDot.setOutlineThickness(std::max(1.0f, 1.0f * scaleFactor));
+            m_centerDot.setOutlineThickness(1.5f * scaleFactor);
             m_centerDot.setOrigin(radius, radius);
             m_centerDot.setPosition(c.x, c.y);
             window.draw(m_centerDot);
@@ -82,9 +82,9 @@ void SpriteGizmoRenderer::Render(sf::RenderWindow& window,
             float px = rect.x + (p.x * rect.width);
             float py = rect.y + (p.y * rect.height);
 
-            float radius = std::max(3.5f, 4.0f * scaleFactor);
+            float radius = 5.0f * scaleFactor;
             m_pivotDot.setRadius(radius);
-            m_pivotDot.setOutlineThickness(std::max(1.0f, 1.0f * scaleFactor));
+            m_pivotDot.setOutlineThickness(1.5f * scaleFactor);
             m_pivotDot.setOrigin(radius, radius);
             m_pivotDot.setPosition(px, py);
             window.draw(m_pivotDot);
@@ -93,7 +93,7 @@ void SpriteGizmoRenderer::Render(sf::RenderWindow& window,
         // 4. Baseline Line Marker
         if (showBaselines || isSelected) {
             float by = rect.y + rect.height - sprite->GetBaseline();
-            float lineH = std::max(1.0f, 1.5f * scaleFactor);
+            float lineH = 2.5f * scaleFactor;
             m_baselineLine.setPosition(static_cast<float>(rect.x), by);
             m_baselineLine.setSize(sf::Vector2f(static_cast<float>(rect.width), lineH));
             window.draw(m_baselineLine);
@@ -101,15 +101,14 @@ void SpriteGizmoRenderer::Render(sf::RenderWindow& window,
 
         // 5. Sprite ID Text Overlay
         if (showIds && font) {
-            unsigned int fontSize = static_cast<unsigned int>(std::max(10.0f, 13.0f * scaleFactor));
+            unsigned int fontSize = static_cast<unsigned int>(std::max(12.0f, 14.0f * scaleFactor));
             sf::Text idText(sprite->GetId(), *font, fontSize);
-            idText.setPosition(static_cast<float>(rect.x), rect.y - (fontSize + 3.0f * scaleFactor));
-            idText.setFillColor(isSelected ? sf::Color(255, 235, 0, 255) : sf::Color(220, 220, 220, 255));
+            idText.setPosition(static_cast<float>(rect.x), rect.y - (fontSize + 4.0f * scaleFactor));
+            idText.setFillColor(isSelected ? sf::Color(255, 235, 0, 255) : sf::Color(255, 255, 255, 255));
             
-            // Text shadow for high contrast over any sheet background
             sf::Text idShadow = idText;
-            idShadow.setPosition(idText.getPosition().x + (1.0f * scaleFactor), idText.getPosition().y + (1.0f * scaleFactor));
-            idShadow.setFillColor(sf::Color(0, 0, 0, 220));
+            idShadow.setPosition(idText.getPosition().x + (1.5f * scaleFactor), idText.getPosition().y + (1.5f * scaleFactor));
+            idShadow.setFillColor(sf::Color(0, 0, 0, 255));
 
             window.draw(idShadow);
             window.draw(idText);

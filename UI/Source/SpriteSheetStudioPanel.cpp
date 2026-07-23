@@ -85,6 +85,10 @@ void SpriteSheetStudioPanel::Initialize() {
     m_engine.CreateProject();
     m_viewport.Initialize();
 
+    if (!m_engine.IsAutoAlignEnabled()) {
+        m_engine.ToggleAutoAlign();
+    }
+
     m_toolbar.Initialize("Resources/font.ttf",
         [this]() {
 #if defined(_WIN32)
@@ -152,14 +156,16 @@ void SpriteSheetStudioPanel::LoadImage(const std::string& filePath) {
 void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::RenderWindow& window) {
     if (!m_isActive) return;
 
+    // 1. KEYBOARD SHORTCUTS
     if (event.type == sf::Event::KeyPressed) {
         bool isShift = sf::Keyboard::isKeyPressed(sf::Keyboard::LShift) || sf::Keyboard::isKeyPressed(sf::Keyboard::RShift);
         bool isControl = sf::Keyboard::isKeyPressed(sf::Keyboard::LControl) || sf::Keyboard::isKeyPressed(sf::Keyboard::RControl);
 
         if (isShift && event.key.code == sf::Keyboard::N) {
-            if (m_engine.IsProjectActive() && m_engine.GetCurrentProject() && !m_engine.GetCurrentProject()->GetSprites().empty()) {
-                m_isWizardMode = true;
-                m_animBuilderPanel.Activate(m_engine);
+            if (m_engine.IsProjectActive()) {
+                static int animCounter = 1;
+                m_engine.CreateAnimation("New Animation " + std::to_string(animCounter++));
+                m_viewport.RefreshTexture(m_engine);
                 return;
             }
         }
@@ -204,6 +210,51 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
         }
     }
 
+    // 2. RIGHT CLICK CONTEXT MENU ON SPRITES (Restored from MainApplicationWindow)
+    if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Right) {
+        sf::Vector2i pixelPos(event.mouseButton.x, event.mouseButton.y);
+        sf::Vector2f worldPos = m_viewport.MapPixelToWorld(pixelPos, window);
+
+        std::string targetSpriteId = "";
+
+        if (m_engine.IsProjectActive() && m_engine.GetCurrentProject()) {
+            auto sprites = m_engine.GetCurrentProject()->GetSprites();
+            
+            for (auto it = sprites.rbegin(); it != sprites.rend(); ++it) {
+                auto sprite = *it;
+                if (!sprite) continue;
+
+                auto rect = sprite->GetSourceRect();
+                sf::FloatRect bounds(rect.x, rect.y, rect.width, rect.height);
+                if (bounds.contains(worldPos)) {
+                    targetSpriteId = sprite->GetId();
+                    break;
+                }
+            }
+        }
+
+        if (!targetSpriteId.empty()) {
+            std::vector<StudioUI::ContextMenuItem> items = {
+                {"Delete Sprite", [this, targetSpriteId]() {
+                    m_engine.DeleteSpriteWithPixels(targetSpriteId);
+                    m_viewport.RefreshTexture(m_engine);
+                }},
+                {"Reset Pivot", [this, targetSpriteId]() {
+                    auto proj = m_engine.GetCurrentProject();
+                    if (!proj) return;
+                    auto sprite = proj->GetSpriteById(targetSpriteId);
+                    if (sprite) {
+                        auto rect = sprite->GetSourceRect();
+                        sprite->SetPivot({rect.width / 2.0f, rect.height / 2.0f});
+                        m_viewport.RefreshTexture(m_engine);
+                    }
+                }}
+            };
+            m_workspace.ShowContextMenu({static_cast<float>(event.mouseButton.x), static_cast<float>(event.mouseButton.y)}, items);
+            return;
+        }
+    }
+
     if (m_workspace.HandleEvent(event, window)) return;
 
     if (m_isWizardMode) {
@@ -221,8 +272,15 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
         return;
     }
 
+    // 3. ANIMATION PANEL PROCESSED BEFORE VIEWPORT
+    // (Ensures Timeline & Animation list receive clicks and read GetSelectedSpriteIds() 
+    // BEFORE PreviewViewport clears the selection!)
+    if (m_animationPanel) {
+        m_animationPanel->HandleEvent(event, window, m_engine, m_viewport);
+    }
+
+    // 4. VIEWPORT HANDLING
     m_viewport.HandleEvent(event, window, m_engine);
-    if (m_animationPanel) m_animationPanel->HandleEvent(event, window, m_engine, m_viewport);
 }
 
 void SpriteSheetStudioPanel::Update(float deltaTime, const sf::RenderWindow& window) {

@@ -193,7 +193,7 @@ void PreviewViewport::HandleEvent(const sf::Event& event, const sf::RenderWindow
         sf::Vector2i clickScreenPos(event.mouseButton.x, event.mouseButton.y);
         sf::FloatRect canvasBounds = GetViewportBounds(window);
 
-        // Prevents Canvas from stealing clicks meant for Timeline/Toolbar
+        // DO NOT INTERCEPT: If mouse click is inside timeline, toolbar, or side panel
         if (!canvasBounds.contains(static_cast<float>(clickScreenPos.x), static_cast<float>(clickScreenPos.y))) {
             return;
         }
@@ -265,6 +265,13 @@ void PreviewViewport::HandleEvent(const sf::Event& event, const sf::RenderWindow
     } 
     else if (event.type == sf::Event::MouseMoved) {
         sf::Vector2i currentMousePos = sf::Mouse::getPosition(window);
+        sf::FloatRect canvasBounds = GetViewportBounds(window);
+
+        if (!canvasBounds.contains(static_cast<float>(currentMousePos.x), static_cast<float>(currentMousePos.y))) {
+            m_hoveredSpriteId.clear();
+            return;
+        }
+
         sf::Vector2f worldPos = window.mapPixelToCoords(currentMousePos, m_view);
 
         if (engine.IsProjectActive()) {
@@ -352,7 +359,6 @@ void PreviewViewport::Render(sf::RenderWindow& window, const StudioCore::StudioE
 
         window.draw(m_sprite);
 
-        // Canvas border outline
         sf::FloatRect bounds = m_sprite.getLocalBounds();
         sf::RectangleShape canvasBorder(sf::Vector2f(bounds.width, bounds.height));
         canvasBorder.setFillColor(sf::Color::Transparent);
@@ -373,8 +379,8 @@ void PreviewViewport::Render(sf::RenderWindow& window, const StudioCore::StudioE
             m_currentZoom, 
             m_showBoxes, 
             m_showCenters, 
-            m_showPivots,
-            m_showBaselines,
+            m_showPivots, 
+            m_showBaselines, 
             m_showIds, 
             m_overlay.GetFont()
         );
@@ -382,7 +388,6 @@ void PreviewViewport::Render(sf::RenderWindow& window, const StudioCore::StudioE
 
     m_selection.Render(window, m_currentZoom);
 
-    // Reset view for UI overlays
     window.setView(window.getDefaultView());
 
     StudioUI::JobProgressInfo jobInfo;
