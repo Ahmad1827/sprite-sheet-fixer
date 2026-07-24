@@ -1,49 +1,108 @@
 # Sprite Sheet Studio
 
-> A standalone C++17 desktop application and engine module for automatically detecting, aligning, previewing, and exporting sprite sheets. Designed as a reusable asset pipeline that will later integrate directly into the Wisdom Park ecosystem.
+A professional, cross-platform sprite sheet processing and animation preparation tool built with **C++17** and **SFML**.
+
+Sprite Sheet Studio is designed as a standalone engine module that automatically detects sprites, aligns animation frames, edits pivots and baselines non-destructively, previews animations in real time, and exports production-ready sprite atlases with metadata.
+
+The architecture is intentionally separated into a reusable **Core engine** and an embeddable **UI module**, allowing the tool to be integrated into larger applications such as **Wisdom Park** without modifying its processing pipeline.
 
 ---
 
-## Overview
+# Features
 
-Sprite Sheet Studio is a professional sprite sheet processing tool built from the ground up in modern C++.
+## Image Import
 
-The project is being developed as an independent application first, allowing the processing engine to mature before being integrated as a native module inside **Wisdom Park**.
-
-The architecture separates the **Core Engine** from the **UI**, making the processing library completely reusable in future applications.
+- Import PNG sprite sheets
+- Cross-platform file dialogs (Linux / Windows)
+- Large texture support
+- Immutable source texture architecture
 
 ---
 
-# Current Status
+## Automatic Sprite Detection
 
-**Development Stage:** Milestone 5 Complete
-
-### Completed Features
-
-- Modern CMake project structure
-- Modular Core/UI architecture
-- Headless processing engine
-- Project management system
-- PNG image importing
-- Infinite zoom & pan viewport
-- Coordinate inspector
-- Sprite auto detection
 - Connected Component Labeling (CCL)
-- Bounding box visualization
-- Sprite selection
-- Multi-selection
-- Toggle selection
+- Alpha-based sprite extraction
+- Automatic bounding box generation
+- Batch sprite detection
+
+---
+
+## Sprite Editing
+
+- Interactive sprite selection
+- Resize selection
 - Pivot editing
 - Baseline editing
-- Manual numeric editing
-- Undo / Redo
-- Pivot visualization
-- Baseline visualization
-- Interactive editor viewport
+- Sprite alignment tools
+- Multi-sprite selection support
+
+---
+
+## Animation Tools
+
+- Animation creation
+- Timeline editor
+- Frame ordering
+- Playback controls
+- Live animation preview
+- FPS adjustment
+- Automatic animation builder
+
+---
+
+## Alignment Engine
+
+- Automatic baseline detection
+- Frame alignment
+- Uniform animation positioning
+- Batch alignment workflow
+- Visual comparison before export
+
+---
+
+## Export Pipeline
+
+Export aligned sprite sheets as:
+
+- PNG Atlas
+- JSON Metadata
+
+Supports:
+
+- Configurable spacing
+- Padding
+- Grid generation
+- Production-ready atlases
+
+---
+
+## Project System
+
+- Save projects
+- Load projects
+- Non-destructive editing
+- Metadata-driven workflow
+
+---
+
+## Editor Features
+
+- Undo
+- Redo
+- Zoom
+- Pan
+- Grid rendering
+- Sprite gizmos
+- Status bar
+- Professional dark UI
+- Keyboard shortcuts
 
 ---
 
 # Architecture
+
+The project is divided into two independent modules.
 
 ```
 SpriteSheetStudio
@@ -51,238 +110,148 @@ SpriteSheetStudio
 ├── Core
 │   ├── Data Models
 │   ├── Processing
-│   ├── Commands
 │   ├── Systems
+│   ├── Commands
 │   ├── Export
 │   ├── AI Interfaces
-│   └── Studio Engine Facade
+│   └── StudioEngineFacade
 │
 └── UI
     ├── Panels
     ├── Rendering
-    └── Main Application
+    ├── Workspace
+    └── SpriteSheetStudioPanel
 ```
 
-The project follows a strict separation between:
+## Core
 
-- **Core** → processing engine
-- **UI** → rendering and interaction
+The Core contains all processing logic and is completely independent of the user interface.
 
-This allows the Core library to be embedded into Wisdom Park without modification.
+Responsibilities include:
 
----
+- Sprite detection
+- Image loading
+- Baseline analysis
+- Sprite alignment
+- Animation management
+- Export pipeline
+- Project serialization
+- Undo / Redo system
 
-# Current Functionality
-
-## Image Import
-
-Supports importing PNG sprite sheets.
-
-Displays:
-
-- image dimensions
-- pixel buffer
-- zoomable viewport
-
----
-
-## Viewport
-
-Interactive editor featuring:
-
-- Mouse wheel zoom
-- Middle mouse panning
-- Coordinate inspector
-- Image centering
-- Infinite navigation
-
----
-
-## Automatic Sprite Detection
-
-Uses Connected Component Labeling (CCL) to detect every isolated sprite.
-
-Automatically computes:
-
-- bounding rectangles
-- sprite identifiers
-
-Each detected sprite receives its own editable metadata.
-
----
-
-## Sprite Editing
-
-Every sprite supports:
-
-- selection
-- multi-selection
-- pivot editing
-- baseline editing
-- manual numeric editing
-
-The original image is **never modified**.
-
-Only metadata changes.
-
----
-
-## Visualization
-
-Viewport overlays include:
-
-- Bounding boxes
-- Pivot points
-- Baseline lines
-- Sprite labels
-- Selection highlighting
-
-Everything updates in real time.
-
----
-
-## Undo / Redo
-
-Command Pattern implementation.
-
-Supported operations:
-
-- Move Pivot
-- Move Baseline
-- Numeric edits
-
-Undo:
+The Core exposes a single public API:
 
 ```
-Ctrl + Z
-```
-
-Redo:
-
-```
-Ctrl + Shift + Z
+StudioEngineFacade
 ```
 
 ---
 
-# Controls
+## UI
 
-| Action | Shortcut |
-|----------|----------|
-| Import PNG | O |
-| Auto Detect Sprites | Ctrl + D |
-| Select Sprite | Left Click |
-| Add Selection | Shift + Click |
-| Toggle Selection | Ctrl + Click |
-| Edit Pivot | Alt + Drag |
-| Edit Baseline | Ctrl + Alt + Drag |
-| Reset Pivot & Baseline | Double Click |
-| Numeric Edit | N |
-| Undo | Ctrl + Z |
-| Redo | Ctrl + Shift + Z |
-| Toggle Pivot Display | P |
-| Toggle Baseline Display | L |
-| Zoom | Mouse Wheel |
-| Pan | Middle Mouse Drag |
+The UI is responsible only for visualization.
+
+It communicates exclusively with the `StudioEngineFacade` and never performs image processing itself.
+
+The UI can be embedded into external applications as a reusable module.
 
 ---
 
-# Design Philosophy
+# Non-Destructive Workflow
 
-Sprite Sheet Studio is built around a **non-destructive editing pipeline**.
+Sprite Sheet Studio never modifies the original imported image.
 
-Instead of modifying pixels directly, the application stores metadata describing each sprite:
+Instead, every edit is stored as metadata:
 
-- Bounding Box
-- Pivot
-- Baseline
-- Animation Membership
+- Bounding rectangles
+- Pivot positions
+- Baselines
+- Animation groups
+- Export settings
 
-This allows repeated edits without degrading image quality.
+The final aligned sprite sheet is generated only during export.
 
 ---
 
-# Technology
+# Current Capabilities
+
+- PNG Import
+- Automatic sprite detection
+- Interactive sprite editing
+- Baseline editing
+- Pivot editing
+- Animation timeline
+- Automatic animation builder
+- Live animation preview
+- Sprite alignment
+- Project save/load
+- PNG export
+- JSON metadata export
+- Undo / Redo
+- Professional editor interface
+
+---
+
+# Planned Integration
+
+Sprite Sheet Studio has been architected to integrate directly into **Wisdom Park**.
+
+The engine has been separated from the application lifecycle, allowing it to function as an embeddable workspace tool rather than a standalone application.
+
+Future integration will allow Sprite Sheet Studio to run inside Wisdom Park while sharing the same rendering window and event system.
+
+---
+
+# Technologies
 
 - C++17
 - SFML
 - CMake
-- Modern STL
-- Command Pattern
-- Observer Pattern
-- Facade Pattern
+- STL
+- JSON Serialization
+
+---
+
+# Building
+
+## Linux
+
+```bash
+git clone https://github.com/Ahmad1827/sprite-sheet-fixer.git
+
+cd sprite-sheet-fixer
+
+mkdir build
+cd build
+
+cmake ..
+make -j
+
+./UI/SpriteSheetStudioApp
+```
+
+---
+
+## Windows
+
+Open the generated Visual Studio solution and build the project in either:
+
+- Debug
+- Release
 
 ---
 
 # Project Goals
 
-Sprite Sheet Studio aims to eliminate the repetitive manual work involved in preparing sprite sheets for games.
-
-The long-term vision includes:
-
-- Automatic sprite detection
-- Automatic baseline alignment
-- Animation timeline
-- Uniform grid generation
-- Atlas packing
-- Metadata export
-- AI-assisted cleanup
-- AI frame interpolation
-- Direct Wisdom Park integration
-
----
-
-# Roadmap
-
-## Milestone 1
-- ✅ Core architecture
-- ✅ Data models
-- ✅ Project management
-
-## Milestone 2
-- ✅ Image importing
-- ✅ Interactive viewport
-- ✅ Zoom & pan
-
-## Milestone 3
-- ✅ Viewport improvements
-- ✅ Coordinate tools
-- ✅ Navigation
-
-## Milestone 4
-- ✅ Connected Component Labeling
-- ✅ Automatic sprite detection
-- ✅ Bounding box rendering
-
-## Milestone 5
-- ✅ Sprite selection
-- ✅ Multi-selection
-- ✅ Pivot editing
-- ✅ Baseline editing
-- ✅ Undo / Redo
-- ✅ Interactive editing tools
-
-## Next Milestones
-
-- Animation timeline
-- Playback system
-- Baseline auto-alignment
-- Uniform grid packing
-- Texture atlas generation
-- JSON/XML export
-- AI processing plugins
-- Wisdom Park integration
-
----
-
-# Future Integration with Wisdom Park
-
-The Core engine is intentionally designed as a standalone library.
-
-Once production-ready, the entire processing engine can be imported directly into Wisdom Park, allowing sprite editing to become a native part of the asset pipeline without rewriting the processing logic.
+- Fast sprite extraction
+- Professional animation preparation
+- Non-destructive editing
+- Cross-platform support
+- Modular architecture
+- Easy engine integration
+- Production-ready export pipeline
 
 ---
 
 # License
 
-This project is currently under active development.
+This project is provided for educational and portfolio purposes.
