@@ -33,14 +33,16 @@ bool AnimationPanel::InitializeFont(const std::string& customPath) {
             return true;
         }
     }
-    std::cerr << "[AnimationPanel] Failed to load font!" << std::endl;
     return false;
+}
+
+void AnimationPanel::SetBounds(const sf::FloatRect& bounds) {
+    m_bounds = bounds;
 }
 
 void AnimationPanel::HandleEvent(const sf::Event& event, const sf::RenderWindow& window, StudioCore::StudioEngineFacade& engine, PreviewViewport& viewport) {
     if (!engine.IsProjectActive()) return;
 
-    // Synchronize bounding logic dynamically so hits match the visual renders
     float timelineHeight = 160.0f;
     float rightPanelWidth = 300.0f;
     float topOffset = StudioUI::Theme::ToolbarHeight; 
@@ -65,7 +67,6 @@ void AnimationPanel::HandleEvent(const sf::Event& event, const sf::RenderWindow&
             engine.ToggleAutoAlign();
         }
         else if ((event.key.code == sf::Keyboard::Delete || event.key.code == sf::Keyboard::BackSpace) && !m_selectedAnimation.empty()) {
-            // Clears animation frame timeline
             engine.ModifyAnimationFrames(m_selectedAnimation, {});
         }
     } 
@@ -73,7 +74,6 @@ void AnimationPanel::HandleEvent(const sf::Event& event, const sf::RenderWindow&
         sf::Vector2f mousePos(event.mouseButton.x, event.mouseButton.y);
 
         if (event.mouseButton.button == sf::Mouse::Left) {
-            // --- PLAYBACK BUTTON CLICKS (Inside timeline area) ---
             if (m_playBtnArea.contains(mousePos)) {
                 engine.GetPlaybackEngine().Play();
                 return;
@@ -84,7 +84,6 @@ void AnimationPanel::HandleEvent(const sf::Event& event, const sf::RenderWindow&
                 engine.GetPlaybackEngine().Stop();
                 return;
             } 
-            // --- FPS CONTROL CLICKS ---
             else if (!m_selectedAnimation.empty()) {
                 auto anim = engine.GetCurrentProject()->GetAnimationById(m_selectedAnimation);
                 if (anim) {
@@ -100,7 +99,6 @@ void AnimationPanel::HandleEvent(const sf::Event& event, const sf::RenderWindow&
                 }
             }
 
-            // --- ANIMATION LIST SELECTION ---
             if (m_listArea.contains(mousePos)) {
                 float yOffset = StudioUI::Theme::HeaderHeight + 10.f;
                 auto project = engine.GetCurrentProject();
@@ -114,19 +112,16 @@ void AnimationPanel::HandleEvent(const sf::Event& event, const sf::RenderWindow&
                     yOffset += 30.f;
                 }
             } 
-            // --- TIMELINE APPEND / DRAG ---
             else if (m_timelineArea.contains(mousePos) && !m_selectedAnimation.empty()) {
                 auto anim = engine.GetCurrentProject()->GetAnimationById(m_selectedAnimation);
                 if (anim) {
                     if (!selectedSprites.empty()) {
-                        // Append sprites from workspace directly to timeline
                         auto frames = anim->GetFrames();
                         frames.insert(frames.end(), selectedSprites.begin(), selectedSprites.end());
                         engine.ModifyAnimationFrames(m_selectedAnimation, frames);
                         viewport.ClearSelection();
                     } else {
-                        // Start drag operations
-                        float timelineStartX = m_timelineArea.left + 270.0f; // 250px panel + 20px pad
+                        float timelineStartX = m_timelineArea.left + 270.0f;
                         float frameWidth = 32.0f;
                         int index = 0;
                         for (const auto& frame : anim->GetFrames()) {
@@ -142,7 +137,6 @@ void AnimationPanel::HandleEvent(const sf::Event& event, const sf::RenderWindow&
                 }
             }
         } 
-        // Right Click on Frame -> Delete Frame
         else if (event.mouseButton.button == sf::Mouse::Right && m_timelineArea.contains(mousePos) && !m_selectedAnimation.empty()) {
             auto anim = engine.GetCurrentProject()->GetAnimationById(m_selectedAnimation);
             if (anim) {
@@ -194,7 +188,8 @@ void AnimationPanel::HandleEvent(const sf::Event& event, const sf::RenderWindow&
 void AnimationPanel::Render(sf::RenderWindow& window, const StudioCore::StudioEngineFacade& engine) {
     if (!engine.IsProjectActive() || !m_hasFont) return;
     
-    window.setView(window.getDefaultView());
+    sf::View dynamicView(m_bounds);
+    window.setView(dynamicView);
 
     float timelineHeight = 160.0f;
     float rightPanelWidth = 300.0f;
@@ -272,7 +267,6 @@ void AnimationPanel::RenderPreview(sf::RenderWindow& window, const StudioCore::S
     title.setFillColor(autoAlign ? StudioUI::Theme::AccentColor : StudioUI::Theme::TextSecondary);
     window.draw(title);
 
-    // --- SPRITE RENDER & GIZMOS ---
     auto spriteDef = engine.GetPlaybackEngine().GetCurrentSprite(engine.GetCurrentProject().get());
     auto texture = engine.GetCurrentTexture();
     
@@ -309,7 +303,6 @@ void AnimationPanel::RenderPreview(sf::RenderWindow& window, const StudioCore::S
         
         window.draw(renderSprite);
 
-        // Gizmo Visualization
         sf::Vector2f activePos = renderSprite.getPosition();
         sf::Vector2f activeOrigin = renderSprite.getOrigin();
 
@@ -334,7 +327,6 @@ void AnimationPanel::RenderTimeline(sf::RenderWindow& window, const StudioCore::
     float posY = m_timelineArea.top;
     float panelHeight = m_timelineArea.height;
     
-    // 1. Background
     sf::RectangleShape bg(sf::Vector2f(m_timelineArea.width, panelHeight));
     bg.setPosition(m_timelineArea.left, posY);
     bg.setFillColor(StudioUI::Theme::PanelBackground);
@@ -342,7 +334,6 @@ void AnimationPanel::RenderTimeline(sf::RenderWindow& window, const StudioCore::
     bg.setOutlineColor(StudioUI::Theme::BorderColor);
     window.draw(bg);
 
-    // 2. Header Bar
     sf::RectangleShape header(sf::Vector2f(m_timelineArea.width, StudioUI::Theme::HeaderHeight));
     header.setPosition(m_timelineArea.left, posY);
     header.setFillColor(StudioUI::Theme::InspectorBackground);
@@ -353,14 +344,12 @@ void AnimationPanel::RenderTimeline(sf::RenderWindow& window, const StudioCore::
     headerText.setPosition(m_timelineArea.left + 12.0f, posY + 6.0f);
     window.draw(headerText);
 
-    // 3. Left Controls Panel Divider
     float leftPanelWidth = 250.0f;
     sf::RectangleShape leftBorder(sf::Vector2f(StudioUI::Theme::BorderThickness, panelHeight - StudioUI::Theme::HeaderHeight));
     leftBorder.setPosition(m_timelineArea.left + leftPanelWidth, posY + StudioUI::Theme::HeaderHeight);
     leftBorder.setFillColor(StudioUI::Theme::BorderColor);
     window.draw(leftBorder);
 
-    // Data Binding for Playback
     bool isPlaying = engine.GetPlaybackEngine().IsPlaying();
     float currentFps = 12.0f;
     int frameCount = 0;
@@ -375,7 +364,6 @@ void AnimationPanel::RenderTimeline(sf::RenderWindow& window, const StudioCore::
     int currentFrame = engine.GetPlaybackEngine().GetCurrentFrameIndex();
     float ctrlY = posY + StudioUI::Theme::HeaderHeight + 20.0f;
 
-    // Interactive Text Controls mapping to hitboxes
     m_playBtnArea = sf::FloatRect(m_timelineArea.left + 20.f, ctrlY, 30.f, 20.f);
     sf::Text playTxt("Play", m_font, 12);
     playTxt.setPosition(m_playBtnArea.left, m_playBtnArea.top);
@@ -394,7 +382,6 @@ void AnimationPanel::RenderTimeline(sf::RenderWindow& window, const StudioCore::
     stopTxt.setFillColor(sf::Color(235, 87, 87));
     window.draw(stopTxt);
 
-    // FPS Toggles
     m_fpsMinusBtnArea = sf::FloatRect(m_timelineArea.left + 20.f, ctrlY + 30.f, 15.f, 20.f);
     sf::Text minusTxt("-", m_font, 14);
     minusTxt.setPosition(m_fpsMinusBtnArea.left, m_fpsMinusBtnArea.top);
@@ -415,7 +402,6 @@ void AnimationPanel::RenderTimeline(sf::RenderWindow& window, const StudioCore::
     frameInfoTxt.setPosition(m_timelineArea.left + 20.f, ctrlY + 60.f);
     window.draw(frameInfoTxt);
 
-    // 4. Structured Frame Tracks mapping directly to anim logic
     if (m_selectedAnimation.empty()) return;
     auto anim = engine.GetCurrentProject()->GetAnimationById(m_selectedAnimation);
     if (!anim) return;
@@ -459,7 +445,6 @@ void AnimationPanel::RenderTimeline(sf::RenderWindow& window, const StudioCore::
         index++;
     }
 
-    // 5. Playhead
     if (frameCount > 0 && currentFrame >= 0 && currentFrame < frameCount) {
         float playheadX = timelineStartX + (currentFrame * frameWidth) + (frameWidth / 2.0f);
         sf::RectangleShape playheadLine(sf::Vector2f(2.0f, frameHeight + 25.0f));

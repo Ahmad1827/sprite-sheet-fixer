@@ -8,9 +8,11 @@
 #include "Panels/WorkspaceEnvironment.h"
 #include "Panels/ExportPreviewPanel.h"
 #include "Panels/AnimationBuilderPanel.h"
+
 #ifdef LoadImage
 #undef LoadImage
 #endif
+
 namespace StudioUI {
 
 class SpriteSheetStudioPanel {
@@ -18,7 +20,6 @@ public:
     SpriteSheetStudioPanel();
     ~SpriteSheetStudioPanel();
 
-    // The clean public interface for host applications
     void Initialize();
     void HandleEvent(const sf::Event& event, const sf::RenderWindow& window);
     void Update(float deltaTime, const sf::RenderWindow& window);
@@ -48,4 +49,4 @@ private:
     AnimationBuilderPanel m_animBuilderPanel;
 };
 
-} // namespace StudioUI
+}
