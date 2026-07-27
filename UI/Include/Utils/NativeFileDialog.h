@@ -1,4 +1,5 @@
 #pragma once
+#define _CRT_SECURE_NO_WARNINGS
 #include <string>
 #include <cstdlib>
 #include <fstream>
@@ -67,7 +68,7 @@ public:
     static std::string SaveFileDialog(const std::string& defaultName = "sprite_sheet.png") {
 #ifdef _WIN32
         char szFile[260] = {0};
-        strncpy(szFile, defaultName.c_str(), sizeof(szFile) - 1);
+        strncpy_s(szFile, sizeof(szFile), defaultName.c_str(), _TRUNCATE);
 
         OPENFILENAMEA ofn;
         ZeroMemory(&ofn, sizeof(ofn));
