@@ -29,13 +29,10 @@ std::shared_ptr<SourceTexture> ImageLoader::LoadFromFile(const std::string& file
         return nullptr;
     }
 
-    // Copy raw C-buffer to std::vector for safe RAII memory ownership
     size_t pixelBufferSize = static_cast<size_t>(width) * static_cast<size_t>(height) * 4;
     std::vector<uint8_t> pixelData(rawPixels, rawPixels + pixelBufferSize);
 
-    // Free the STB allocated raw memory immediately
     stbi_image_free(rawPixels);
-
     outErrorMessage.clear();
     return std::make_shared<SourceTexture>(width, height, std::move(pixelData));
 }
@@ -63,6 +60,8 @@ std::shared_ptr<SourceTexture> ImageLoader::ChromaKey(const SourceTexture& sourc
     return std::make_shared<SourceTexture>(width, height, std::move(newPixels));
 }
 
+struct ColorRGB { uint8_t r, g, b; };
+
 std::shared_ptr<SourceTexture> ImageLoader::RemoveFakeCheckerboard(const SourceTexture& source, float tolerance) {
     int width = source.GetWidth();
     int height = source.GetHeight();
@@ -71,46 +70,50 @@ std::shared_ptr<SourceTexture> ImageLoader::RemoveFakeCheckerboard(const SourceT
 
     if (width < 8 || height < 8) return std::make_shared<SourceTexture>(width, height, std::move(newPixels));
 
-    // Sample Color A from Top-Left (0,0)
-    uint8_t aR = origPixels[0];
-    uint8_t aG = origPixels[1];
-    uint8_t aB = origPixels[2];
+    std::vector<ColorRGB> bgPalette;
 
-    // Search a small 8x8 block for the alternating checkerboard color (Color B)
-    uint8_t bR = aR, bG = aG, bB = aB;
-    bool foundB = false;
-
-    for (int y = 0; y < 8; ++y) {
-        for (int x = 0; x < 8; ++x) {
-            int idx = (y * width + x) * 4;
-            float dist = std::sqrt(std::pow(origPixels[idx] - aR, 2) + 
-                                   std::pow(origPixels[idx+1] - aG, 2) + 
-                                   std::pow(origPixels[idx+2] - aB, 2));
-            
-            // If it's a noticeably different color but not wildly different (likely the other gray square)
-            if (dist > 10.0f && dist < 100.0f) { 
-                bR = origPixels[idx];
-                bG = origPixels[idx+1];
-                bB = origPixels[idx+2];
-                foundB = true;
-                break;
-            }
+    // Helper lambda to add unique colors to our background palette
+    auto addBgColor = [&](uint8_t r, uint8_t g, uint8_t b) {
+        for (const auto& c : bgPalette) {
+            float dist = std::sqrt(std::pow(c.r - r, 2) + std::pow(c.g - g, 2) + std::pow(c.b - b, 2));
+            if (dist < 15.0f) return; // Color is already represented in the palette
         }
-        if (foundB) break;
+        bgPalette.push_back({r, g, b});
+    };
+
+    // 1. Scan the perimeter of the image to collect all background colors (including watermarks)
+    for (int x = 0; x < width; x += 4) { // Step by 4 to optimize
+        addBgColor(origPixels[(0 * width + x) * 4], origPixels[(0 * width + x) * 4 + 1], origPixels[(0 * width + x) * 4 + 2]);
+        addBgColor(origPixels[((height - 1) * width + x) * 4], origPixels[((height - 1) * width + x) * 4 + 1], origPixels[((height - 1) * width + x) * 4 + 2]);
+    }
+    for (int y = 0; y < height; y += 4) {
+        addBgColor(origPixels[(y * width + 0) * 4], origPixels[(y * width + 0) * 4 + 1], origPixels[(y * width + 0) * 4 + 2]);
+        addBgColor(origPixels[(y * width + width - 1) * 4], origPixels[(y * width + width - 1) * 4 + 1], origPixels[(y * width + width - 1) * 4 + 2]);
     }
 
-    // Apply tolerance-based removal for both background colors
+    // Explicitly add pure white just in case the watermark didn't touch the very edge
+    addBgColor(255, 255, 255);
+
+    // Increase tolerance slightly to catch heavy JPEG artifacts 
+    float aggressiveTolerance = 55.0f;
+
+    // 2. Wipe out anything that matches the background palette
     for (int i = 0; i < width * height; ++i) {
         int idx = i * 4;
         uint8_t pR = newPixels[idx];
         uint8_t pG = newPixels[idx+1];
         uint8_t pB = newPixels[idx+2];
 
-        float distA = std::sqrt(std::pow(pR - aR, 2) + std::pow(pG - aG, 2) + std::pow(pB - aB, 2));
-        float distB = foundB ? std::sqrt(std::pow(pR - bR, 2) + std::pow(pG - bG, 2) + std::pow(pB - bB, 2)) : 9999.0f;
+        bool isBackground = false;
+        for (const auto& bgC : bgPalette) {
+            float dist = std::sqrt(std::pow(pR - bgC.r, 2) + std::pow(pG - bgC.g, 2) + std::pow(pB - bgC.b, 2));
+            if (dist <= aggressiveTolerance) {
+                isBackground = true;
+                break;
+            }
+        }
 
-        // Tolerance of ~35 usually catches the watermark lines and JPEG artifacts too
-        if (distA <= tolerance || distB <= tolerance) {
+        if (isBackground) {
             newPixels[idx] = 0;
             newPixels[idx+1] = 0;
             newPixels[idx+2] = 0;
