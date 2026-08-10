@@ -7,6 +7,7 @@
 #include <vector>
 #include <cmath>
 #include <algorithm>
+#include <queue>
 
 namespace StudioCore {
 
@@ -15,7 +16,6 @@ std::shared_ptr<SourceTexture> ImageLoader::LoadFromFile(const std::string& file
     int height = 0;
     int channels = 0;
 
-    // Force 4 channels (RGBA)
     stbi_uc* rawPixels = stbi_load(filePath.c_str(), &width, &height, &channels, STBI_rgb_alpha);
 
     if (!rawPixels) {
@@ -53,7 +53,7 @@ std::shared_ptr<SourceTexture> ImageLoader::ChromaKey(const SourceTexture& sourc
             newPixels[idx] = 0;
             newPixels[idx+1] = 0;
             newPixels[idx+2] = 0;
-            newPixels[idx + 3] = 0; // Make transparent
+            newPixels[idx + 3] = 0; 
         }
     }
 
@@ -72,17 +72,16 @@ std::shared_ptr<SourceTexture> ImageLoader::RemoveFakeCheckerboard(const SourceT
 
     std::vector<ColorRGB> bgPalette;
 
-    // Helper lambda to add unique colors to our background palette
     auto addBgColor = [&](uint8_t r, uint8_t g, uint8_t b) {
         for (const auto& c : bgPalette) {
             float dist = std::sqrt(std::pow(c.r - r, 2) + std::pow(c.g - g, 2) + std::pow(c.b - b, 2));
-            if (dist < 15.0f) return; // Color is already represented in the palette
+            if (dist < 15.0f) return; 
         }
         bgPalette.push_back({r, g, b});
     };
 
-    // 1. Scan the perimeter of the image to collect all background colors (including watermarks)
-    for (int x = 0; x < width; x += 4) { // Step by 4 to optimize
+    // 1. Build background palette from perimeter
+    for (int x = 0; x < width; x += 4) { 
         addBgColor(origPixels[(0 * width + x) * 4], origPixels[(0 * width + x) * 4 + 1], origPixels[(0 * width + x) * 4 + 2]);
         addBgColor(origPixels[((height - 1) * width + x) * 4], origPixels[((height - 1) * width + x) * 4 + 1], origPixels[((height - 1) * width + x) * 4 + 2]);
     }
@@ -90,34 +89,85 @@ std::shared_ptr<SourceTexture> ImageLoader::RemoveFakeCheckerboard(const SourceT
         addBgColor(origPixels[(y * width + 0) * 4], origPixels[(y * width + 0) * 4 + 1], origPixels[(y * width + 0) * 4 + 2]);
         addBgColor(origPixels[(y * width + width - 1) * 4], origPixels[(y * width + width - 1) * 4 + 1], origPixels[(y * width + width - 1) * 4 + 2]);
     }
+    addBgColor(255, 255, 255); // Explicitly add white for watermarks
 
-    // Explicitly add pure white just in case the watermark didn't touch the very edge
-    addBgColor(255, 255, 255);
+    // 2. Identify all candidate background pixels globally
+    float aggressiveTolerance = 50.0f;
+    std::vector<bool> isBgCandidate(width * height, false);
 
-    // Increase tolerance slightly to catch heavy JPEG artifacts 
-    float aggressiveTolerance = 55.0f;
-
-    // 2. Wipe out anything that matches the background palette
     for (int i = 0; i < width * height; ++i) {
         int idx = i * 4;
-        uint8_t pR = newPixels[idx];
-        uint8_t pG = newPixels[idx+1];
-        uint8_t pB = newPixels[idx+2];
+        uint8_t pR = origPixels[idx];
+        uint8_t pG = origPixels[idx+1];
+        uint8_t pB = origPixels[idx+2];
 
-        bool isBackground = false;
         for (const auto& bgC : bgPalette) {
             float dist = std::sqrt(std::pow(pR - bgC.r, 2) + std::pow(pG - bgC.g, 2) + std::pow(pB - bgC.b, 2));
             if (dist <= aggressiveTolerance) {
-                isBackground = true;
+                isBgCandidate[i] = true;
                 break;
             }
         }
+    }
 
-        if (isBackground) {
-            newPixels[idx] = 0;
-            newPixels[idx+1] = 0;
-            newPixels[idx+2] = 0;
-            newPixels[idx+3] = 0; // Pure transparency
+    // 3. Group candidates into "Islands" using 8-way connectivity (so diagonal checkers link up)
+    std::vector<bool> visited(width * height, false);
+    
+    // 8-way directions
+    const int dx[] = {1, 1, 1, 0, -1, -1, -1, 0};
+    const int dy[] = {-1, 0, 1, 1, 1, 0, -1, -1};
+
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            if (isBgCandidate[y * width + x] && !visited[y * width + x]) {
+                
+                std::vector<std::pair<int, int>> islandPixels;
+                std::queue<std::pair<int, int>> q;
+                
+                q.push({x, y});
+                visited[y * width + x] = true;
+                islandPixels.push_back({x, y});
+                
+                bool touchesEdge = false;
+
+                // Flood fill the current island
+                while (!q.empty()) {
+                    auto [cx, cy] = q.front();
+                    q.pop();
+
+                    if (cx == 0 || cx == width - 1 || cy == 0 || cy == height - 1) {
+                        touchesEdge = true;
+                    }
+
+                    for (int i = 0; i < 8; ++i) {
+                        int nx = cx + dx[i];
+                        int ny = cy + dy[i];
+
+                        if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                            int nIdx = ny * width + nx;
+                            if (isBgCandidate[nIdx] && !visited[nIdx]) {
+                                visited[nIdx] = true;
+                                q.push({nx, ny});
+                                islandPixels.push_back({nx, ny});
+                            }
+                        }
+                    }
+                }
+
+                // 4. Protection Logic:
+                // An ape's eye is very small (usually < 20 pixels). 
+                // The gap between legs is large (well over 50 pixels).
+                // If it touches the edge OR is larger than 40 pixels, nuke it.
+                if (touchesEdge || islandPixels.size() > 40) {
+                    for (const auto& p : islandPixels) {
+                        int pIdx = (p.second * width + p.first) * 4;
+                        newPixels[pIdx] = 0;
+                        newPixels[pIdx+1] = 0;
+                        newPixels[pIdx+2] = 0;
+                        newPixels[pIdx+3] = 0; // Pure transparency
+                    }
+                }
+            }
         }
     }
 
