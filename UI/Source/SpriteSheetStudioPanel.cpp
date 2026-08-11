@@ -192,21 +192,16 @@ void SpriteSheetStudioPanel::Initialize() {
             m_engine.MergeOverlappingSprites();
             m_viewport.RefreshTexture(m_engine);
         },
-        // NEW CALLBACK: onCleanBg
         [this]() {
             if (m_engine.IsProjectActive() && m_engine.GetCurrentProject()) {
                 auto project = m_engine.GetCurrentProject();
                 
-                // Fetch the current texture from the project using the correct method name
                 auto currentTex = project->GetTexture();
                 if (currentTex) {
-                    // Process it through our new tolerance-based cleaner
                     auto cleanedTex = StudioCore::ImageLoader::RemoveFakeCheckerboard(*currentTex);
                     
-                    // Replace the texture in the project using the correct method name
                     project->SetTexture(cleanedTex);
                     
-                    // Refresh the UI to show the clean transparent background
                     m_viewport.RefreshTexture(m_engine);
                 }
             }
