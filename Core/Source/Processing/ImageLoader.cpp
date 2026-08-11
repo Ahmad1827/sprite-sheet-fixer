@@ -68,31 +68,27 @@ std::shared_ptr<SourceTexture> ImageLoader::RemoveFakeCheckerboard(const SourceT
 
     if (width < 8 || height < 8) return std::make_shared<SourceTexture>(width, height, std::move(newPixels));
 
-    // 1. DETERMINISTIC NEUTRAL-COLOR MATH
-    // Backgrounds (Grays, Blacks, Whites) have very low variance between their R, G, B channels.
-    // Monkeys (Browns, Oranges) have high variance.
     auto isBgColor = [](uint8_t r, uint8_t g, uint8_t b) {
         int mx = std::max({r, g, b});
         int mn = std::min({r, g, b});
         int diff = mx - mn;
 
-        // Rule A: Checkerboard & Watermarks (Mid-to-Bright Neutral Grays/Whites)
-        if (mx > 40 && diff <= 20) return true;
+        // Rule A: Checkerboard & Watermarks
+        // Must be a light, neutral color (Brightness > 100) to avoid mid-tone monkey shadows
+        if (mx > 100 && diff <= 25) return true;
 
-        // Rule B: AI Black Artifacts (Very dark, strict neutral)
-        // A dark brown monkey shadow will have diff > 8, so it is safely ignored!
-        if (mx <= 40 && diff <= 8) return true;
+        // Rule B: AI Black Artifacts
+        // Must be extremely dark to avoid dark brown fur
+        if (mx < 25 && diff <= 10) return true;
 
         return false;
     };
 
-    // Flag all candidates
     std::vector<bool> isBgCandidate(width * height, false);
     for (int i = 0; i < width * height; ++i) {
         isBgCandidate[i] = isBgColor(origPixels[i * 4], origPixels[i * 4 + 1], origPixels[i * 4 + 2]);
     }
 
-    // 2. ISLAND GROUPING (8-Way Connectivity)
     std::vector<bool> visited(width * height, false);
     const int dx[] = {1, 1, 1, 0, -1, -1, -1, 0};
     const int dy[] = {-1, 0, 1, 1, 1, 0, -1, -1};
@@ -130,15 +126,16 @@ std::shared_ptr<SourceTexture> ImageLoader::RemoveFakeCheckerboard(const SourceT
                     }
                 }
 
-                // 3. PROTECTION LOGIC
-                // Nuke it if it touches the edge OR if it's a large chunk of trapped checkerboard
-                if (touchesEdge || islandPixels.size() > 25) {
+                // 3. ENHANCED PROTECTION LOGIC
+                // The eyes are completely internal and relatively small.
+                // We now require an internal island to be larger than 100 pixels to be destroyed.
+                if (touchesEdge || islandPixels.size() > 100) {
                     for (const auto& p : islandPixels) {
                         int pIdx = (p.second * width + p.first) * 4;
                         newPixels[pIdx] = 0;
                         newPixels[pIdx+1] = 0;
                         newPixels[pIdx+2] = 0;
-                        newPixels[pIdx+3] = 0; // Transparent
+                        newPixels[pIdx+3] = 0; 
                     }
                 }
             }
