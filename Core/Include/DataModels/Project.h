@@ -29,7 +29,7 @@ public:
     void RemoveAnimationGroup(const std::string& id);
     std::shared_ptr<AnimationGroup> GetAnimationById(const std::string& id) const;
     const std::vector<std::shared_ptr<AnimationGroup>>& GetAnimationGroups() const;
-
+    void SetSprites(const std::vector<std::shared_ptr<SpriteDefinition>>& newSprites);
 private:
     std::shared_ptr<SourceTexture> m_texture;
     std::string m_imagePath;

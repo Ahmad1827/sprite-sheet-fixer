@@ -16,6 +16,7 @@
 #include <iostream>
 #include "Commands/MoveSpriteCommand.h"
 #include "Commands/MoveSpriteWithPixelsCommand.h"
+#include "Commands/RepackFramesCommand.h"
 
 namespace StudioCore {
 
@@ -300,4 +301,23 @@ void StudioEngineFacade::DeleteSpriteWithPixels(const std::string& spriteId) {
     }
 }
 
+void StudioEngineFacade::RepackFrames() {
+    // 1. Safely fetch the project using the facade's getter
+    auto project = GetCurrentProject();
+    if (!IsProjectActive() || !project) return;
+    
+    // 2. Auto-detect if the user forgot
+    if (project->GetSprites().empty()) {
+        DetectionConfig config;
+        RunAutoDetection(config);
+    }
+    
+    if (project->GetSprites().empty()) return; // Still empty, bail out
+
+    // 3. Create the command
+    auto cmd = std::make_unique<RepackFramesCommand>(project);
+    
+    // 4. Execute using the correct method name (ExecuteCommand)
+    m_commandHistory->ExecuteCommand(std::move(cmd)); 
+}
 }

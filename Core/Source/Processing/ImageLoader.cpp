@@ -90,6 +90,10 @@ std::shared_ptr<SourceTexture> ImageLoader::RemoveFakeCheckerboard(const SourceT
         addBgColor(origPixels[(y * width + width - 1) * 4], origPixels[(y * width + width - 1) * 4 + 1], origPixels[(y * width + width - 1) * 4 + 2]);
     }
     addBgColor(255, 255, 255); // Explicitly add white for watermarks
+    
+    // EXPLICITLY target AI artifacts (Black/Dark-Gray Ground Strips)
+    addBgColor(0, 0, 0);       // Pure black
+    addBgColor(15, 15, 15);    // Dark gray/compression artifacts
 
     // 2. Identify all candidate background pixels globally
     float aggressiveTolerance = 50.0f;

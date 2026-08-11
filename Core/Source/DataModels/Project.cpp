@@ -67,4 +67,8 @@ const std::vector<std::shared_ptr<AnimationGroup>>& Project::GetAnimationGroups(
     return m_animations;
 }
 
+void Project::SetSprites(const std::vector<std::shared_ptr<SpriteDefinition>>& newSprites) {
+    m_sprites = newSprites;
+}
+
 }

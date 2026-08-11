@@ -32,7 +32,8 @@ public:
                 std::function<void()> onToggleUI,
                 std::function<void()> onOpenWizard,
                 std::function<void()> onDetect,
-                std::function<void()> onCleanBg);
+                std::function<void()> onCleanBg,
+                std::function<void()> onRepack);
 
     bool HandleEvent(const sf::Event& event, const sf::RenderWindow& window, StudioCore::StudioEngineFacade& engine);
     void Update(float deltaTime, sf::Vector2f mousePos);

@@ -14,7 +14,8 @@ void Toolbar::Initialize(const std::string& fontPath,
                          std::function<void()> onToggleUI,
                          std::function<void()> onOpenWizard,
                          std::function<void()> onDetect,
-                         std::function<void()> onCleanBg) { // <-- New parameter
+                         std::function<void()> onCleanBg,
+                         std::function<void()> onRepack) { // <-- Add this missing parameter!
     
     std::vector<std::string> fontCandidates = { fontPath, "Resources/font.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf" };
     for (const auto& path : fontCandidates) { if (m_font.loadFromFile(path)) break; }
@@ -32,8 +33,9 @@ void Toolbar::Initialize(const std::string& fontPath,
     m_buttons.push_back({"redo", u8"Redo", {}, [](StudioCore::StudioEngineFacade& engine){ engine.Redo(); }});
     
     // Sprite Detection and Wizards
-    m_buttons.push_back({"clean_bg", u8"Clean", {}, [onCleanBg](StudioCore::StudioEngineFacade&){ onCleanBg(); }}); // <-- New Button
+    m_buttons.push_back({"clean_bg", u8"Clean", {}, [onCleanBg](StudioCore::StudioEngineFacade&){ onCleanBg(); }});
     m_buttons.push_back({"detect", u8"Detect", {}, [onDetect](StudioCore::StudioEngineFacade&){ onDetect(); }});
+    m_buttons.push_back({"repack", u8"Repack", {}, [onRepack](StudioCore::StudioEngineFacade&){ onRepack(); }}); 
     m_buttons.push_back({"wizard", u8"Wizard", {}, [onOpenWizard](StudioCore::StudioEngineFacade&){ onOpenWizard(); }});
     
     // View Options
@@ -52,7 +54,7 @@ void Toolbar::LayoutButtons(float windowWidth) {
 
     float startX = 12.0f;
     float buttonHeight = Theme::ToolbarHeight - 8.0f;
-    float fixedButtonWidth = 80.0f;
+    float fixedButtonWidth = 75.0f;
     float spacing = 4.0f;
 
     m_dividers.clear();
