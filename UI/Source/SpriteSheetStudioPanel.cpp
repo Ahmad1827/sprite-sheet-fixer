@@ -174,59 +174,63 @@ void SpriteSheetStudioPanel::Initialize() {
                     }
                 }
 
-                bool changed = true;
-                while (changed) {
-                    changed = false;
-                    for (size_t i = 0; i < rawRects.size(); ++i) {
-                        for (size_t j = i + 1; j < rawRects.size(); ++j) {
-                            StudioCore::Rect& r1 = rawRects[i];
-                            StudioCore::Rect& r2 = rawRects[j];
-                            
-                            float m = 10.0f;
-                            bool nearIntersect = (r1.x - m <= r2.x + r2.width && 
-                                                  r1.x + r1.width + m >= r2.x &&
-                                                  r1.y - m <= r2.y + r2.height && 
-                                                  r1.y + r1.height + m >= r2.y);
-                            
-                            if (nearIntersect) {
-                                float area1 = r1.width * r1.height;
-                                float area2 = r2.width * r2.height;
-                                
-                                if (std::min(area1, area2) < std::max(area1, area2) * 0.4f) {
-                                    float minX = std::min(r1.x, r2.x);
-                                    float minY = std::min(r1.y, r2.y);
-                                    float maxX = std::max(r1.x + r1.width, r2.x + r2.width);
-                                    float maxY = std::max(r1.y + r1.height, r2.y + r2.height);
-                                    
-                                    r1.x = minX;
-                                    r1.y = minY;
-                                    r1.width = maxX - minX;
-                                    r1.height = maxY - minY;
-                                    
-                                    rawRects.erase(rawRects.begin() + j);
-                                    changed = true;
-                                    break; 
-                                }
-                            }
-                        }
-                        if (changed) break;
-                    }
-                }
+                if (rawRects.empty()) return;
 
-                std::vector<StudioCore::Rect> validRects;
+                float maxArea = 0.0f;
                 for (const auto& r : rawRects) {
-                    if (r.width > 20 && r.height > 20) {
-                        validRects.push_back(r);
+                    float area = r.width * r.height;
+                    if (area > maxArea) maxArea = area;
+                }
+
+                std::vector<StudioCore::Rect> mainSprites;
+                std::vector<StudioCore::Rect> fragments;
+                
+                for (const auto& r : rawRects) {
+                    float area = r.width * r.height;
+                    if (area < maxArea * 0.35f) {
+                        fragments.push_back(r);
+                    } else {
+                        mainSprites.push_back(r);
                     }
                 }
 
-                std::sort(validRects.begin(), validRects.end(), [](const StudioCore::Rect& a, const StudioCore::Rect& b) {
+                for (const auto& frag : fragments) {
+                    if (mainSprites.empty()) break;
+                    float minD = 999999.0f;
+                    int bestIdx = -1;
+                    float fcx = frag.x + frag.width / 2.0f;
+                    float fcy = frag.y + frag.height / 2.0f;
+                    
+                    for (size_t i = 0; i < mainSprites.size(); ++i) {
+                        float mcx = mainSprites[i].x + mainSprites[i].width / 2.0f;
+                        float mcy = mainSprites[i].y + mainSprites[i].height / 2.0f;
+                        float d = (fcx - mcx) * (fcx - mcx) + (fcy - mcy) * (fcy - mcy);
+                        if (d < minD) {
+                            minD = d;
+                            bestIdx = i;
+                        }
+                    }
+                    
+                    if (bestIdx != -1) {
+                        float minX = std::min(mainSprites[bestIdx].x, frag.x);
+                        float minY = std::min(mainSprites[bestIdx].y, frag.y);
+                        float maxX = std::max(mainSprites[bestIdx].x + mainSprites[bestIdx].width, frag.x + frag.width);
+                        float maxY = std::max(mainSprites[bestIdx].y + mainSprites[bestIdx].height, frag.y + frag.height);
+                        
+                        mainSprites[bestIdx].x = minX;
+                        mainSprites[bestIdx].y = minY;
+                        mainSprites[bestIdx].width = maxX - minX;
+                        mainSprites[bestIdx].height = maxY - minY;
+                    }
+                }
+
+                std::sort(mainSprites.begin(), mainSprites.end(), [](const StudioCore::Rect& a, const StudioCore::Rect& b) {
                     return a.x < b.x; 
                 });
 
                 std::vector<std::shared_ptr<StudioCore::SpriteDefinition>> newSprites;
-                for (size_t i = 0; i < validRects.size(); ++i) {
-                    auto def = std::make_shared<StudioCore::SpriteDefinition>("sprite_" + std::to_string(i + 1), validRects[i]);
+                for (size_t i = 0; i < mainSprites.size(); ++i) {
+                    auto def = std::make_shared<StudioCore::SpriteDefinition>("sprite_" + std::to_string(i + 1), mainSprites[i]);
                     newSprites.push_back(def);
                 }
                 
