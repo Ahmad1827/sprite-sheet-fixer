@@ -33,7 +33,8 @@ public:
                 std::function<void()> onOpenWizard,
                 std::function<void()> onDetect,
                 std::function<void()> onCleanBg,
-                std::function<void()> onRepack);
+                std::function<void()> onRepack,
+                std::function<void()> onFlipH);
 
     bool HandleEvent(const sf::Event& event, const sf::RenderWindow& window, StudioCore::StudioEngineFacade& engine);
     void Update(float deltaTime, sf::Vector2f mousePos);

@@ -17,6 +17,8 @@
 #include "Commands/MoveSpriteCommand.h"
 #include "Commands/MoveSpriteWithPixelsCommand.h"
 #include "Commands/RepackFramesCommand.h"
+#include "Commands/FlipHorizontalCommand.h"
+
 
 namespace StudioCore {
 
@@ -316,5 +318,21 @@ void StudioEngineFacade::RepackFrames() {
 
     auto cmd = std::make_unique<RepackFramesCommand>(project);
     m_commandHistory->ExecuteCommand(std::move(cmd)); 
+}
+
+void StudioEngineFacade::FlipHorizontal() {
+    auto project = GetCurrentProject();
+    if (!IsProjectActive() || !project) return;
+    
+    if (project->GetSprites().empty()) {
+        DetectionConfig config;
+        config.minSpriteSize = 35;
+        RunAutoDetection(config);
+    }
+    
+    if (project->GetSprites().empty()) return;
+
+    auto cmd = std::make_unique<FlipHorizontalCommand>(project);
+    m_commandHistory->ExecuteCommand(std::move(cmd));
 }
 }

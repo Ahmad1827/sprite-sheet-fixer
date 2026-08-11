@@ -67,6 +67,7 @@ public:
     void ExecuteBatchOperation(const std::vector<std::string>& spriteIds, BatchOp op);
     void ExecuteAlignSprites(const std::vector<std::string>& spriteIds, AlignOp op);
     void RepackFrames();
+    void FlipHorizontal();
 private:
     std::shared_ptr<WorkspaceManager> m_workspace;
     std::unique_ptr<BackgroundJobQueue> m_jobQueue;

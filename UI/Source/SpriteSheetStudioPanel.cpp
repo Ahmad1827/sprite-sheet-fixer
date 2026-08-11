@@ -151,6 +151,10 @@ void SpriteSheetStudioPanel::Initialize() {
         [this]() {
             m_engine.RepackFrames();
             m_viewport.RefreshTexture(m_engine);
+        },
+        [this]() {
+            m_engine.FlipHorizontal();
+            m_viewport.RefreshTexture(m_engine);
         }
     );
     m_animationPanel->InitializeFont("Resources/font.ttf");

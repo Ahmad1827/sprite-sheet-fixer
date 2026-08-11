@@ -15,30 +15,28 @@ void Toolbar::Initialize(const std::string& fontPath,
                          std::function<void()> onOpenWizard,
                          std::function<void()> onDetect,
                          std::function<void()> onCleanBg,
-                         std::function<void()> onRepack) { // <-- Add this missing parameter!
+                         std::function<void()> onRepack,
+                         std::function<void()> onFlipH) {
     
     std::vector<std::string> fontCandidates = { fontPath, "Resources/font.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf" };
     for (const auto& path : fontCandidates) { if (m_font.loadFromFile(path)) break; }
 
     m_buttons.clear();
     
-    // Core Project and File Operations
     m_buttons.push_back({"open_img", u8"Import", {}, [onOpenImage](StudioCore::StudioEngineFacade&){ onOpenImage(); }});
     m_buttons.push_back({"load_proj", u8"Open", {}, [onLoadProject](StudioCore::StudioEngineFacade&){ onLoadProject(); }});
     m_buttons.push_back({"save_proj", u8"Save", {}, [onSaveProject](StudioCore::StudioEngineFacade&){ onSaveProject(); }});
     m_buttons.push_back({"export", u8"Export", {}, [onExport](StudioCore::StudioEngineFacade&){ onExport(); }});
     
-    // Engine State Operations
     m_buttons.push_back({"undo", u8"Undo", {}, [](StudioCore::StudioEngineFacade& engine){ engine.Undo(); }});
     m_buttons.push_back({"redo", u8"Redo", {}, [](StudioCore::StudioEngineFacade& engine){ engine.Redo(); }});
     
-    // Sprite Detection and Wizards
     m_buttons.push_back({"clean_bg", u8"Clean", {}, [onCleanBg](StudioCore::StudioEngineFacade&){ onCleanBg(); }});
     m_buttons.push_back({"detect", u8"Detect", {}, [onDetect](StudioCore::StudioEngineFacade&){ onDetect(); }});
     m_buttons.push_back({"repack", u8"Repack", {}, [onRepack](StudioCore::StudioEngineFacade&){ onRepack(); }}); 
+    m_buttons.push_back({"flip_h", u8"Flip H", {}, [onFlipH](StudioCore::StudioEngineFacade&){ onFlipH(); }}); 
     m_buttons.push_back({"wizard", u8"Wizard", {}, [onOpenWizard](StudioCore::StudioEngineFacade&){ onOpenWizard(); }});
     
-    // View Options
     m_buttons.push_back({"toggle_ui", u8"View", {}, [onToggleUI](StudioCore::StudioEngineFacade&){ onToggleUI(); }, true, false});
 
     LayoutButtons(1280.0f);
@@ -54,7 +52,7 @@ void Toolbar::LayoutButtons(float windowWidth) {
 
     float startX = 12.0f;
     float buttonHeight = Theme::ToolbarHeight - 8.0f;
-    float fixedButtonWidth = 75.0f;
+    float fixedButtonWidth = 70.0f;
     float spacing = 4.0f;
 
     m_dividers.clear();
