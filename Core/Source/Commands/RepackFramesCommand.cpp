@@ -17,34 +17,78 @@ void RepackFramesCommand::Execute() {
 
         if (m_oldSprites.empty() || !m_oldTexture) return;
 
-        std::vector<std::shared_ptr<SpriteDefinition>> sortedSprites = m_oldSprites;
-        std::sort(sortedSprites.begin(), sortedSprites.end(), [](const auto& a, const auto& b) {
-            auto rA = a->GetSourceRect();
-            auto rB = b->GetSourceRect();
-            float threshold = std::min(rA.height, rB.height) / 2.0f;
-            if (std::abs(rA.y - rB.y) > threshold) {
-                return rA.y < rB.y; 
+        std::vector<Rect> rawRects;
+        for (const auto& s : m_oldSprites) {
+            rawRects.push_back(s->GetSourceRect());
+        }
+
+        bool changed = true;
+        while (changed) {
+            changed = false;
+            for (size_t i = 0; i < rawRects.size(); ++i) {
+                for (size_t j = i + 1; j < rawRects.size(); ++j) {
+                    Rect& r1 = rawRects[i];
+                    Rect& r2 = rawRects[j];
+                    
+                    float c1x = r1.x + r1.width / 2.0f;
+                    float c1y = r1.y + r1.height / 2.0f;
+                    float c2x = r2.x + r2.width / 2.0f;
+                    float c2y = r2.y + r2.height / 2.0f;
+                    
+                    bool r2_in_r1 = (c2x >= r1.x && c2x <= r1.x + r1.width && c2y >= r1.y && c2y <= r1.y + r1.height);
+                    bool r1_in_r2 = (c1x >= r2.x && c1x <= r2.x + r2.width && c1y >= r2.y && c1y <= r2.y + r2.height);
+                    
+                    if (r2_in_r1 || r1_in_r2) {
+                        float minX = std::min(r1.x, r2.x);
+                        float minY = std::min(r1.y, r2.y);
+                        float maxX = std::max(r1.x + r1.width, r2.x + r2.width);
+                        float maxY = std::max(r1.y + r1.height, r2.y + r2.height);
+                        
+                        r1.x = minX;
+                        r1.y = minY;
+                        r1.width = maxX - minX;
+                        r1.height = maxY - minY;
+                        
+                        rawRects.erase(rawRects.begin() + j);
+                        changed = true;
+                        break; 
+                    }
+                }
+                if (changed) break;
             }
-            return rA.x < rB.x; 
+        }
+
+        std::vector<Rect> validRects;
+        for (const auto& r : rawRects) {
+            if (r.width > 35 && r.height > 35) {
+                validRects.push_back(r);
+            }
+        }
+
+        std::sort(validRects.begin(), validRects.end(), [](const Rect& a, const Rect& b) {
+            float threshold = std::min(a.height, b.height) / 2.0f;
+            if (std::abs(a.y - b.y) > threshold) {
+                return a.y < b.y; 
+            }
+            return a.x < b.x; 
         });
 
         float maxWidth = 0.0f;
         float maxHeight = 0.0f;
-        for (const auto& s : sortedSprites) {
-            auto r = s->GetSourceRect();
+        for (const auto& r : validRects) {
             if (r.width > maxWidth) maxWidth = r.width;
             if (r.height > maxHeight) maxHeight = r.height;
         }
 
-        int newWidth = static_cast<int>(maxWidth * sortedSprites.size());
+        int newWidth = static_cast<int>(maxWidth * validRects.size());
         int newHeight = static_cast<int>(maxHeight);
         std::vector<uint8_t> newPixels(newWidth * newHeight * 4, 0); 
 
         const auto& oldPixels = m_oldTexture->GetPixels();
         int oldW = m_oldTexture->GetWidth();
 
-        for (size_t i = 0; i < sortedSprites.size(); ++i) {
-            auto rect = sortedSprites[i]->GetSourceRect();
+        for (size_t i = 0; i < validRects.size(); ++i) {
+            const Rect& rect = validRects[i];
             
             int destX = static_cast<int>(i * maxWidth + (maxWidth - rect.width) / 2.0f);
             int destY = static_cast<int>(maxHeight - rect.height); 
@@ -68,14 +112,12 @@ void RepackFramesCommand::Execute() {
         m_newTexture = std::make_shared<SourceTexture>(newWidth, newHeight, std::move(newPixels));
     }
 
-    // Cast away the constness to satisfy the Project's Setter
     m_project->SetTexture(std::const_pointer_cast<SourceTexture>(m_newTexture));
     m_project->SetSprites(m_newSprites); 
 }
 
 void RepackFramesCommand::Undo() {
     if (m_project && m_oldTexture) {
-        // Cast away the constness to satisfy the Project's Setter
         m_project->SetTexture(std::const_pointer_cast<SourceTexture>(m_oldTexture));
         m_project->SetSprites(m_oldSprites);
     }

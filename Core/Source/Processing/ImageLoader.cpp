@@ -60,8 +60,6 @@ std::shared_ptr<SourceTexture> ImageLoader::ChromaKey(const SourceTexture& sourc
     return std::make_shared<SourceTexture>(width, height, std::move(newPixels));
 }
 
-struct ColorRGB { uint8_t r, g, b; };
-
 std::shared_ptr<SourceTexture> ImageLoader::RemoveFakeCheckerboard(const SourceTexture& source, float tolerance) {
     int width = source.GetWidth();
     int height = source.GetHeight();
@@ -70,54 +68,32 @@ std::shared_ptr<SourceTexture> ImageLoader::RemoveFakeCheckerboard(const SourceT
 
     if (width < 8 || height < 8) return std::make_shared<SourceTexture>(width, height, std::move(newPixels));
 
-    std::vector<ColorRGB> bgPalette;
+    // 1. DETERMINISTIC NEUTRAL-COLOR MATH
+    // Backgrounds (Grays, Blacks, Whites) have very low variance between their R, G, B channels.
+    // Monkeys (Browns, Oranges) have high variance.
+    auto isBgColor = [](uint8_t r, uint8_t g, uint8_t b) {
+        int mx = std::max({r, g, b});
+        int mn = std::min({r, g, b});
+        int diff = mx - mn;
 
-    auto addBgColor = [&](uint8_t r, uint8_t g, uint8_t b) {
-        for (const auto& c : bgPalette) {
-            float dist = std::sqrt(std::pow(c.r - r, 2) + std::pow(c.g - g, 2) + std::pow(c.b - b, 2));
-            if (dist < 15.0f) return; 
-        }
-        bgPalette.push_back({r, g, b});
+        // Rule A: Checkerboard & Watermarks (Mid-to-Bright Neutral Grays/Whites)
+        if (mx > 40 && diff <= 20) return true;
+
+        // Rule B: AI Black Artifacts (Very dark, strict neutral)
+        // A dark brown monkey shadow will have diff > 8, so it is safely ignored!
+        if (mx <= 40 && diff <= 8) return true;
+
+        return false;
     };
 
-    // 1. Build background palette from perimeter
-    for (int x = 0; x < width; x += 4) { 
-        addBgColor(origPixels[(0 * width + x) * 4], origPixels[(0 * width + x) * 4 + 1], origPixels[(0 * width + x) * 4 + 2]);
-        addBgColor(origPixels[((height - 1) * width + x) * 4], origPixels[((height - 1) * width + x) * 4 + 1], origPixels[((height - 1) * width + x) * 4 + 2]);
-    }
-    for (int y = 0; y < height; y += 4) {
-        addBgColor(origPixels[(y * width + 0) * 4], origPixels[(y * width + 0) * 4 + 1], origPixels[(y * width + 0) * 4 + 2]);
-        addBgColor(origPixels[(y * width + width - 1) * 4], origPixels[(y * width + width - 1) * 4 + 1], origPixels[(y * width + width - 1) * 4 + 2]);
-    }
-    addBgColor(255, 255, 255); // Explicitly add white for watermarks
-    
-    // EXPLICITLY target AI artifacts (Black/Dark-Gray Ground Strips)
-    addBgColor(0, 0, 0);       // Pure black
-    addBgColor(15, 15, 15);    // Dark gray/compression artifacts
-
-    // 2. Identify all candidate background pixels globally
-    float aggressiveTolerance = 50.0f;
+    // Flag all candidates
     std::vector<bool> isBgCandidate(width * height, false);
-
     for (int i = 0; i < width * height; ++i) {
-        int idx = i * 4;
-        uint8_t pR = origPixels[idx];
-        uint8_t pG = origPixels[idx+1];
-        uint8_t pB = origPixels[idx+2];
-
-        for (const auto& bgC : bgPalette) {
-            float dist = std::sqrt(std::pow(pR - bgC.r, 2) + std::pow(pG - bgC.g, 2) + std::pow(pB - bgC.b, 2));
-            if (dist <= aggressiveTolerance) {
-                isBgCandidate[i] = true;
-                break;
-            }
-        }
+        isBgCandidate[i] = isBgColor(origPixels[i * 4], origPixels[i * 4 + 1], origPixels[i * 4 + 2]);
     }
 
-    // 3. Group candidates into "Islands" using 8-way connectivity (so diagonal checkers link up)
+    // 2. ISLAND GROUPING (8-Way Connectivity)
     std::vector<bool> visited(width * height, false);
-    
-    // 8-way directions
     const int dx[] = {1, 1, 1, 0, -1, -1, -1, 0};
     const int dy[] = {-1, 0, 1, 1, 1, 0, -1, -1};
 
@@ -134,19 +110,15 @@ std::shared_ptr<SourceTexture> ImageLoader::RemoveFakeCheckerboard(const SourceT
                 
                 bool touchesEdge = false;
 
-                // Flood fill the current island
                 while (!q.empty()) {
                     auto [cx, cy] = q.front();
                     q.pop();
 
-                    if (cx == 0 || cx == width - 1 || cy == 0 || cy == height - 1) {
-                        touchesEdge = true;
-                    }
+                    if (cx == 0 || cx == width - 1 || cy == 0 || cy == height - 1) touchesEdge = true;
 
                     for (int i = 0; i < 8; ++i) {
                         int nx = cx + dx[i];
                         int ny = cy + dy[i];
-
                         if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
                             int nIdx = ny * width + nx;
                             if (isBgCandidate[nIdx] && !visited[nIdx]) {
@@ -158,17 +130,15 @@ std::shared_ptr<SourceTexture> ImageLoader::RemoveFakeCheckerboard(const SourceT
                     }
                 }
 
-                // 4. Protection Logic:
-                // An ape's eye is very small (usually < 20 pixels). 
-                // The gap between legs is large (well over 50 pixels).
-                // If it touches the edge OR is larger than 40 pixels, nuke it.
-                if (touchesEdge || islandPixels.size() > 40) {
+                // 3. PROTECTION LOGIC
+                // Nuke it if it touches the edge OR if it's a large chunk of trapped checkerboard
+                if (touchesEdge || islandPixels.size() > 25) {
                     for (const auto& p : islandPixels) {
                         int pIdx = (p.second * width + p.first) * 4;
                         newPixels[pIdx] = 0;
                         newPixels[pIdx+1] = 0;
                         newPixels[pIdx+2] = 0;
-                        newPixels[pIdx+3] = 0; // Pure transparency
+                        newPixels[pIdx+3] = 0; // Transparent
                     }
                 }
             }

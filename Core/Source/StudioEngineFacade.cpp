@@ -302,22 +302,19 @@ void StudioEngineFacade::DeleteSpriteWithPixels(const std::string& spriteId) {
 }
 
 void StudioEngineFacade::RepackFrames() {
-    // 1. Safely fetch the project using the facade's getter
     auto project = GetCurrentProject();
     if (!IsProjectActive() || !project) return;
     
-    // 2. Auto-detect if the user forgot
+    // Auto-detect if the user forgot
     if (project->GetSprites().empty()) {
         DetectionConfig config;
+        config.minSpriteSize = 25; // <--- ADD THIS LINE! Ignores tiny junk boxes.
         RunAutoDetection(config);
     }
     
-    if (project->GetSprites().empty()) return; // Still empty, bail out
+    if (project->GetSprites().empty()) return; 
 
-    // 3. Create the command
     auto cmd = std::make_unique<RepackFramesCommand>(project);
-    
-    // 4. Execute using the correct method name (ExecuteCommand)
     m_commandHistory->ExecuteCommand(std::move(cmd)); 
 }
 }

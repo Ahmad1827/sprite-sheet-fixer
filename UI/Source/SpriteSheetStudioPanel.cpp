@@ -124,6 +124,7 @@ void SpriteSheetStudioPanel::Initialize() {
         [this]() {
             if (m_engine.IsProjectActive()) {
                 StudioCore::DetectionConfig config;
+                config.minSpriteSize = 35; // <-- Add this here too!
                 m_engine.RunAutoDetection(config);
                 m_viewport.RefreshTexture(m_engine);
             }
