@@ -68,6 +68,7 @@ public:
     void ExecuteAlignSprites(const std::vector<std::string>& spriteIds, AlignOp op);
     void RepackFrames();
     void FlipHorizontal();
+    void MergeOverlappingSprites();
 private:
     std::shared_ptr<WorkspaceManager> m_workspace;
     std::unique_ptr<BackgroundJobQueue> m_jobQueue;

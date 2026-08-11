@@ -126,71 +126,24 @@ void SpriteSheetStudioPanel::Initialize() {
         },
         [this]() {
             if (m_engine.IsProjectActive() && m_engine.GetCurrentProject()) {
+                StudioCore::DetectionConfig config;
+                config.minSpriteSize = 10;
+                m_engine.RunAutoDetection(config);
+                
                 auto project = m_engine.GetCurrentProject();
-                auto texture = project->GetTexture();
-                if (!texture) return;
-
-                int w = texture->GetWidth();
-                int h = texture->GetHeight();
-                const auto& pixels = texture->GetPixels();
-
-                std::vector<bool> visited(w * h, false);
+                auto rawSprites = project->GetSprites();
                 std::vector<StudioCore::Rect> rawRects;
-
-                const int dx[] = {1, 1, 1, 0, -1, -1, -1, 0};
-                const int dy[] = {-1, 0, 1, 1, 1, 0, -1, -1};
-
-                for (int y = 0; y < h; ++y) {
-                    for (int x = 0; x < w; ++x) {
-                        if (pixels[(y * w + x) * 4 + 3] > 0 && !visited[y * w + x]) {
-                            int minX = x, maxX = x, minY = y, maxY = y;
-                            std::queue<std::pair<int, int>> q;
-                            
-                            q.push({x, y});
-                            visited[y * w + x] = true;
-                            
-                            while (!q.empty()) {
-                                auto [cx, cy] = q.front();
-                                q.pop();
-                                
-                                if (cx < minX) minX = cx;
-                                if (cx > maxX) maxX = cx;
-                                if (cy < minY) minY = cy;
-                                if (cy > maxY) maxY = cy;
-                                
-                                for (int i = 0; i < 8; ++i) {
-                                    int nx = cx + dx[i];
-                                    int ny = cy + dy[i];
-                                    if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
-                                        if (pixels[(ny * w + nx) * 4 + 3] > 0 && !visited[ny * w + nx]) {
-                                            visited[ny * w + nx] = true;
-                                            q.push({nx, ny});
-                                        }
-                                    }
-                                }
-                            }
-                            rawRects.push_back({static_cast<float>(minX), static_cast<float>(minY), static_cast<float>(maxX - minX + 1), static_cast<float>(maxY - minY + 1)});
-                        }
-                    }
-                }
-
-                if (rawRects.empty()) return;
-
-                float maxArea = 0.0f;
-                for (const auto& r : rawRects) {
-                    float area = r.width * r.height;
-                    if (area > maxArea) maxArea = area;
+                for (const auto& s : rawSprites) {
+                    rawRects.push_back(s->GetSourceRect());
                 }
 
                 std::vector<StudioCore::Rect> mainSprites;
                 std::vector<StudioCore::Rect> fragments;
-                
                 for (const auto& r : rawRects) {
-                    float area = r.width * r.height;
-                    if (area < maxArea * 0.35f) {
-                        fragments.push_back(r);
-                    } else {
+                    if (r.width > 35 && r.height > 35) {
                         mainSprites.push_back(r);
+                    } else {
+                        fragments.push_back(r);
                     }
                 }
 
@@ -200,7 +153,6 @@ void SpriteSheetStudioPanel::Initialize() {
                     int bestIdx = -1;
                     float fcx = frag.x + frag.width / 2.0f;
                     float fcy = frag.y + frag.height / 2.0f;
-                    
                     for (size_t i = 0; i < mainSprites.size(); ++i) {
                         float mcx = mainSprites[i].x + mainSprites[i].width / 2.0f;
                         float mcy = mainSprites[i].y + mainSprites[i].height / 2.0f;
@@ -210,13 +162,11 @@ void SpriteSheetStudioPanel::Initialize() {
                             bestIdx = i;
                         }
                     }
-                    
                     if (bestIdx != -1) {
                         float minX = std::min(mainSprites[bestIdx].x, frag.x);
                         float minY = std::min(mainSprites[bestIdx].y, frag.y);
                         float maxX = std::max(mainSprites[bestIdx].x + mainSprites[bestIdx].width, frag.x + frag.width);
                         float maxY = std::max(mainSprites[bestIdx].y + mainSprites[bestIdx].height, frag.y + frag.height);
-                        
                         mainSprites[bestIdx].x = minX;
                         mainSprites[bestIdx].y = minY;
                         mainSprites[bestIdx].width = maxX - minX;
@@ -237,6 +187,10 @@ void SpriteSheetStudioPanel::Initialize() {
                 project->SetSprites(newSprites);
                 m_viewport.RefreshTexture(m_engine);
             }
+        },
+        [this]() {
+            m_engine.MergeOverlappingSprites();
+            m_viewport.RefreshTexture(m_engine);
         },
         // NEW CALLBACK: onCleanBg
         [this]() {

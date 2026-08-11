@@ -18,7 +18,7 @@
 #include "Commands/MoveSpriteWithPixelsCommand.h"
 #include "Commands/RepackFramesCommand.h"
 #include "Commands/FlipHorizontalCommand.h"
-
+#include "Commands/MergeSpritesCommand.h"
 
 namespace StudioCore {
 
@@ -333,6 +333,14 @@ void StudioEngineFacade::FlipHorizontal() {
     if (project->GetSprites().empty()) return;
 
     auto cmd = std::make_unique<FlipHorizontalCommand>(project);
+    m_commandHistory->ExecuteCommand(std::move(cmd));
+}
+
+void StudioEngineFacade::MergeOverlappingSprites() {
+    auto project = GetCurrentProject();
+    if (!IsProjectActive() || !project || project->GetSprites().empty()) return;
+    
+    auto cmd = std::make_unique<MergeSpritesCommand>(project);
     m_commandHistory->ExecuteCommand(std::move(cmd));
 }
 }

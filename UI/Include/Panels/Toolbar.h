@@ -32,6 +32,7 @@ public:
                 std::function<void()> onToggleUI,
                 std::function<void()> onOpenWizard,
                 std::function<void()> onDetect,
+                std::function<void()> onMerge,
                 std::function<void()> onCleanBg,
                 std::function<void()> onRepack,
                 std::function<void()> onFlipH);
