@@ -2,6 +2,8 @@
 #include "Utils/NativeFileDialog.h"
 #include "DataModels/Project.h"
 #include "Processing/ImageLoader.h"
+#include "DataModels/SpriteDefinition.h"
+#include <algorithm>
 
 #ifdef LoadImage
 #undef LoadImage
@@ -122,10 +124,94 @@ void SpriteSheetStudioPanel::Initialize() {
             m_animBuilderPanel.Activate(m_engine);
         },
         [this]() {
-            if (m_engine.IsProjectActive()) {
-                StudioCore::DetectionConfig config;
-                config.minSpriteSize = 35; // <-- Add this here too!
-                m_engine.RunAutoDetection(config);
+            if (m_engine.IsProjectActive() && m_engine.GetCurrentProject()) {
+                auto project = m_engine.GetCurrentProject();
+                auto texture = project->GetTexture();
+                if (!texture) return;
+
+                int w = texture->GetWidth();
+                int h = texture->GetHeight();
+                const auto& pixels = texture->GetPixels();
+
+                std::vector<StudioCore::Rect> detectedRects;
+
+                std::vector<bool> rowHasAlpha(h, false);
+                for (int y = 0; y < h; ++y) {
+                    for (int x = 0; x < w; ++x) {
+                        if (pixels[(y * w + x) * 4 + 3] > 0) {
+                            rowHasAlpha[y] = true;
+                            break;
+                        }
+                    }
+                }
+
+                std::vector<std::pair<int, int>> rowBands;
+                int startY = -1;
+                for (int y = 0; y < h; ++y) {
+                    if (rowHasAlpha[y] && startY == -1) startY = y;
+                    else if (!rowHasAlpha[y] && startY != -1) {
+                        rowBands.push_back({startY, y - 1});
+                        startY = -1;
+                    }
+                }
+                if (startY != -1) rowBands.push_back({startY, h - 1});
+
+                for (const auto& band : rowBands) {
+                    int rStartY = band.first;
+                    int rEndY = band.second;
+
+                    std::vector<bool> colHasAlpha(w, false);
+                    for (int x = 0; x < w; ++x) {
+                        for (int y = rStartY; y <= rEndY; ++y) {
+                            if (pixels[(y * w + x) * 4 + 3] > 0) {
+                                colHasAlpha[x] = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    int startX = -1;
+                    for (int x = 0; x < w; ++x) {
+                        if (colHasAlpha[x] && startX == -1) startX = x;
+                        else if (!colHasAlpha[x] && startX != -1) {
+                            detectedRects.push_back({static_cast<float>(startX), static_cast<float>(rStartY), static_cast<float>(x - startX), static_cast<float>(rEndY - rStartY + 1)});
+                            startX = -1;
+                        }
+                    }
+                    if (startX != -1) {
+                        detectedRects.push_back({static_cast<float>(startX), static_cast<float>(rStartY), static_cast<float>(w - startX), static_cast<float>(rEndY - rStartY + 1)});
+                    }
+                }
+
+                std::vector<StudioCore::Rect> finalRects;
+                for (auto& rect : detectedRects) {
+                    int minX = rect.x + rect.width, maxX = rect.x;
+                    int minY = rect.y + rect.height, maxY = rect.y;
+                    bool found = false;
+
+                    for (int y = rect.y; y < rect.y + rect.height; ++y) {
+                        for (int x = rect.x; x < rect.x + rect.width; ++x) {
+                            if (pixels[(y * w + x) * 4 + 3] > 0) {
+                                if (x < minX) minX = x;
+                                if (x > maxX) maxX = x;
+                                if (y < minY) minY = y;
+                                if (y > maxY) maxY = y;
+                                found = true;
+                            }
+                        }
+                    }
+                    if (found && (maxX - minX > 10) && (maxY - minY > 10)) {
+                        finalRects.push_back({static_cast<float>(minX), static_cast<float>(minY), static_cast<float>(maxX - minX + 1), static_cast<float>(maxY - minY + 1)});
+                    }
+                }
+
+                std::vector<std::shared_ptr<StudioCore::SpriteDefinition>> newSprites;
+                for (size_t i = 0; i < finalRects.size(); ++i) {
+                    auto def = std::make_shared<StudioCore::SpriteDefinition>("sprite_" + std::to_string(i + 1), finalRects[i]);
+                    newSprites.push_back(def);
+                }
+                
+                project->SetSprites(newSprites);
                 m_viewport.RefreshTexture(m_engine);
             }
         },
