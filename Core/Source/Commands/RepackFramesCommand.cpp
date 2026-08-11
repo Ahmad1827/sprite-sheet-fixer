@@ -4,6 +4,7 @@
 #include "DataModels/SpriteDefinition.h"
 #include <algorithm>
 #include <cmath>
+#include <queue>
 
 namespace StudioCore {
 
@@ -19,78 +20,92 @@ void RepackFramesCommand::Execute() {
         int h = m_oldTexture->GetHeight();
         const auto& pixels = m_oldTexture->GetPixels();
 
-        std::vector<Rect> detectedRects;
+        std::vector<bool> visited(w * h, false);
+        std::vector<Rect> rawRects;
 
-        std::vector<bool> rowHasAlpha(h, false);
+        const int dx[] = {1, 1, 1, 0, -1, -1, -1, 0};
+        const int dy[] = {-1, 0, 1, 1, 1, 0, -1, -1};
+
         for (int y = 0; y < h; ++y) {
             for (int x = 0; x < w; ++x) {
-                if (pixels[(y * w + x) * 4 + 3] > 0) {
-                    rowHasAlpha[y] = true;
-                    break;
+                if (pixels[(y * w + x) * 4 + 3] > 0 && !visited[y * w + x]) {
+                    int minX = x, maxX = x, minY = y, maxY = y;
+                    std::queue<std::pair<int, int>> q;
+                    
+                    q.push({x, y});
+                    visited[y * w + x] = true;
+                    
+                    while (!q.empty()) {
+                        auto [cx, cy] = q.front();
+                        q.pop();
+                        
+                        if (cx < minX) minX = cx;
+                        if (cx > maxX) maxX = cx;
+                        if (cy < minY) minY = cy;
+                        if (cy > maxY) maxY = cy;
+                        
+                        for (int i = 0; i < 8; ++i) {
+                            int nx = cx + dx[i];
+                            int ny = cy + dy[i];
+                            if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                                if (pixels[(ny * w + nx) * 4 + 3] > 0 && !visited[ny * w + nx]) {
+                                    visited[ny * w + nx] = true;
+                                    q.push({nx, ny});
+                                }
+                            }
+                        }
+                    }
+                    rawRects.push_back({static_cast<float>(minX), static_cast<float>(minY), static_cast<float>(maxX - minX + 1), static_cast<float>(maxY - minY + 1)});
                 }
             }
         }
 
-        std::vector<std::pair<int, int>> rowBands;
-        int startY = -1;
-        for (int y = 0; y < h; ++y) {
-            if (rowHasAlpha[y] && startY == -1) startY = y;
-            else if (!rowHasAlpha[y] && startY != -1) {
-                rowBands.push_back({startY, y - 1});
-                startY = -1;
-            }
-        }
-        if (startY != -1) rowBands.push_back({startY, h - 1});
-
-        for (const auto& band : rowBands) {
-            int rStartY = band.first;
-            int rEndY = band.second;
-
-            std::vector<bool> colHasAlpha(w, false);
-            for (int x = 0; x < w; ++x) {
-                for (int y = rStartY; y <= rEndY; ++y) {
-                    if (pixels[(y * w + x) * 4 + 3] > 0) {
-                        colHasAlpha[x] = true;
-                        break;
+        bool changed = true;
+        while (changed) {
+            changed = false;
+            for (size_t i = 0; i < rawRects.size(); ++i) {
+                for (size_t j = i + 1; j < rawRects.size(); ++j) {
+                    Rect& r1 = rawRects[i];
+                    Rect& r2 = rawRects[j];
+                    
+                    float m = 10.0f;
+                    bool nearIntersect = (r1.x - m <= r2.x + r2.width && 
+                                          r1.x + r1.width + m >= r2.x &&
+                                          r1.y - m <= r2.y + r2.height && 
+                                          r1.y + r1.height + m >= r2.y);
+                    
+                    if (nearIntersect) {
+                        float area1 = r1.width * r1.height;
+                        float area2 = r2.width * r2.height;
+                        
+                        if (std::min(area1, area2) < std::max(area1, area2) * 0.4f) {
+                            float minX = std::min(r1.x, r2.x);
+                            float minY = std::min(r1.y, r2.y);
+                            float maxX = std::max(r1.x + r1.width, r2.x + r2.width);
+                            float maxY = std::max(r1.y + r1.height, r2.y + r2.height);
+                            
+                            r1.x = minX;
+                            r1.y = minY;
+                            r1.width = maxX - minX;
+                            r1.height = maxY - minY;
+                            
+                            rawRects.erase(rawRects.begin() + j);
+                            changed = true;
+                            break; 
+                        }
                     }
                 }
-            }
-
-            int startX = -1;
-            for (int x = 0; x < w; ++x) {
-                if (colHasAlpha[x] && startX == -1) startX = x;
-                else if (!colHasAlpha[x] && startX != -1) {
-                    detectedRects.push_back({static_cast<float>(startX), static_cast<float>(rStartY), static_cast<float>(x - startX), static_cast<float>(rEndY - rStartY + 1)});
-                    startX = -1;
-                }
-            }
-            if (startX != -1) {
-                detectedRects.push_back({static_cast<float>(startX), static_cast<float>(rStartY), static_cast<float>(w - startX), static_cast<float>(rEndY - rStartY + 1)});
+                if (changed) break;
             }
         }
 
         std::vector<Rect> validRects;
-        for (auto& rect : detectedRects) {
-            int minX = rect.x + rect.width, maxX = rect.x;
-            int minY = rect.y + rect.height, maxY = rect.y;
-            bool found = false;
-
-            for (int y = rect.y; y < rect.y + rect.height; ++y) {
-                for (int x = rect.x; x < rect.x + rect.width; ++x) {
-                    if (pixels[(y * w + x) * 4 + 3] > 0) {
-                        if (x < minX) minX = x;
-                        if (x > maxX) maxX = x;
-                        if (y < minY) minY = y;
-                        if (y > maxY) maxY = y;
-                        found = true;
-                    }
-                }
-            }
-            if (found && (maxX - minX > 25) && (maxY - minY > 25)) {
-                validRects.push_back({static_cast<float>(minX), static_cast<float>(minY), static_cast<float>(maxX - minX + 1), static_cast<float>(maxY - minY + 1)});
+        for (const auto& r : rawRects) {
+            if (r.width > 20 && r.height > 20) {
+                validRects.push_back(r);
             }
         }
-        
+
         m_oldSprites.clear();
         for (size_t i = 0; i < validRects.size(); ++i) {
              m_oldSprites.push_back(std::make_shared<SpriteDefinition>("old_" + std::to_string(i), validRects[i]));
@@ -99,15 +114,12 @@ void RepackFramesCommand::Execute() {
         if (validRects.empty()) return;
 
         std::sort(validRects.begin(), validRects.end(), [](const Rect& a, const Rect& b) {
-            float threshold = std::min(a.height, b.height) / 2.0f;
-            if (std::abs(a.y - b.y) > threshold) {
-                return a.y < b.y; 
-            }
             return a.x < b.x; 
         });
 
         float maxWidth = 0.0f;
         float maxHeight = 0.0f;
+        
         for (const auto& r : validRects) {
             if (r.width > maxWidth) maxWidth = r.width;
             if (r.height > maxHeight) maxHeight = r.height;
@@ -145,7 +157,6 @@ void RepackFramesCommand::Execute() {
     m_project->SetTexture(std::const_pointer_cast<SourceTexture>(m_newTexture));
     m_project->SetSprites(m_newSprites); 
 }
-
 void RepackFramesCommand::Undo() {
     if (m_project && m_oldTexture) {
         m_project->SetTexture(std::const_pointer_cast<SourceTexture>(m_oldTexture));

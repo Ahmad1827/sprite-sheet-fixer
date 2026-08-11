@@ -4,6 +4,7 @@
 #include "Processing/ImageLoader.h"
 #include "DataModels/SpriteDefinition.h"
 #include <algorithm>
+#include <queue>
 
 #ifdef LoadImage
 #undef LoadImage
@@ -133,81 +134,99 @@ void SpriteSheetStudioPanel::Initialize() {
                 int h = texture->GetHeight();
                 const auto& pixels = texture->GetPixels();
 
-                std::vector<StudioCore::Rect> detectedRects;
+                std::vector<bool> visited(w * h, false);
+                std::vector<StudioCore::Rect> rawRects;
 
-                std::vector<bool> rowHasAlpha(h, false);
+                const int dx[] = {1, 1, 1, 0, -1, -1, -1, 0};
+                const int dy[] = {-1, 0, 1, 1, 1, 0, -1, -1};
+
                 for (int y = 0; y < h; ++y) {
                     for (int x = 0; x < w; ++x) {
-                        if (pixels[(y * w + x) * 4 + 3] > 0) {
-                            rowHasAlpha[y] = true;
-                            break;
+                        if (pixels[(y * w + x) * 4 + 3] > 0 && !visited[y * w + x]) {
+                            int minX = x, maxX = x, minY = y, maxY = y;
+                            std::queue<std::pair<int, int>> q;
+                            
+                            q.push({x, y});
+                            visited[y * w + x] = true;
+                            
+                            while (!q.empty()) {
+                                auto [cx, cy] = q.front();
+                                q.pop();
+                                
+                                if (cx < minX) minX = cx;
+                                if (cx > maxX) maxX = cx;
+                                if (cy < minY) minY = cy;
+                                if (cy > maxY) maxY = cy;
+                                
+                                for (int i = 0; i < 8; ++i) {
+                                    int nx = cx + dx[i];
+                                    int ny = cy + dy[i];
+                                    if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                                        if (pixels[(ny * w + nx) * 4 + 3] > 0 && !visited[ny * w + nx]) {
+                                            visited[ny * w + nx] = true;
+                                            q.push({nx, ny});
+                                        }
+                                    }
+                                }
+                            }
+                            rawRects.push_back({static_cast<float>(minX), static_cast<float>(minY), static_cast<float>(maxX - minX + 1), static_cast<float>(maxY - minY + 1)});
                         }
                     }
                 }
 
-                std::vector<std::pair<int, int>> rowBands;
-                int startY = -1;
-                for (int y = 0; y < h; ++y) {
-                    if (rowHasAlpha[y] && startY == -1) startY = y;
-                    else if (!rowHasAlpha[y] && startY != -1) {
-                        rowBands.push_back({startY, y - 1});
-                        startY = -1;
-                    }
-                }
-                if (startY != -1) rowBands.push_back({startY, h - 1});
-
-                for (const auto& band : rowBands) {
-                    int rStartY = band.first;
-                    int rEndY = band.second;
-
-                    std::vector<bool> colHasAlpha(w, false);
-                    for (int x = 0; x < w; ++x) {
-                        for (int y = rStartY; y <= rEndY; ++y) {
-                            if (pixels[(y * w + x) * 4 + 3] > 0) {
-                                colHasAlpha[x] = true;
-                                break;
+                bool changed = true;
+                while (changed) {
+                    changed = false;
+                    for (size_t i = 0; i < rawRects.size(); ++i) {
+                        for (size_t j = i + 1; j < rawRects.size(); ++j) {
+                            StudioCore::Rect& r1 = rawRects[i];
+                            StudioCore::Rect& r2 = rawRects[j];
+                            
+                            float m = 10.0f;
+                            bool nearIntersect = (r1.x - m <= r2.x + r2.width && 
+                                                  r1.x + r1.width + m >= r2.x &&
+                                                  r1.y - m <= r2.y + r2.height && 
+                                                  r1.y + r1.height + m >= r2.y);
+                            
+                            if (nearIntersect) {
+                                float area1 = r1.width * r1.height;
+                                float area2 = r2.width * r2.height;
+                                
+                                if (std::min(area1, area2) < std::max(area1, area2) * 0.4f) {
+                                    float minX = std::min(r1.x, r2.x);
+                                    float minY = std::min(r1.y, r2.y);
+                                    float maxX = std::max(r1.x + r1.width, r2.x + r2.width);
+                                    float maxY = std::max(r1.y + r1.height, r2.y + r2.height);
+                                    
+                                    r1.x = minX;
+                                    r1.y = minY;
+                                    r1.width = maxX - minX;
+                                    r1.height = maxY - minY;
+                                    
+                                    rawRects.erase(rawRects.begin() + j);
+                                    changed = true;
+                                    break; 
+                                }
                             }
                         }
-                    }
-
-                    int startX = -1;
-                    for (int x = 0; x < w; ++x) {
-                        if (colHasAlpha[x] && startX == -1) startX = x;
-                        else if (!colHasAlpha[x] && startX != -1) {
-                            detectedRects.push_back({static_cast<float>(startX), static_cast<float>(rStartY), static_cast<float>(x - startX), static_cast<float>(rEndY - rStartY + 1)});
-                            startX = -1;
-                        }
-                    }
-                    if (startX != -1) {
-                        detectedRects.push_back({static_cast<float>(startX), static_cast<float>(rStartY), static_cast<float>(w - startX), static_cast<float>(rEndY - rStartY + 1)});
+                        if (changed) break;
                     }
                 }
 
-                std::vector<StudioCore::Rect> finalRects;
-                for (auto& rect : detectedRects) {
-                    int minX = rect.x + rect.width, maxX = rect.x;
-                    int minY = rect.y + rect.height, maxY = rect.y;
-                    bool found = false;
-
-                    for (int y = rect.y; y < rect.y + rect.height; ++y) {
-                        for (int x = rect.x; x < rect.x + rect.width; ++x) {
-                            if (pixels[(y * w + x) * 4 + 3] > 0) {
-                                if (x < minX) minX = x;
-                                if (x > maxX) maxX = x;
-                                if (y < minY) minY = y;
-                                if (y > maxY) maxY = y;
-                                found = true;
-                            }
-                        }
-                    }
-                    if (found && (maxX - minX > 10) && (maxY - minY > 10)) {
-                        finalRects.push_back({static_cast<float>(minX), static_cast<float>(minY), static_cast<float>(maxX - minX + 1), static_cast<float>(maxY - minY + 1)});
+                std::vector<StudioCore::Rect> validRects;
+                for (const auto& r : rawRects) {
+                    if (r.width > 20 && r.height > 20) {
+                        validRects.push_back(r);
                     }
                 }
+
+                std::sort(validRects.begin(), validRects.end(), [](const StudioCore::Rect& a, const StudioCore::Rect& b) {
+                    return a.x < b.x; 
+                });
 
                 std::vector<std::shared_ptr<StudioCore::SpriteDefinition>> newSprites;
-                for (size_t i = 0; i < finalRects.size(); ++i) {
-                    auto def = std::make_shared<StudioCore::SpriteDefinition>("sprite_" + std::to_string(i + 1), finalRects[i]);
+                for (size_t i = 0; i < validRects.size(); ++i) {
+                    auto def = std::make_shared<StudioCore::SpriteDefinition>("sprite_" + std::to_string(i + 1), validRects[i]);
                     newSprites.push_back(def);
                 }
                 
