@@ -195,20 +195,16 @@ void SpriteSheetStudioPanel::Initialize() {
         [this]() {
             if (m_engine.IsProjectActive() && m_engine.GetCurrentProject()) {
                 auto project = m_engine.GetCurrentProject();
-                
                 auto currentTex = project->GetTexture();
                 if (currentTex) {
                     auto cleanedTex = StudioCore::ImageLoader::RemoveFakeCheckerboard(*currentTex);
-                    
                     project->SetTexture(cleanedTex);
-                    
                     m_viewport.RefreshTexture(m_engine);
                 }
             }
         },
         [this]() {
-            m_engine.RemoveArtifacts();
-            m_viewport.RefreshTexture(m_engine);
+            m_isArtifactMode = !m_isArtifactMode;
         },
         [this]() {
             m_engine.RepackFrames();
@@ -217,9 +213,6 @@ void SpriteSheetStudioPanel::Initialize() {
         [this]() {
             m_engine.FlipHorizontal();
             m_viewport.RefreshTexture(m_engine);
-        },
-        [this]() {
-            m_isArtifactMode = !m_isArtifactMode; 
         }
     );
     m_animationPanel->InitializeFont("Resources/font.ttf");
