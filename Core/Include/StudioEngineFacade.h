@@ -69,7 +69,7 @@ public:
     void RepackFrames();
     void FlipHorizontal();
     void MergeOverlappingSprites();
-    void RemoveArtifacts();
+    void RemoveArtifacts(int targetX, int targetY);
 private:
     std::shared_ptr<WorkspaceManager> m_workspace;
     std::unique_ptr<BackgroundJobQueue> m_jobQueue;

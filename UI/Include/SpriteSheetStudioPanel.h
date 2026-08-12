@@ -31,7 +31,7 @@ public:
 
 private:
     void LoadImage(const std::string& filePath);
-
+    bool m_isArtifactMode = false;
     StudioCore::StudioEngineFacade m_engine;
     sf::FloatRect m_bounds;
     bool m_isActive = true;

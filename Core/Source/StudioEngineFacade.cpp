@@ -345,11 +345,11 @@ void StudioEngineFacade::MergeOverlappingSprites() {
     m_commandHistory->ExecuteCommand(std::move(cmd));
 }
 
-void StudioEngineFacade::RemoveArtifacts() {
+void StudioEngineFacade::RemoveArtifacts(int targetX, int targetY) {
     auto project = GetCurrentProject();
     if (!IsProjectActive() || !project || !project->GetTexture()) return;
     
-    auto cmd = std::make_unique<RemoveArtifactsCommand>(project, true); // true = AutoDetect
+    auto cmd = std::make_unique<RemoveArtifactsCommand>(project, targetX, targetY);
     m_commandHistory->ExecuteCommand(std::move(cmd));
 }
 }

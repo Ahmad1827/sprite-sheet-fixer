@@ -10,7 +10,7 @@ class SourceTexture;
 
 class RemoveArtifactsCommand : public ICommand {
 public:
-    RemoveArtifactsCommand(std::shared_ptr<Project> project, bool autoDetect);
+    RemoveArtifactsCommand(std::shared_ptr<Project> project, int startX, int startY);
     void Execute() override;
     void Undo() override;
 
@@ -18,7 +18,8 @@ private:
     std::shared_ptr<Project> m_project;
     std::shared_ptr<SourceTexture> m_oldTexture;
     std::shared_ptr<SourceTexture> m_newTexture;
-    bool m_autoDetect;
+    int m_startX;
+    int m_startY;
     bool m_executed = false;
 };
 

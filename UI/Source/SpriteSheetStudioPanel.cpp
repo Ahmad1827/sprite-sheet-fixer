@@ -217,6 +217,9 @@ void SpriteSheetStudioPanel::Initialize() {
         [this]() {
             m_engine.FlipHorizontal();
             m_viewport.RefreshTexture(m_engine);
+        },
+        [this]() {
+            m_isArtifactMode = !m_isArtifactMode; 
         }
     );
     m_animationPanel->InitializeFont("Resources/font.ttf");
@@ -284,6 +287,19 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
             m_engine.ToggleAutoAlign();
             m_viewport.RefreshTexture(m_engine);
             return;
+        }
+    }
+
+    if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
+        if (m_isArtifactMode) {
+            sf::Vector2i pixelPos(event.mouseButton.x, event.mouseButton.y);
+            sf::Vector2f worldPos = m_viewport.MapPixelToWorld(pixelPos, window);
+            
+            m_engine.RemoveArtifacts(static_cast<int>(worldPos.x), static_cast<int>(worldPos.y));
+            m_viewport.RefreshTexture(m_engine);
+            
+            m_isArtifactMode = false; 
+            return; 
         }
     }
 
