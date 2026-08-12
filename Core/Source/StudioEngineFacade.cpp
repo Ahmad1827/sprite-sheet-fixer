@@ -19,6 +19,7 @@
 #include "Commands/RepackFramesCommand.h"
 #include "Commands/FlipHorizontalCommand.h"
 #include "Commands/MergeSpritesCommand.h"
+#include "Commands/RemoveArtifactsCommand.h"
 
 namespace StudioCore {
 
@@ -341,6 +342,14 @@ void StudioEngineFacade::MergeOverlappingSprites() {
     if (!IsProjectActive() || !project || project->GetSprites().empty()) return;
     
     auto cmd = std::make_unique<MergeSpritesCommand>(project);
+    m_commandHistory->ExecuteCommand(std::move(cmd));
+}
+
+void StudioEngineFacade::RemoveArtifacts() {
+    auto project = GetCurrentProject();
+    if (!IsProjectActive() || !project || !project->GetTexture()) return;
+    
+    auto cmd = std::make_unique<RemoveArtifactsCommand>(project, true); // true = AutoDetect
     m_commandHistory->ExecuteCommand(std::move(cmd));
 }
 }

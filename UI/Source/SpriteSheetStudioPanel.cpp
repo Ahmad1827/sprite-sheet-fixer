@@ -207,6 +207,10 @@ void SpriteSheetStudioPanel::Initialize() {
             }
         },
         [this]() {
+            m_engine.RemoveArtifacts();
+            m_viewport.RefreshTexture(m_engine);
+        },
+        [this]() {
             m_engine.RepackFrames();
             m_viewport.RefreshTexture(m_engine);
         },
