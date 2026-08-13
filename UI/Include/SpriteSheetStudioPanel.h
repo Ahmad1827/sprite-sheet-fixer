@@ -35,6 +35,8 @@ private:
     bool m_isDraggingArtifact = false;
     sf::Vector2f m_artifactDragStart;
     sf::Vector2f m_artifactDragCurrent;
+    sf::Vector2i m_dragStartPixel;
+    sf::Vector2i m_dragCurrentPixel;
     StudioCore::StudioEngineFacade m_engine;
     sf::FloatRect m_bounds;
     bool m_isActive = true;

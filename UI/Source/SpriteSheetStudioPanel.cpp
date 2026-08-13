@@ -288,6 +288,8 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
             sf::Vector2i pixelPos(event.mouseButton.x, event.mouseButton.y);
             m_artifactDragStart = m_viewport.MapPixelToWorld(pixelPos, window);
             m_artifactDragCurrent = m_artifactDragStart;
+            m_dragStartPixel = pixelPos;
+            m_dragCurrentPixel = pixelPos;
             m_isDraggingArtifact = true;
             return;
         }
@@ -297,6 +299,7 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
         if (m_isDraggingArtifact) {
             sf::Vector2i pixelPos(event.mouseMove.x, event.mouseMove.y);
             m_artifactDragCurrent = m_viewport.MapPixelToWorld(pixelPos, window);
+            m_dragCurrentPixel = pixelPos;
             return;
         }
     }
@@ -449,11 +452,13 @@ void SpriteSheetStudioPanel::Render(sf::RenderWindow& window) {
         m_isExportMode = false;
         m_viewport.Render(window, m_engine);
         
+        window.setView(uiView); 
+
         if (m_isDraggingArtifact) {
-            float minX = std::min(m_artifactDragStart.x, m_artifactDragCurrent.x);
-            float minY = std::min(m_artifactDragStart.y, m_artifactDragCurrent.y);
-            float width = std::abs(m_artifactDragCurrent.x - m_artifactDragStart.x);
-            float height = std::abs(m_artifactDragCurrent.y - m_artifactDragStart.y);
+            float minX = std::min(m_dragStartPixel.x, m_dragCurrentPixel.x);
+            float minY = std::min(m_dragStartPixel.y, m_dragCurrentPixel.y);
+            float width = std::abs(m_dragCurrentPixel.x - m_dragStartPixel.x);
+            float height = std::abs(m_dragCurrentPixel.y - m_dragStartPixel.y);
 
             sf::RectangleShape selectionRect(sf::Vector2f(width, height));
             selectionRect.setPosition(minX, minY);
@@ -464,7 +469,6 @@ void SpriteSheetStudioPanel::Render(sf::RenderWindow& window) {
             window.draw(selectionRect);
         }
 
-        window.setView(uiView); 
         if (!m_isUIHidden && m_animationPanel) {
             m_animationPanel->Render(window, m_engine);
         }
