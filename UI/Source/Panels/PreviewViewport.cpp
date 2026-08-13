@@ -20,17 +20,26 @@ void PreviewViewport::Initialize() {
 void PreviewViewport::RefreshTexture(const StudioCore::StudioEngineFacade& engine) {
     if (engine.HasTexture()) {
         auto coreTex = engine.GetCurrentTexture();
+        
+        // Check if this is a completely new image or just a pixel update
+        bool isNewImage = (!m_hasValidTexture || 
+                           m_gpuTexture.getSize().x != coreTex->GetWidth() || 
+                           m_gpuTexture.getSize().y != coreTex->GetHeight());
+
         m_gpuTexture.create(coreTex->GetWidth(), coreTex->GetHeight());
         m_gpuTexture.update(coreTex->GetPixels().data());
         m_gpuTexture.setSmooth(false); 
         m_sprite.setTexture(m_gpuTexture, true);
         m_hasValidTexture = true;
         
-        m_selection.ClearSelection();
-        m_selectedSpriteIds.clear();
-        m_hoveredSpriteId.clear();
-        ResetZoom();
-        CenterImage();
+        // Only destroy selection and camera if a new image was loaded
+        if (isNewImage) {
+            m_selection.ClearSelection();
+            m_selectedSpriteIds.clear();
+            m_hoveredSpriteId.clear();
+            ResetZoom();
+            CenterImage();
+        }
     }
 }
 
