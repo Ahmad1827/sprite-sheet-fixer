@@ -360,9 +360,9 @@ void StudioEngineFacade::RemoveArtifactsArea(int x, int y, int width, int height
     auto currentTex = project->GetTexture();
     if (!currentTex) return;
 
-    SaveStateForUndo();
-
-    auto& pixels = currentTex->GetPixelsModifiable();
+    auto* mutableTex = const_cast<SourceTexture*>(currentTex.get());
+    auto& pixels = mutableTex->GetPixelsMutable();
+    
     int texWidth = currentTex->GetWidth();
     int texHeight = currentTex->GetHeight();
 
@@ -377,7 +377,5 @@ void StudioEngineFacade::RemoveArtifactsArea(int x, int y, int width, int height
             pixels[idx + 3] = 0; 
         }
     }
-    
-    currentTex->UpdateTexture();
 }
 }
