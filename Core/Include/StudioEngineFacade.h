@@ -70,6 +70,7 @@ public:
     void FlipHorizontal();
     void MergeOverlappingSprites();
     void RemoveArtifacts(int targetX, int targetY);
+    void RemoveArtifactsArea(int x, int y, int width, int height);
 private:
     std::shared_ptr<WorkspaceManager> m_workspace;
     std::unique_ptr<BackgroundJobQueue> m_jobQueue;

@@ -286,13 +286,46 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
     if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
         if (m_isArtifactMode) {
             sf::Vector2i pixelPos(event.mouseButton.x, event.mouseButton.y);
-            sf::Vector2f worldPos = m_viewport.MapPixelToWorld(pixelPos, window);
+            m_artifactDragStart = m_viewport.MapPixelToWorld(pixelPos, window);
+            m_artifactDragCurrent = m_artifactDragStart;
+            m_isDraggingArtifact = true;
+            return;
+        }
+    }
+
+    if (event.type == sf::Event::MouseMoved) {
+        if (m_isDraggingArtifact) {
+            sf::Vector2i pixelPos(event.mouseMove.x, event.mouseMove.y);
+            m_artifactDragCurrent = m_viewport.MapPixelToWorld(pixelPos, window);
+            return;
+        }
+    }
+
+    if (event.type == sf::Event::MouseButtonReleased && event.mouseButton.button == sf::Mouse::Left) {
+        if (m_isDraggingArtifact) {
+            sf::Vector2i pixelPos(event.mouseButton.x, event.mouseButton.y);
+            sf::Vector2f dragEnd = m_viewport.MapPixelToWorld(pixelPos, window);
             
-            m_engine.RemoveArtifacts(static_cast<int>(worldPos.x), static_cast<int>(worldPos.y));
+            float minX = std::min(m_artifactDragStart.x, dragEnd.x);
+            float maxX = std::max(m_artifactDragStart.x, dragEnd.x);
+            float minY = std::min(m_artifactDragStart.y, dragEnd.y);
+            float maxY = std::max(m_artifactDragStart.y, dragEnd.y);
+            
+            if (std::abs(maxX - minX) < 2.0f && std::abs(maxY - minY) < 2.0f) {
+                m_engine.RemoveArtifacts(static_cast<int>(minX), static_cast<int>(minY));
+            } else {
+                m_engine.RemoveArtifactsArea(
+                    static_cast<int>(minX), 
+                    static_cast<int>(minY), 
+                    static_cast<int>(maxX - minX), 
+                    static_cast<int>(maxY - minY)
+                );
+            }
+            
             m_viewport.RefreshTexture(m_engine);
-            
-            m_isArtifactMode = false; 
-            return; 
+            m_isDraggingArtifact = false;
+            m_isArtifactMode = false;
+            return;
         }
     }
 
@@ -415,6 +448,22 @@ void SpriteSheetStudioPanel::Render(sf::RenderWindow& window) {
     } else {
         m_isExportMode = false;
         m_viewport.Render(window, m_engine);
+        
+        if (m_isDraggingArtifact) {
+            float minX = std::min(m_artifactDragStart.x, m_artifactDragCurrent.x);
+            float minY = std::min(m_artifactDragStart.y, m_artifactDragCurrent.y);
+            float width = std::abs(m_artifactDragCurrent.x - m_artifactDragStart.x);
+            float height = std::abs(m_artifactDragCurrent.y - m_artifactDragStart.y);
+
+            sf::RectangleShape selectionRect(sf::Vector2f(width, height));
+            selectionRect.setPosition(minX, minY);
+            selectionRect.setFillColor(sf::Color(255, 0, 0, 100));
+            selectionRect.setOutlineColor(sf::Color::Red);
+            selectionRect.setOutlineThickness(1.0f);
+            
+            window.draw(selectionRect);
+        }
+
         window.setView(uiView); 
         if (!m_isUIHidden && m_animationPanel) {
             m_animationPanel->Render(window, m_engine);

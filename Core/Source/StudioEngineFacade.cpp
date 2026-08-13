@@ -352,4 +352,32 @@ void StudioEngineFacade::RemoveArtifacts(int targetX, int targetY) {
     auto cmd = std::make_unique<RemoveArtifactsCommand>(project, targetX, targetY);
     m_commandHistory->ExecuteCommand(std::move(cmd));
 }
+
+void StudioEngineFacade::RemoveArtifactsArea(int x, int y, int width, int height) {
+    auto project = GetCurrentProject();
+    if (!project) return;
+    
+    auto currentTex = project->GetTexture();
+    if (!currentTex) return;
+
+    SaveStateForUndo();
+
+    auto& pixels = currentTex->GetPixelsModifiable();
+    int texWidth = currentTex->GetWidth();
+    int texHeight = currentTex->GetHeight();
+
+    int startX = std::max(0, x);
+    int startY = std::max(0, y);
+    int endX = std::min(texWidth, x + width);
+    int endY = std::min(texHeight, y + height);
+
+    for (int py = startY; py < endY; ++py) {
+        for (int px = startX; px < endX; ++px) {
+            size_t idx = (py * texWidth + px) * 4;
+            pixels[idx + 3] = 0; 
+        }
+    }
+    
+    currentTex->UpdateTexture();
+}
 }

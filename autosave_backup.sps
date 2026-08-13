@@ -1,5 +1,5 @@
 {
     "animations": [],
-    "imagePath": "/home/ahmad/picapedinasty/LAYER2.png",
+    "imagePath": "/home/ahmad/picapedinasty/LAYER4.png",
     "sprites": []
 }

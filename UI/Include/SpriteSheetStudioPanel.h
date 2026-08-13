@@ -32,6 +32,9 @@ public:
 private:
     void LoadImage(const std::string& filePath);
     bool m_isArtifactMode = false;
+    bool m_isDraggingArtifact = false;
+    sf::Vector2f m_artifactDragStart;
+    sf::Vector2f m_artifactDragCurrent;
     StudioCore::StudioEngineFacade m_engine;
     sf::FloatRect m_bounds;
     bool m_isActive = true;
