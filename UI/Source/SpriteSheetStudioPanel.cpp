@@ -84,6 +84,7 @@ void SpriteSheetStudioPanel::Initialize() {
     }
     m_toolbar.Initialize("Resources/font.ttf",
         [this]() {
+            m_isArtifactMode = false;
 #if defined(_WIN32)
             std::string path = openWindowsFileDialog(DialogMode::ImageOnly);
 #else
@@ -92,6 +93,7 @@ void SpriteSheetStudioPanel::Initialize() {
             if (!path.empty()) LoadImage(path);
         },
         [this]() {
+            m_isArtifactMode = false;
 #if defined(_WIN32)
             std::string path = openWindowsFileDialog(DialogMode::CombinedOpen);
 #else
@@ -107,6 +109,7 @@ void SpriteSheetStudioPanel::Initialize() {
             }
         },
         [this]() {
+            m_isArtifactMode = false;
 #if defined(_WIN32)
             std::string path = saveWindowsFileDialog("project.sps");
 #else
@@ -114,17 +117,23 @@ void SpriteSheetStudioPanel::Initialize() {
 #endif
             if (!path.empty()) m_engine.SaveProject(path);
         },
-        [this]() { m_isExportMode = true; m_exportPreview.Activate(m_engine); },
+        [this]() {
+            m_isArtifactMode = false;
+            m_isExportMode = true; 
+            m_exportPreview.Activate(m_engine); 
+        },
         [this]() {
             m_isUIHidden = !m_isUIHidden;
             m_viewport.SetUIHidden(m_isUIHidden);
         },
         [this]() {
+            m_isArtifactMode = false;
             if (!m_engine.IsProjectActive() || !m_engine.GetCurrentProject() || m_engine.GetCurrentProject()->GetSprites().empty()) return;
             m_isWizardMode = true;
             m_animBuilderPanel.Activate(m_engine);
         },
         [this]() {
+            m_isArtifactMode = false;
             if (m_engine.IsProjectActive() && m_engine.GetCurrentProject()) {
                 StudioCore::DetectionConfig config;
                 config.minSpriteSize = 10;
@@ -189,10 +198,12 @@ void SpriteSheetStudioPanel::Initialize() {
             }
         },
         [this]() {
+            m_isArtifactMode = false;
             m_engine.MergeOverlappingSprites();
             m_viewport.RefreshTexture(m_engine);
         },
         [this]() {
+            m_isArtifactMode = false;
             if (m_engine.IsProjectActive() && m_engine.GetCurrentProject()) {
                 auto project = m_engine.GetCurrentProject();
                 auto currentTex = project->GetTexture();
@@ -207,10 +218,12 @@ void SpriteSheetStudioPanel::Initialize() {
             m_isArtifactMode = !m_isArtifactMode;
         },
         [this]() {
+            m_isArtifactMode = false;
             m_engine.RepackFrames();
             m_viewport.RefreshTexture(m_engine);
         },
         [this]() {
+            m_isArtifactMode = false;
             m_engine.FlipHorizontal();
             m_viewport.RefreshTexture(m_engine);
         }
@@ -281,6 +294,10 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
             m_viewport.RefreshTexture(m_engine);
             return;
         }
+        if (event.key.code == sf::Keyboard::Escape) {
+            m_isArtifactMode = false;
+            m_isDraggingArtifact = false;
+        }
     }
 
     if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
@@ -327,7 +344,6 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
             
             m_viewport.RefreshTexture(m_engine);
             m_isDraggingArtifact = false;
-            m_isArtifactMode = false;
             return;
         }
     }
