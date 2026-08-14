@@ -191,13 +191,33 @@ bool StudioEngineFacade::IsAutoAlignEnabled() const {
     return m_playbackEngine ? m_playbackEngine->IsAutoAlignEnabled() : false;
 }
 
-sf::Image StudioEngineFacade::GenerateExportPreview(int padding) const {
-    if (!IsProjectActive() || !m_exportManager) return sf::Image();
+sf::Image StudioEngineFacade::GenerateExportPreview(int padding, bool keepOriginalResolution) const {
+    if (!IsProjectActive()) return sf::Image();
+
+    if (keepOriginalResolution) {
+        auto tex = GetCurrentTexture();
+        if (!tex) return sf::Image();
+        sf::Image img;
+        img.create(tex->GetWidth(), tex->GetHeight(), tex->GetPixels().data());
+        return img;
+    }
+
+    if (!m_exportManager) return sf::Image();
     return m_exportManager->GeneratePreview(*GetCurrentProject(), padding);
 }
 
-bool StudioEngineFacade::ExportPNG(const std::string& filePath, int padding) const {
-    if (!IsProjectActive() || !m_exportManager) return false;
+bool StudioEngineFacade::ExportPNG(const std::string& filePath, int padding, bool keepOriginalResolution) const {
+    if (!IsProjectActive()) return false;
+
+    if (keepOriginalResolution) {
+        auto tex = GetCurrentTexture();
+        if (!tex) return false;
+        sf::Image img;
+        img.create(tex->GetWidth(), tex->GetHeight(), tex->GetPixels().data());
+        return img.saveToFile(filePath);
+    }
+
+    if (!m_exportManager) return false;
     return m_exportManager->ExportPNG(*GetCurrentProject(), filePath, padding);
 }
 

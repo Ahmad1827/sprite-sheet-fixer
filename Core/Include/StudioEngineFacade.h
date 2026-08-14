@@ -57,8 +57,8 @@ public:
     void ToggleAutoAlign();
     bool IsAutoAlignEnabled() const;
 
-    sf::Image GenerateExportPreview(int padding) const;
-    bool ExportPNG(const std::string& filePath, int padding) const;
+    sf::Image GenerateExportPreview(int padding = 8, bool keepOriginalResolution = false) const;
+    bool ExportPNG(const std::string& filePath, int padding = 8, bool keepOriginalResolution = false) const;
 
     PlaybackEngine& GetPlaybackEngine();
     const PlaybackEngine& GetPlaybackEngine() const;

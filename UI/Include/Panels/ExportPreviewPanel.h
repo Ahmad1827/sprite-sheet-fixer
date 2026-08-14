@@ -20,6 +20,8 @@ public:
     bool IsActive() const { return m_isActive; }
 
 private:
+    void RefreshPreview(const StudioCore::StudioEngineFacade& engine);
+
     sf::Font m_font;
     bool m_hasFont{false};
     
@@ -31,6 +33,7 @@ private:
     sf::Vector2i m_lastMousePos;
     float m_currentZoom{1.0f};
     bool m_isActive{false};
+    bool m_keepOriginalResolution{false};
 };
 
 }

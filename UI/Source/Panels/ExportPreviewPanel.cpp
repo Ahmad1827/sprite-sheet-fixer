@@ -27,9 +27,8 @@ bool ExportPreviewPanel::InitializeFont(const std::string& customPath) {
     return false;
 }
 
-void ExportPreviewPanel::Activate(const StudioCore::StudioEngineFacade& engine) {
-    m_isActive = true;
-    sf::Image img = engine.GenerateExportPreview(8);
+void ExportPreviewPanel::RefreshPreview(const StudioCore::StudioEngineFacade& engine) {
+    sf::Image img = engine.GenerateExportPreview(8, m_keepOriginalResolution);
     if (img.getSize().x > 0) {
         m_exportTexture.loadFromImage(img);
         m_exportSprite.setTexture(m_exportTexture, true);
@@ -37,9 +36,15 @@ void ExportPreviewPanel::Activate(const StudioCore::StudioEngineFacade& engine) 
         sf::FloatRect bounds = m_exportSprite.getLocalBounds();
         m_exportSprite.setOrigin(bounds.width / 2.0f, bounds.height / 2.0f);
         m_exportSprite.setPosition(0.0f, 0.0f);
-        m_view.setCenter(0.0f, 0.0f);
-        m_currentZoom = 1.0f;
     }
+}
+
+void ExportPreviewPanel::Activate(const StudioCore::StudioEngineFacade& engine) {
+    m_isActive = true;
+    m_keepOriginalResolution = false; // Defaults to clean cropped packaging
+    RefreshPreview(engine);
+    m_view.setCenter(0.0f, 0.0f);
+    m_currentZoom = 1.0f;
 }
 
 bool ExportPreviewPanel::HandleEvent(const sf::Event& event, const sf::RenderWindow& window, const StudioCore::StudioEngineFacade& engine) {
@@ -48,13 +53,17 @@ bool ExportPreviewPanel::HandleEvent(const sf::Event& event, const sf::RenderWin
     if (event.type == sf::Event::KeyPressed) {
         if (event.key.code == sf::Keyboard::Escape) {
             m_isActive = false;
+        } else if (event.key.code == sf::Keyboard::Tab) {
+            m_keepOriginalResolution = !m_keepOriginalResolution;
+            RefreshPreview(engine);
         } else if (event.key.code == sf::Keyboard::Enter) {
-            std::string savePath = NativeFileDialog::SaveFileDialog("aligned_spritesheet.png");
+            std::string defaultName = m_keepOriginalResolution ? "cleaned_original_canvas.png" : "aligned_spritesheet.png";
+            std::string savePath = NativeFileDialog::SaveFileDialog(defaultName.c_str());
             
             if (!savePath.empty()) {
-                if (engine.ExportPNG(savePath, 8)) {
+                if (engine.ExportPNG(savePath, 8, m_keepOriginalResolution)) {
                     std::cout << "[✓] Exported successfully to: " << savePath << std::endl;
-                    m_isActive = false; // Only exit preview when export actually succeeds
+                    m_isActive = false;
                 } else {
                     std::cerr << "[X] Failed to save exported image." << std::endl;
                 }
@@ -111,7 +120,13 @@ void ExportPreviewPanel::Render(sf::RenderWindow& window) {
     window.setView(window.getDefaultView());
     
     if (m_hasFont) {
-        sf::Text helpTxt("EXPORT PREVIEW MODE\nPress [ENTER] to open Save Dialog folder browser\nPress [ESC] to cancel", m_font, 18);
+        std::string modeText = m_keepOriginalResolution ? "ORIGINAL FULL CANVAS" : "AUTO-PACKED / CROPPED";
+        std::string info = "EXPORT PREVIEW MODE\n"
+                           "Mode: [" + modeText + "]  (Press [TAB] to toggle)\n"
+                           "Press [ENTER] to save PNG\n"
+                           "Press [ESC] to cancel";
+
+        sf::Text helpTxt(info, m_font, 18);
         helpTxt.setPosition(20.f, 20.f);
         helpTxt.setFillColor(sf::Color::Cyan);
         window.draw(helpTxt);
