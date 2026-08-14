@@ -68,15 +68,12 @@ std::shared_ptr<SourceTexture> ImageLoader::RemoveFakeCheckerboard(const SourceT
 
     if (width < 2 || height < 2) return std::make_shared<SourceTexture>(width, height, std::move(newPixels));
 
-    struct ColorRGB {
-        float r, g, b;
-    };
-
+    struct ColorRGB { float r, g, b; };
     std::vector<ColorRGB> bgPalette;
 
-    int sampleRows = std::max(2, std::min(height / 10, 16));
+    int sampleRows = std::max(2, std::min(height / 8, 32));
     for (int y = 0; y < sampleRows; ++y) {
-        for (int x = 0; x < width; x += 4) {
+        for (int x = 0; x < width; x += 2) {
             int idx = (y * width + x) * 4;
             if (origPixels[idx + 3] == 0) continue;
 
@@ -89,7 +86,7 @@ std::shared_ptr<SourceTexture> ImageLoader::RemoveFakeCheckerboard(const SourceT
                 float dr = pr - bg.r;
                 float dg = pg - bg.g;
                 float db = pb - bg.b;
-                if (std::sqrt(dr * dr + dg * dg + db * db) < 18.0f) {
+                if (std::sqrt(dr * dr + dg * dg + db * db) < 20.0f) {
                     bg.r = (bg.r + pr) * 0.5f;
                     bg.g = (bg.g + pg) * 0.5f;
                     bg.b = (bg.b + pb) * 0.5f;
@@ -98,76 +95,46 @@ std::shared_ptr<SourceTexture> ImageLoader::RemoveFakeCheckerboard(const SourceT
                 }
             }
 
-            if (!matched && bgPalette.size() < 16) {
+            if (!matched && bgPalette.size() < 32) {
                 bgPalette.push_back({pr, pg, pb});
             }
         }
     }
 
-    if (bgPalette.empty()) {
-        return std::make_shared<SourceTexture>(width, height, std::move(newPixels));
-    }
+    auto isCheckerOrFringe = [](uint8_t r, uint8_t g, uint8_t b) -> bool {
+        int mx = std::max({r, g, b});
+        int mn = std::min({r, g, b});
+        int diff = mx - mn;
+        int lum = (static_cast<int>(r) + static_cast<int>(g) + static_cast<int>(b)) / 3;
+
+        if (lum > 130 && diff <= 40) return true;
+        if (r > 160 && g > 160 && b > 160) return true;
+        if (lum > 110 && diff <= 20) return true;
+
+        return false;
+    };
 
     auto isMatchingBg = [&](uint8_t r, uint8_t g, uint8_t b, uint8_t a) -> bool {
         if (a == 0) return true;
+        if (isCheckerOrFringe(r, g, b)) return true;
+
         for (const auto& bg : bgPalette) {
             float dr = r - bg.r;
             float dg = g - bg.g;
             float db = b - bg.b;
-            if (std::sqrt(dr * dr + dg * dg + db * db) <= 22.0f) {
-                return true;
-            }
+            if (std::sqrt(dr * dr + dg * dg + db * db) <= 35.0f) return true;
         }
         return false;
     };
 
-    std::vector<bool> visited(width * height, false);
-    std::queue<std::pair<int, int>> q;
-
-    auto tryPush = [&](int x, int y) {
-        int idx = y * width + x;
-        if (!visited[idx]) {
-            int pIdx = idx * 4;
-            if (isMatchingBg(origPixels[pIdx], origPixels[pIdx + 1], origPixels[pIdx + 2], origPixels[pIdx + 3])) {
-                visited[idx] = true;
-                q.push({x, y});
-            }
-        }
-    };
-
-    for (int x = 0; x < width; ++x) {
-        tryPush(x, 0);
-    }
-    for (int y = 0; y < height; ++y) {
-        tryPush(0, y);
-        tryPush(width - 1, y);
-    }
-
-    const int dx[] = {1, -1, 0, 0};
-    const int dy[] = {0, 0, 1, -1};
-
-    while (!q.empty()) {
-        auto [cx, cy] = q.front();
-        q.pop();
-
-        int pIdx = (cy * width + cx) * 4;
-        newPixels[pIdx] = 0;
-        newPixels[pIdx + 1] = 0;
-        newPixels[pIdx + 2] = 0;
-        newPixels[pIdx + 3] = 0;
-
-        for (int i = 0; i < 4; ++i) {
-            int nx = cx + dx[i];
-            int ny = cy + dy[i];
-            if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-                int nIdx = ny * width + nx;
-                if (!visited[nIdx]) {
-                    int npIdx = nIdx * 4;
-                    if (isMatchingBg(origPixels[npIdx], origPixels[npIdx + 1], origPixels[npIdx + 2], origPixels[npIdx + 3])) {
-                        visited[nIdx] = true;
-                        q.push({nx, ny});
-                    }
-                }
+    for (int i = 0; i < width * height; ++i) {
+        int pIdx = i * 4;
+        if (newPixels[pIdx + 3] > 0) {
+            if (isMatchingBg(newPixels[pIdx], newPixels[pIdx + 1], newPixels[pIdx + 2], newPixels[pIdx + 3])) {
+                newPixels[pIdx] = 0;
+                newPixels[pIdx + 1] = 0;
+                newPixels[pIdx + 2] = 0;
+                newPixels[pIdx + 3] = 0;
             }
         }
     }
@@ -191,9 +158,7 @@ std::shared_ptr<SourceTexture> ImageLoader::RemoveFakeCheckerboard(const SourceT
                     auto [cx, cy] = compQueue.front();
                     compQueue.pop();
 
-                    if (componentIndices.size() > 6) {
-                        break;
-                    }
+                    if (componentIndices.size() > 10) break;
 
                     for (int i = 0; i < 8; ++i) {
                         int nx = cx + despeckleDx[i];
@@ -209,7 +174,7 @@ std::shared_ptr<SourceTexture> ImageLoader::RemoveFakeCheckerboard(const SourceT
                     }
                 }
 
-                if (componentIndices.size() <= 6) {
+                if (componentIndices.size() <= 10) {
                     for (int idx : componentIndices) {
                         newPixels[idx * 4] = 0;
                         newPixels[idx * 4 + 1] = 0;

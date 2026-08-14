@@ -267,7 +267,7 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
 #if defined(_WIN32)
                 std::string path = openWindowsFileDialog(DialogMode::CombinedOpen);
 #else
-                std::string path = NativeFileDialog::OpenFileDialog("Supported Files (*.png;*.jpg;*.jpeg;*.sps)");
+                std::string path = NativeFileDialog::OpenFileDialog("Supported Files (*.png;*.jpg;*.jpeg;*.jfif;*.sps)");
 #endif
                 if (!path.empty()) {
                     if (path.find(".sps") != std::string::npos) {
@@ -299,6 +299,30 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
             m_isDraggingArtifact = false;
         }
     }
+
+    if (m_workspace.HandleEvent(event, window)) return;
+
+    if (m_isWizardMode) {
+        bool exitWizard = false;
+        m_animBuilderPanel.HandleEvent(event, window, m_engine, exitWizard);
+        if (exitWizard) m_isWizardMode = false;
+        return;
+    }
+
+    if (m_isExportMode) {
+        if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape) {
+            m_exportPreview.Deactivate();
+            m_isExportMode = false;
+        } else {
+            m_exportPreview.HandleEvent(event, window, m_engine);
+            if (!m_exportPreview.IsActive()) {
+                m_isExportMode = false;
+            }
+        }
+        return;
+    }
+
+    if (m_toolbar.HandleEvent(event, window, m_engine)) return;
 
     if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
         if (m_isArtifactMode) {
@@ -387,27 +411,6 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
         }
     }
 
-    if (m_workspace.HandleEvent(event, window)) return;
-    if (m_isWizardMode) {
-        bool exitWizard = false;
-        m_animBuilderPanel.HandleEvent(event, window, m_engine, exitWizard);
-        if (exitWizard) m_isWizardMode = false;
-        return;
-    }
-    if (!m_isExportMode) {
-        if (m_toolbar.HandleEvent(event, window, m_engine)) return;
-    } else {
-        if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape) {
-            m_exportPreview.Deactivate();
-            m_isExportMode = false;
-        } else {
-            m_exportPreview.HandleEvent(event, window, m_engine);
-            if (!m_exportPreview.IsActive()) {
-                m_isExportMode = false;
-            }
-        }
-        return;
-    }
     if (m_animationPanel) {
         m_animationPanel->HandleEvent(event, window, m_engine, m_viewport);
     }
