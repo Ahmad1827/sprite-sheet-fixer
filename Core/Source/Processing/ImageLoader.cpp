@@ -172,6 +172,55 @@ std::shared_ptr<SourceTexture> ImageLoader::RemoveFakeCheckerboard(const SourceT
         }
     }
 
+    std::vector<bool> despeckleVisited(width * height, false);
+    const int despeckleDx[] = {1, -1, 0, 0, 1, 1, -1, -1};
+    const int despeckleDy[] = {0, 0, 1, -1, -1, 1, -1, 1};
+
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            int startIdx = y * width + x;
+            if (newPixels[startIdx * 4 + 3] > 0 && !despeckleVisited[startIdx]) {
+                std::vector<int> componentIndices;
+                std::queue<std::pair<int, int>> compQueue;
+
+                compQueue.push({x, y});
+                despeckleVisited[startIdx] = true;
+                componentIndices.push_back(startIdx);
+
+                while (!compQueue.empty()) {
+                    auto [cx, cy] = compQueue.front();
+                    compQueue.pop();
+
+                    if (componentIndices.size() > 6) {
+                        break;
+                    }
+
+                    for (int i = 0; i < 8; ++i) {
+                        int nx = cx + despeckleDx[i];
+                        int ny = cy + despeckleDy[i];
+                        if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                            int nIdx = ny * width + nx;
+                            if (newPixels[nIdx * 4 + 3] > 0 && !despeckleVisited[nIdx]) {
+                                despeckleVisited[nIdx] = true;
+                                compQueue.push({nx, ny});
+                                componentIndices.push_back(nIdx);
+                            }
+                        }
+                    }
+                }
+
+                if (componentIndices.size() <= 6) {
+                    for (int idx : componentIndices) {
+                        newPixels[idx * 4] = 0;
+                        newPixels[idx * 4 + 1] = 0;
+                        newPixels[idx * 4 + 2] = 0;
+                        newPixels[idx * 4 + 3] = 0;
+                    }
+                }
+            }
+        }
+    }
+
     return std::make_shared<SourceTexture>(width, height, std::move(newPixels));
 }
 
