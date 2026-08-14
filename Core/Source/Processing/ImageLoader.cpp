@@ -66,76 +66,106 @@ std::shared_ptr<SourceTexture> ImageLoader::RemoveFakeCheckerboard(const SourceT
     const auto& origPixels = source.GetPixels();
     std::vector<uint8_t> newPixels = origPixels;
 
-    if (width < 8 || height < 8) return std::make_shared<SourceTexture>(width, height, std::move(newPixels));
+    if (width < 2 || height < 2) return std::make_shared<SourceTexture>(width, height, std::move(newPixels));
 
-    auto isBgColor = [](uint8_t r, uint8_t g, uint8_t b) {
-        int mx = std::max({r, g, b});
-        int mn = std::min({r, g, b});
-        int diff = mx - mn;
+    struct ColorRGB {
+        float r, g, b;
+    };
 
-        // Rule A: Checkerboard & Watermarks
-        // Must be a light, neutral color (Brightness > 100) to avoid mid-tone monkey shadows
-        if (mx > 100 && diff <= 25) return true;
+    std::vector<ColorRGB> bgPalette;
 
-        // Rule B: AI Black Artifacts
-        // Must be extremely dark to avoid dark brown fur
-        if (mx < 25 && diff <= 10) return true;
+    int sampleRows = std::max(2, std::min(height / 10, 16));
+    for (int y = 0; y < sampleRows; ++y) {
+        for (int x = 0; x < width; x += 4) {
+            int idx = (y * width + x) * 4;
+            if (origPixels[idx + 3] == 0) continue;
 
+            float pr = origPixels[idx];
+            float pg = origPixels[idx + 1];
+            float pb = origPixels[idx + 2];
+
+            bool matched = false;
+            for (auto& bg : bgPalette) {
+                float dr = pr - bg.r;
+                float dg = pg - bg.g;
+                float db = pb - bg.b;
+                if (std::sqrt(dr * dr + dg * dg + db * db) < 18.0f) {
+                    bg.r = (bg.r + pr) * 0.5f;
+                    bg.g = (bg.g + pg) * 0.5f;
+                    bg.b = (bg.b + pb) * 0.5f;
+                    matched = true;
+                    break;
+                }
+            }
+
+            if (!matched && bgPalette.size() < 16) {
+                bgPalette.push_back({pr, pg, pb});
+            }
+        }
+    }
+
+    if (bgPalette.empty()) {
+        return std::make_shared<SourceTexture>(width, height, std::move(newPixels));
+    }
+
+    auto isMatchingBg = [&](uint8_t r, uint8_t g, uint8_t b, uint8_t a) -> bool {
+        if (a == 0) return true;
+        for (const auto& bg : bgPalette) {
+            float dr = r - bg.r;
+            float dg = g - bg.g;
+            float db = b - bg.b;
+            if (std::sqrt(dr * dr + dg * dg + db * db) <= 22.0f) {
+                return true;
+            }
+        }
         return false;
     };
 
-    std::vector<bool> isBgCandidate(width * height, false);
-    for (int i = 0; i < width * height; ++i) {
-        isBgCandidate[i] = isBgColor(origPixels[i * 4], origPixels[i * 4 + 1], origPixels[i * 4 + 2]);
+    std::vector<bool> visited(width * height, false);
+    std::queue<std::pair<int, int>> q;
+
+    auto tryPush = [&](int x, int y) {
+        int idx = y * width + x;
+        if (!visited[idx]) {
+            int pIdx = idx * 4;
+            if (isMatchingBg(origPixels[pIdx], origPixels[pIdx + 1], origPixels[pIdx + 2], origPixels[pIdx + 3])) {
+                visited[idx] = true;
+                q.push({x, y});
+            }
+        }
+    };
+
+    for (int x = 0; x < width; ++x) {
+        tryPush(x, 0);
+    }
+    for (int y = 0; y < height; ++y) {
+        tryPush(0, y);
+        tryPush(width - 1, y);
     }
 
-    std::vector<bool> visited(width * height, false);
-    const int dx[] = {1, 1, 1, 0, -1, -1, -1, 0};
-    const int dy[] = {-1, 0, 1, 1, 1, 0, -1, -1};
+    const int dx[] = {1, -1, 0, 0};
+    const int dy[] = {0, 0, 1, -1};
 
-    for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
-            if (isBgCandidate[y * width + x] && !visited[y * width + x]) {
-                
-                std::vector<std::pair<int, int>> islandPixels;
-                std::queue<std::pair<int, int>> q;
-                
-                q.push({x, y});
-                visited[y * width + x] = true;
-                islandPixels.push_back({x, y});
-                
-                bool touchesEdge = false;
+    while (!q.empty()) {
+        auto [cx, cy] = q.front();
+        q.pop();
 
-                while (!q.empty()) {
-                    auto [cx, cy] = q.front();
-                    q.pop();
+        int pIdx = (cy * width + cx) * 4;
+        newPixels[pIdx] = 0;
+        newPixels[pIdx + 1] = 0;
+        newPixels[pIdx + 2] = 0;
+        newPixels[pIdx + 3] = 0;
 
-                    if (cx == 0 || cx == width - 1 || cy == 0 || cy == height - 1) touchesEdge = true;
-
-                    for (int i = 0; i < 8; ++i) {
-                        int nx = cx + dx[i];
-                        int ny = cy + dy[i];
-                        if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-                            int nIdx = ny * width + nx;
-                            if (isBgCandidate[nIdx] && !visited[nIdx]) {
-                                visited[nIdx] = true;
-                                q.push({nx, ny});
-                                islandPixels.push_back({nx, ny});
-                            }
-                        }
-                    }
-                }
-
-                // 3. ENHANCED PROTECTION LOGIC
-                // The eyes are completely internal and relatively small.
-                // We now require an internal island to be larger than 100 pixels to be destroyed.
-                if (touchesEdge || islandPixels.size() > 100) {
-                    for (const auto& p : islandPixels) {
-                        int pIdx = (p.second * width + p.first) * 4;
-                        newPixels[pIdx] = 0;
-                        newPixels[pIdx+1] = 0;
-                        newPixels[pIdx+2] = 0;
-                        newPixels[pIdx+3] = 0; 
+        for (int i = 0; i < 4; ++i) {
+            int nx = cx + dx[i];
+            int ny = cy + dy[i];
+            if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                int nIdx = ny * width + nx;
+                if (!visited[nIdx]) {
+                    int npIdx = nIdx * 4;
+                    if (isMatchingBg(origPixels[npIdx], origPixels[npIdx + 1], origPixels[npIdx + 2], origPixels[npIdx + 3])) {
+                        visited[nIdx] = true;
+                        q.push({nx, ny});
                     }
                 }
             }
