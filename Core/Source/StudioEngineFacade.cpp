@@ -194,31 +194,70 @@ bool StudioEngineFacade::IsAutoAlignEnabled() const {
 sf::Image StudioEngineFacade::GenerateExportPreview(int padding, bool keepOriginalResolution) const {
     if (!IsProjectActive()) return sf::Image();
 
+    auto tex = GetCurrentTexture();
+    if (!tex || !tex->IsValid()) return sf::Image();
+
+    int w = tex->GetWidth();
+    int h = tex->GetHeight();
+    const auto& pixels = tex->GetPixels();
+
     if (keepOriginalResolution) {
-        auto tex = GetCurrentTexture();
-        if (!tex) return sf::Image();
         sf::Image img;
-        img.create(tex->GetWidth(), tex->GetHeight(), tex->GetPixels().data());
+        img.create(w, h, pixels.data());
         return img;
     }
 
-    if (!m_exportManager) return sf::Image();
-    return m_exportManager->GeneratePreview(*GetCurrentProject(), padding);
+    if (m_exportManager) {
+        sf::Image mgrPreview = m_exportManager->GeneratePreview(*GetCurrentProject(), padding);
+        if (mgrPreview.getSize().x > 0 && mgrPreview.getSize().y > 0) {
+            return mgrPreview;
+        }
+    }
+
+    int minX = w, minY = h, maxX = -1, maxY = -1;
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            size_t idx = (y * w + x) * 4;
+            if (pixels[idx + 3] > 0) {
+                if (x < minX) minX = x;
+                if (x > maxX) maxX = x;
+                if (y < minY) minY = y;
+                if (y > maxY) maxY = y;
+            }
+        }
+    }
+
+    if (maxX < minX || maxY < minY) {
+        sf::Image emptyImg;
+        emptyImg.create(1, 1, sf::Color::Transparent);
+        return emptyImg;
+    }
+
+    int cropW = (maxX - minX) + 1;
+    int cropH = (maxY - minY) + 1;
+
+    sf::Image croppedImg;
+    croppedImg.create(cropW, cropH);
+
+    for (int cy = 0; cy < cropH; ++cy) {
+        for (int cx = 0; cx < cropW; ++cx) {
+            size_t srcIdx = ((minY + cy) * w + (minX + cx)) * 4;
+            croppedImg.setPixel(cx, cy, sf::Color(
+                pixels[srcIdx],
+                pixels[srcIdx + 1],
+                pixels[srcIdx + 2],
+                pixels[srcIdx + 3]
+            ));
+        }
+    }
+
+    return croppedImg;
 }
 
 bool StudioEngineFacade::ExportPNG(const std::string& filePath, int padding, bool keepOriginalResolution) const {
-    if (!IsProjectActive()) return false;
-
-    if (keepOriginalResolution) {
-        auto tex = GetCurrentTexture();
-        if (!tex) return false;
-        sf::Image img;
-        img.create(tex->GetWidth(), tex->GetHeight(), tex->GetPixels().data());
-        return img.saveToFile(filePath);
-    }
-
-    if (!m_exportManager) return false;
-    return m_exportManager->ExportPNG(*GetCurrentProject(), filePath, padding);
+    sf::Image img = GenerateExportPreview(padding, keepOriginalResolution);
+    if (img.getSize().x == 0 || img.getSize().y == 0) return false;
+    return img.saveToFile(filePath);
 }
 
 PlaybackEngine& StudioEngineFacade::GetPlaybackEngine() {
