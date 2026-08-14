@@ -327,8 +327,17 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
     if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
         if (m_isArtifactMode) {
             sf::Vector2i pixelPos(event.mouseButton.x, event.mouseButton.y);
-            m_artifactDragStart = m_viewport.MapPixelToWorld(pixelPos, window);
-            m_artifactDragCurrent = m_artifactDragStart;
+            sf::Vector2f worldPos = m_viewport.MapPixelToWorld(pixelPos, window);
+
+            bool isShift = sf::Keyboard::isKeyPressed(sf::Keyboard::LShift) || sf::Keyboard::isKeyPressed(sf::Keyboard::RShift);
+            if (isShift) {
+                m_engine.RemoveColorGlobal(static_cast<int>(worldPos.x), static_cast<int>(worldPos.y), 30.0f);
+                m_viewport.RefreshTexture(m_engine);
+                return;
+            }
+
+            m_artifactDragStart = worldPos;
+            m_artifactDragCurrent = worldPos;
             m_dragStartPixel = pixelPos;
             m_dragCurrentPixel = pixelPos;
             m_isDraggingArtifact = true;
@@ -349,23 +358,23 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
         if (m_isDraggingArtifact) {
             sf::Vector2i pixelPos(event.mouseButton.x, event.mouseButton.y);
             sf::Vector2f dragEnd = m_viewport.MapPixelToWorld(pixelPos, window);
-            
+
             float minX = std::min(m_artifactDragStart.x, dragEnd.x);
             float maxX = std::max(m_artifactDragStart.x, dragEnd.x);
             float minY = std::min(m_artifactDragStart.y, dragEnd.y);
             float maxY = std::max(m_artifactDragStart.y, dragEnd.y);
-            
+
             if (std::abs(maxX - minX) < 2.0f && std::abs(maxY - minY) < 2.0f) {
                 m_engine.RemoveArtifacts(static_cast<int>(minX), static_cast<int>(minY));
             } else {
                 m_engine.RemoveArtifactsArea(
-                    static_cast<int>(minX), 
-                    static_cast<int>(minY), 
-                    static_cast<int>(maxX - minX), 
+                    static_cast<int>(minX),
+                    static_cast<int>(minY),
+                    static_cast<int>(maxX - minX),
                     static_cast<int>(maxY - minY)
                 );
             }
-            
+
             m_viewport.RefreshTexture(m_engine);
             m_isDraggingArtifact = false;
             return;

@@ -40,7 +40,7 @@ private:
     StudioCore::StudioEngineFacade m_engine;
     sf::FloatRect m_bounds;
     bool m_isActive = true;
-
+    bool m_isColorWandMode{false};
     bool m_isExportMode = false;
     bool m_isWizardMode = false;
     bool m_isUIHidden = false;

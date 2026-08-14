@@ -20,6 +20,7 @@
 #include "Commands/FlipHorizontalCommand.h"
 #include "Commands/MergeSpritesCommand.h"
 #include "Commands/RemoveArtifactsCommand.h"
+#include <cmath>
 
 namespace StudioCore {
 
@@ -434,6 +435,47 @@ void StudioEngineFacade::RemoveArtifactsArea(int x, int y, int width, int height
         for (int px = startX; px < endX; ++px) {
             size_t idx = (py * texWidth + px) * 4;
             pixels[idx + 3] = 0; 
+        }
+    }
+}
+
+void StudioEngineFacade::RemoveColorGlobal(int targetX, int targetY, float tolerance) {
+    auto project = GetCurrentProject();
+    if (!project) return;
+    
+    auto currentTex = project->GetTexture();
+    if (!currentTex) return;
+
+    int texWidth = currentTex->GetWidth();
+    int texHeight = currentTex->GetHeight();
+
+    if (targetX < 0 || targetX >= texWidth || targetY < 0 || targetY >= texHeight) return;
+
+    auto* mutableTex = const_cast<SourceTexture*>(currentTex.get());
+    auto& pixels = mutableTex->GetPixelsMutable();
+
+    size_t targetIdx = (static_cast<size_t>(targetY) * texWidth + targetX) * 4;
+    uint8_t tr = pixels[targetIdx];
+    uint8_t tg = pixels[targetIdx + 1];
+    uint8_t tb = pixels[targetIdx + 2];
+    uint8_t ta = pixels[targetIdx + 3];
+
+    if (ta == 0) return;
+
+    for (size_t i = 0; i < static_cast<size_t>(texWidth) * texHeight; ++i) {
+        size_t idx = i * 4;
+        if (pixels[idx + 3] == 0) continue;
+
+        float dr = static_cast<float>(pixels[idx]) - tr;
+        float dg = static_cast<float>(pixels[idx + 1]) - tg;
+        float db = static_cast<float>(pixels[idx + 2]) - tb;
+        float dist = std::sqrt(dr * dr + dg * dg + db * db);
+
+        if (dist <= tolerance) {
+            pixels[idx] = 0;
+            pixels[idx + 1] = 0;
+            pixels[idx + 2] = 0;
+            pixels[idx + 3] = 0;
         }
     }
 }
