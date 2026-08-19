@@ -23,6 +23,7 @@
 #include <cmath>
 #include <queue>
 #include <algorithm>
+#include <filesystem>
 
 namespace StudioCore {
 
@@ -1116,5 +1117,67 @@ void StudioEngineFacade::FillTransparencyArea(int x, int y, int width, int heigh
     } else {
         texture->SetPixels(newPixels);
     }
+}
+
+bool StudioEngineFacade::ExportIndividualSprites(const std::string& outputFolder, const std::string& baseName) const {
+    if (!IsProjectActive()) return false;
+    auto project = GetCurrentProject();
+    if (!project) return false;
+
+    auto tex = GetCurrentTexture();
+    if (!tex || !tex->IsValid()) return false;
+
+    int texW = tex->GetWidth();
+    int texH = tex->GetHeight();
+    const auto& pixels = tex->GetPixels();
+
+    namespace fs = std::filesystem;
+    fs::path outDir(outputFolder);
+    if (!fs::exists(outDir)) {
+        fs::create_directories(outDir);
+    }
+
+    const auto& sprites = project->GetSprites();
+    if (sprites.empty()) return false;
+
+    int index = 1;
+    for (const auto& sprite : sprites) {
+        if (!sprite) continue;
+        auto rect = sprite->GetSourceRect();
+        int rx = static_cast<int>(rect.x);
+        int ry = static_cast<int>(rect.y);
+        int rw = static_cast<int>(rect.width);
+        int rh = static_cast<int>(rect.height);
+
+        if (rw <= 0 || rh <= 0) continue;
+
+        sf::Image frameImg;
+        frameImg.create(rw, rh);
+
+        for (int y = 0; y < rh; ++y) {
+            for (int x = 0; x < rw; ++x) {
+                int srcX = rx + x;
+                int srcY = ry + y;
+
+                if (srcX >= 0 && srcX < texW && srcY >= 0 && srcY < texH) {
+                    size_t idx = (static_cast<size_t>(srcY) * texW + srcX) * 4;
+                    frameImg.setPixel(x, y, sf::Color(
+                        pixels[idx],
+                        pixels[idx + 1],
+                        pixels[idx + 2],
+                        pixels[idx + 3]
+                    ));
+                } else {
+                    frameImg.setPixel(x, y, sf::Color::Transparent);
+                }
+            }
+        }
+
+        std::string fileName = baseName + "_" + std::to_string(index++) + ".png";
+        fs::path filePath = outDir / fileName;
+        frameImg.saveToFile(filePath.string());
+    }
+
+    return true;
 }
 }

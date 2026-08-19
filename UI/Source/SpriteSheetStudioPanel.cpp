@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <queue>
 #include <cmath>
+#include <filesystem>
 
 #ifdef LoadImage
 #undef LoadImage
@@ -130,6 +131,23 @@ void SpriteSheetStudioPanel::Initialize() {
             m_isDeleteMode = false;
             m_isExportMode = true; 
             m_exportPreview.Activate(m_engine); 
+        },
+        [this]() {
+            m_isArtifactMode = false;
+            m_isInfillMode = false;
+            m_isDeleteMode = false;
+#if defined(_WIN32)
+            std::string path = saveWindowsFileDialog("frame.png");
+#else
+            std::string path = NativeFileDialog::SaveFileDialog("frame.png");
+#endif
+            if (!path.empty()) {
+                namespace fs = std::filesystem;
+                fs::path p(path);
+                std::string folder = p.parent_path().string();
+                std::string base = p.stem().string();
+                m_engine.ExportIndividualSprites(folder.empty() ? "." : folder, base);
+            }
         },
         [this]() {
             m_isUIHidden = !m_isUIHidden;

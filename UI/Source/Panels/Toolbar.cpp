@@ -11,6 +11,7 @@ void Toolbar::Initialize(const std::string& fontPath,
                          std::function<void()> onLoadProject,
                          std::function<void()> onSaveProject,
                          std::function<void()> onExport,
+                         std::function<void()> onExportFrames,
                          std::function<void()> onToggleUI,
                          std::function<void()> onOpenWizard,
                          std::function<void()> onDetect,
@@ -31,6 +32,7 @@ void Toolbar::Initialize(const std::string& fontPath,
     m_buttons.push_back({"load_proj", u8"Open", {}, [onLoadProject](StudioCore::StudioEngineFacade&){ onLoadProject(); }});
     m_buttons.push_back({"save_proj", u8"Save", {}, [onSaveProject](StudioCore::StudioEngineFacade&){ onSaveProject(); }});
     m_buttons.push_back({"export", u8"Export", {}, [onExport](StudioCore::StudioEngineFacade&){ onExport(); }});
+    m_buttons.push_back({"export_frames", u8"Frames", {}, [onExportFrames](StudioCore::StudioEngineFacade&){ onExportFrames(); }});
     
     m_buttons.push_back({"undo", u8"Undo", {}, [](StudioCore::StudioEngineFacade& engine){ engine.Undo(); }});
     m_buttons.push_back({"redo", u8"Redo", {}, [](StudioCore::StudioEngineFacade& engine){ engine.Redo(); }});
@@ -58,10 +60,10 @@ void Toolbar::LayoutButtons(float windowWidth) {
     m_bottomBorder.setFillColor(Theme::BorderColor);
     m_bottomBorder.setPosition(0.0f, Theme::ToolbarHeight - Theme::BorderThickness);
 
-    float startX = 12.0f;
+    float startX = 8.0f;
     float buttonHeight = Theme::ToolbarHeight - 8.0f;
-    float fixedButtonWidth = 60.0f;
-    float spacing = 4.0f;
+    float fixedButtonWidth = 55.0f;
+    float spacing = 3.0f;
 
     m_dividers.clear();
 
@@ -69,12 +71,12 @@ void Toolbar::LayoutButtons(float windowWidth) {
         m_buttons[i].bounds = sf::FloatRect(startX, 4.0f, fixedButtonWidth, buttonHeight);
         startX += fixedButtonWidth + spacing;
 
-        if (m_buttons[i].id == "export" || m_buttons[i].id == "redo" || m_buttons[i].id == "wizard") {
+        if (m_buttons[i].id == "export_frames" || m_buttons[i].id == "redo" || m_buttons[i].id == "wizard") {
             sf::RectangleShape divider({Theme::BorderThickness, buttonHeight - 4.0f});
-            divider.setPosition(startX + 2.0f, 6.0f);
+            divider.setPosition(startX + 1.0f, 6.0f);
             divider.setFillColor(Theme::BorderColor);
             m_dividers.push_back(divider);
-            startX += 8.0f;
+            startX += 6.0f;
         }
     }
 }
@@ -172,7 +174,7 @@ void Toolbar::Render(sf::RenderWindow& window) {
         sf::Text labelText;
         labelText.setFont(m_font);
         labelText.setString(btn.label);
-        labelText.setCharacterSize(13);
+        labelText.setCharacterSize(12);
         labelText.setFillColor(btn.isToggled ? sf::Color::White : Theme::TextPrimary);
 
         sf::FloatRect textBounds = labelText.getLocalBounds();

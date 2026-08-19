@@ -29,6 +29,7 @@ public:
                      std::function<void()> onLoadProject,
                      std::function<void()> onSaveProject,
                      std::function<void()> onExport,
+                     std::function<void()> onExportFrames,
                      std::function<void()> onToggleUI,
                      std::function<void()> onOpenWizard,
                      std::function<void()> onDetect,

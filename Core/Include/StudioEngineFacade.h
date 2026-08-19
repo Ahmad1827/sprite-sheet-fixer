@@ -77,6 +77,7 @@ public:
     void FillInternalHoles(int targetX, int targetY);
     void MergeSelectedSprites(const std::vector<std::string>& selectedIds);
     void FillTransparencyArea(int x, int y, int width, int height);
+    bool ExportIndividualSprites(const std::string& outputFolder, const std::string& baseName = "sprite") const;
 private:
     std::shared_ptr<WorkspaceManager> m_workspace;
     std::unique_ptr<BackgroundJobQueue> m_jobQueue;
