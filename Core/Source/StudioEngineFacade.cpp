@@ -441,48 +441,128 @@ void StudioEngineFacade::RemoveArtifacts(int targetX, int targetY) {
     std::vector<uint8_t> newPixels = oldPixels;
 
     size_t targetIdx = (static_cast<size_t>(targetY) * texWidth + targetX) * 4;
-    uint8_t targetR = newPixels[targetIdx];
-    uint8_t targetG = newPixels[targetIdx + 1];
-    uint8_t targetB = newPixels[targetIdx + 2];
-    uint8_t targetA = newPixels[targetIdx + 3];
-
-    if (targetA == 0) return;
-
-    float tolerance = 25.0f;
-    std::vector<bool> visited(texWidth * texHeight, false);
-    std::queue<std::pair<int, int>> q;
-
-    q.push({targetX, targetY});
-    visited[targetY * texWidth + targetX] = true;
 
     const int dx[] = {1, -1, 0, 0};
     const int dy[] = {0, 0, 1, -1};
 
-    while (!q.empty()) {
-        auto [cx, cy] = q.front();
-        q.pop();
+    if (newPixels[targetIdx + 3] == 0) {
+        std::vector<bool> holeVisited(texWidth * texHeight, false);
+        std::vector<int> holePixels;
+        std::queue<std::pair<int, int>> hq;
 
-        size_t idx = (static_cast<size_t>(cy) * texWidth + cx) * 4;
-        newPixels[idx] = 0;
-        newPixels[idx + 1] = 0;
-        newPixels[idx + 2] = 0;
-        newPixels[idx + 3] = 0;
+        hq.push({targetX, targetY});
+        holeVisited[targetY * texWidth + targetX] = true;
+        holePixels.push_back(targetY * texWidth + targetX);
 
-        for (int i = 0; i < 4; ++i) {
-            int nx = cx + dx[i];
-            int ny = cy + dy[i];
+        size_t maxHoleSize = 50000;
 
-            if (nx >= 0 && nx < texWidth && ny >= 0 && ny < texHeight) {
-                int nPos = ny * texWidth + nx;
-                if (!visited[nPos]) {
-                    visited[nPos] = true;
-                    size_t nIdx = static_cast<size_t>(nPos) * 4;
-                    if (newPixels[nIdx + 3] > 0) {
-                        float dr = static_cast<float>(newPixels[nIdx]) - targetR;
-                        float dg = static_cast<float>(newPixels[nIdx + 1]) - targetG;
-                        float db = static_cast<float>(newPixels[nIdx + 2]) - targetB;
-                        if (std::sqrt(dr * dr + dg * dg + db * db) <= tolerance) {
-                            q.push({nx, ny});
+        while (!hq.empty()) {
+            auto [hx, hy] = hq.front();
+            hq.pop();
+
+            if (holePixels.size() > maxHoleSize) break;
+
+            for (int i = 0; i < 4; ++i) {
+                int nx = hx + dx[i];
+                int ny = hy + dy[i];
+                if (nx >= 0 && nx < texWidth && ny >= 0 && ny < texHeight) {
+                    int nPos = ny * texWidth + nx;
+                    if (!holeVisited[nPos] && newPixels[nPos * 4 + 3] == 0) {
+                        holeVisited[nPos] = true;
+                        hq.push({nx, ny});
+                        holePixels.push_back(nPos);
+                    }
+                }
+            }
+        }
+
+        if (holePixels.size() > maxHoleSize) return;
+
+        struct ColorSource {
+            int x, y;
+            uint8_t r, g, b;
+        };
+
+        std::queue<ColorSource> propQueue;
+        std::vector<bool> propVisited(texWidth * texHeight, false);
+
+        for (int hPos : holePixels) {
+            int hx = hPos % texWidth;
+            int hy = hPos / texWidth;
+
+            for (int i = 0; i < 4; ++i) {
+                int nx = hx + dx[i];
+                int ny = hy + dy[i];
+                if (nx >= 0 && nx < texWidth && ny >= 0 && ny < texHeight) {
+                    int nPos = ny * texWidth + nx;
+                    if (newPixels[nPos * 4 + 3] > 0 && !propVisited[nPos]) {
+                        propVisited[nPos] = true;
+                        propQueue.push({nx, ny, newPixels[nPos * 4], newPixels[nPos * 4 + 1], newPixels[nPos * 4 + 2]});
+                    }
+                }
+            }
+        }
+
+        if (propQueue.empty()) return;
+
+        while (!propQueue.empty()) {
+            auto src = propQueue.front();
+            propQueue.pop();
+
+            for (int i = 0; i < 4; ++i) {
+                int nx = src.x + dx[i];
+                int ny = src.y + dy[i];
+                if (nx >= 0 && nx < texWidth && ny >= 0 && ny < texHeight) {
+                    int nPos = ny * texWidth + nx;
+                    if (holeVisited[nPos] && newPixels[nPos * 4 + 3] == 0) {
+                        size_t idx = static_cast<size_t>(nPos) * 4;
+                        newPixels[idx] = src.r;
+                        newPixels[idx + 1] = src.g;
+                        newPixels[idx + 2] = src.b;
+                        newPixels[idx + 3] = 255;
+                        propQueue.push({nx, ny, src.r, src.g, src.b});
+                    }
+                }
+            }
+        }
+    } else {
+        uint8_t targetR = newPixels[targetIdx];
+        uint8_t targetG = newPixels[targetIdx + 1];
+        uint8_t targetB = newPixels[targetIdx + 2];
+
+        float tolerance = 35.0f;
+        std::vector<bool> visited(texWidth * texHeight, false);
+        std::queue<std::pair<int, int>> q;
+
+        q.push({targetX, targetY});
+        visited[targetY * texWidth + targetX] = true;
+
+        while (!q.empty()) {
+            auto [cx, cy] = q.front();
+            q.pop();
+
+            size_t idx = (static_cast<size_t>(cy) * texWidth + cx) * 4;
+            newPixels[idx] = 0;
+            newPixels[idx + 1] = 0;
+            newPixels[idx + 2] = 0;
+            newPixels[idx + 3] = 0;
+
+            for (int i = 0; i < 4; ++i) {
+                int nx = cx + dx[i];
+                int ny = cy + dy[i];
+
+                if (nx >= 0 && nx < texWidth && ny >= 0 && ny < texHeight) {
+                    int nPos = ny * texWidth + nx;
+                    if (!visited[nPos]) {
+                        visited[nPos] = true;
+                        size_t nIdx = static_cast<size_t>(nPos) * 4;
+                        if (newPixels[nIdx + 3] > 0) {
+                            float dr = static_cast<float>(newPixels[nIdx]) - targetR;
+                            float dg = static_cast<float>(newPixels[nIdx + 1]) - targetG;
+                            float db = static_cast<float>(newPixels[nIdx + 2]) - targetB;
+                            if (std::sqrt(dr * dr + dg * dg + db * db) <= tolerance) {
+                                q.push({nx, ny});
+                            }
                         }
                     }
                 }
@@ -519,18 +599,20 @@ void StudioEngineFacade::RemoveArtifactsArea(int x, int y, int width, int height
     std::vector<uint8_t> newPixels = oldPixels;
 
     size_t sampleIdx = (static_cast<size_t>(startY) * texWidth + startX) * 4;
-    uint8_t sampleR = newPixels[sampleIdx];
-    uint8_t sampleG = newPixels[sampleIdx + 1];
-    uint8_t sampleB = newPixels[sampleIdx + 2];
-    uint8_t sampleA = newPixels[sampleIdx + 3];
+    uint8_t sampleR = oldPixels[sampleIdx];
+    uint8_t sampleG = oldPixels[sampleIdx + 1];
+    uint8_t sampleB = oldPixels[sampleIdx + 2];
+    uint8_t sampleA = oldPixels[sampleIdx + 3];
 
-    float tolerance = 30.0f;
+    const int dx[] = {1, -1, 0, 0};
+    const int dy[] = {0, 0, 1, -1};
 
-    for (int py = startY; py < endY; ++py) {
-        for (int px = startX; px < endX; ++px) {
-            size_t idx = (static_cast<size_t>(py) * texWidth + px) * 4;
-            if (newPixels[idx + 3] > 0) {
-                if (sampleA > 0) {
+    if (sampleA > 0) {
+        float tolerance = 35.0f;
+        for (int py = startY; py < endY; ++py) {
+            for (int px = startX; px < endX; ++px) {
+                size_t idx = (static_cast<size_t>(py) * texWidth + px) * 4;
+                if (newPixels[idx + 3] > 0) {
                     float dr = static_cast<float>(newPixels[idx]) - sampleR;
                     float dg = static_cast<float>(newPixels[idx + 1]) - sampleG;
                     float db = static_cast<float>(newPixels[idx + 2]) - sampleB;
@@ -540,12 +622,53 @@ void StudioEngineFacade::RemoveArtifactsArea(int x, int y, int width, int height
                         newPixels[idx + 2] = 0;
                         newPixels[idx + 3] = 0;
                     }
-                } else {
-                    pixels_zero:
-                    newPixels[idx] = 0;
-                    newPixels[idx + 1] = 0;
-                    newPixels[idx + 2] = 0;
-                    newPixels[idx + 3] = 0;
+                }
+            }
+        }
+    } else {
+        struct ColorSource {
+            int x, y;
+            uint8_t r, g, b;
+        };
+
+        std::queue<ColorSource> propQueue;
+        std::vector<bool> propVisited(texWidth * texHeight, false);
+
+        for (int py = startY; py < endY; ++py) {
+            for (int px = startX; px < endX; ++px) {
+                size_t idx = (static_cast<size_t>(py) * texWidth + px) * 4;
+                if (newPixels[idx + 3] == 0) {
+                    for (int i = 0; i < 4; ++i) {
+                        int nx = px + dx[i];
+                        int ny = py + dy[i];
+                        if (nx >= 0 && nx < texWidth && ny >= 0 && ny < texHeight) {
+                            int nPos = ny * texWidth + nx;
+                            if (newPixels[nPos * 4 + 3] > 0 && !propVisited[nPos]) {
+                                propVisited[nPos] = true;
+                                propQueue.push({nx, ny, newPixels[nPos * 4], newPixels[nPos * 4 + 1], newPixels[nPos * 4 + 2]});
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        while (!propQueue.empty()) {
+            auto src = propQueue.front();
+            propQueue.pop();
+
+            for (int i = 0; i < 4; ++i) {
+                int nx = src.x + dx[i];
+                int ny = src.y + dy[i];
+                if (nx >= startX && nx < endX && ny >= startY && ny < endY) {
+                    size_t idx = (static_cast<size_t>(ny) * texWidth + nx) * 4;
+                    if (newPixels[idx + 3] == 0) {
+                        newPixels[idx] = src.r;
+                        newPixels[idx + 1] = src.g;
+                        newPixels[idx + 2] = src.b;
+                        newPixels[idx + 3] = 255;
+                        propQueue.push({nx, ny, src.r, src.g, src.b});
+                    }
                 }
             }
         }
