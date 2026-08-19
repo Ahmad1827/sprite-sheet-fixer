@@ -728,4 +728,42 @@ void StudioEngineFacade::RemoveColorGlobal(int targetX, int targetY, float toler
         texture->SetPixels(newPixels);
     }
 }
+
+void StudioEngineFacade::DeleteArea(int x, int y, int width, int height) {
+    auto project = GetCurrentProject();
+    if (!project) return;
+    auto constTexture = project->GetTexture();
+    if (!constTexture || !constTexture->IsValid()) return;
+    auto texture = std::const_pointer_cast<SourceTexture>(constTexture);
+
+    int texWidth = texture->GetWidth();
+    int texHeight = texture->GetHeight();
+
+    int startX = std::max(0, x);
+    int startY = std::max(0, y);
+    int endX = std::min(texWidth, x + width);
+    int endY = std::min(texHeight, y + height);
+
+    if (startX >= endX || startY >= endY) return;
+
+    std::vector<uint8_t> oldPixels = texture->GetPixels();
+    std::vector<uint8_t> newPixels = oldPixels;
+
+    for (int py = startY; py < endY; ++py) {
+        for (int px = startX; px < endX; ++px) {
+            size_t idx = (static_cast<size_t>(py) * texWidth + px) * 4;
+            newPixels[idx] = 0;
+            newPixels[idx + 1] = 0;
+            newPixels[idx + 2] = 0;
+            newPixels[idx + 3] = 0;
+        }
+    }
+
+    auto cmd = std::make_unique<PixelRegionCommand>(texture, oldPixels, newPixels);
+    if (m_commandHistory) {
+        m_commandHistory->ExecuteCommand(std::move(cmd));
+    } else {
+        texture->SetPixels(newPixels);
+    }
+}
 }
