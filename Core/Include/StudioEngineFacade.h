@@ -75,6 +75,7 @@ public:
     void CleanCurrentTexture();
     void DeleteArea(int x, int y, int width, int height);
     void FillInternalHoles(int targetX, int targetY);
+    void MergeSelectedSprites(const std::vector<std::string>& selectedIds);
 private:
     std::shared_ptr<WorkspaceManager> m_workspace;
     std::unique_ptr<BackgroundJobQueue> m_jobQueue;

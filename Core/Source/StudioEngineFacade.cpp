@@ -22,6 +22,7 @@
 #include "Commands/RemoveArtifactsCommand.h"
 #include <cmath>
 #include <queue>
+#include <algorithm>
 
 namespace StudioCore {
 
@@ -41,7 +42,7 @@ void StudioEngineFacade::Update(float deltaTime) {
         auto results = m_jobQueue->ConsumeResults();
         if (IsProjectActive()) {
             for (auto& sprite : results) {
-                m_workspace->GetActiveProject()->AddSprite(*sprite); // <-- Added dereference here
+                m_workspace->GetActiveProject()->AddSprite(*sprite);
             }
         }
     }
@@ -79,7 +80,6 @@ bool StudioEngineFacade::LoadProject(const std::string& filePath, std::string& o
     auto proj = ProjectManager::LoadProject(filePath, outErrorMessage);
     if (!proj) return false;
 
-    // Use std::const_pointer_cast to pass the loaded texture to SetTexture cleanly
     m_workspace->CreateNewProject();
     auto tex = std::const_pointer_cast<SourceTexture>(proj->GetTexture());
     m_workspace->GetActiveProject()->SetTexture(tex);
@@ -286,7 +286,6 @@ void StudioEngineFacade::ExecuteAlignSprites(const std::vector<std::string>& spr
     m_commandHistory->ExecuteCommand(std::move(cmd));
 }
 
-// Implementation for Facade:
 std::vector<ProposedAnimation> StudioEngineFacade::BuildAnimationsByRow() {
     auto proj = GetCurrentProject();
     if (!proj) return {};
@@ -311,14 +310,10 @@ void StudioEngineFacade::CommitProposedAnimations(const std::vector<ProposedAnim
             std::reverse(idsToAdd.begin(), idsToAdd.end());
         }
 
-        // Set all frames at once using the built-in method
         group->SetFrames(idsToAdd);
-
         proj->AddAnimationGroup(group);
     }
 }
-
-
 
 void StudioEngineFacade::DeleteSpriteWithPixels(const std::string& spriteId) {
     auto proj = GetCurrentProject();
@@ -369,10 +364,9 @@ void StudioEngineFacade::RepackFrames() {
     auto project = GetCurrentProject();
     if (!IsProjectActive() || !project) return;
     
-    // Auto-detect if the user forgot
     if (project->GetSprites().empty()) {
         DetectionConfig config;
-        config.minSpriteSize = 25; // <--- ADD THIS LINE! Ignores tiny junk boxes.
+        config.minSpriteSize = 25;
         RunAutoDetection(config);
     }
     
@@ -404,6 +398,55 @@ void StudioEngineFacade::MergeOverlappingSprites() {
     
     auto cmd = std::make_unique<MergeSpritesCommand>(project);
     m_commandHistory->ExecuteCommand(std::move(cmd));
+}
+
+void StudioEngineFacade::MergeSelectedSprites(const std::vector<std::string>& selectedIds) {
+    if (selectedIds.size() < 2) return;
+    auto project = GetCurrentProject();
+    if (!IsProjectActive() || !project) return;
+
+    auto allSprites = project->GetSprites();
+    std::vector<std::shared_ptr<SpriteDefinition>> toMerge;
+    std::vector<std::shared_ptr<SpriteDefinition>> remaining;
+
+    for (const auto& s : allSprites) {
+        if (!s) continue;
+        if (std::find(selectedIds.begin(), selectedIds.end(), s->GetId()) != selectedIds.end()) {
+            toMerge.push_back(s);
+        } else {
+            remaining.push_back(s);
+        }
+    }
+
+    if (toMerge.size() < 2) return;
+
+    int minX = 999999;
+    int minY = 999999;
+    int maxX = -999999;
+    int maxY = -999999;
+
+    for (const auto& s : toMerge) {
+        auto r = s->GetSourceRect();
+        minX = std::min(minX, static_cast<int>(r.x));
+        minY = std::min(minY, static_cast<int>(r.y));
+        maxX = std::max(maxX, static_cast<int>(r.x + r.width));
+        maxY = std::max(maxY, static_cast<int>(r.y + r.height));
+    }
+
+    Rect mergedRect;
+    mergedRect.x = static_cast<float>(minX);
+    mergedRect.y = static_cast<float>(minY);
+    mergedRect.width = static_cast<float>(maxX - minX);
+    mergedRect.height = static_cast<float>(maxY - minY);
+
+    auto mergedSprite = std::make_shared<SpriteDefinition>(toMerge.front()->GetId(), mergedRect);
+    remaining.push_back(mergedSprite);
+
+    std::sort(remaining.begin(), remaining.end(), [](const std::shared_ptr<SpriteDefinition>& a, const std::shared_ptr<SpriteDefinition>& b) {
+        return a->GetSourceRect().x < b->GetSourceRect().x;
+    });
+
+    project->SetSprites(remaining);
 }
 
 void StudioEngineFacade::CleanCurrentTexture() {
@@ -953,4 +996,5 @@ void StudioEngineFacade::FillInternalHoles(int targetX, int targetY) {
         texture->SetPixels(newPixels);
     }
 }
+
 }
