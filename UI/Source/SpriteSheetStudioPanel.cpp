@@ -85,6 +85,7 @@ void SpriteSheetStudioPanel::Initialize() {
     m_toolbar.Initialize("Resources/font.ttf",
         [this]() {
             m_isArtifactMode = false;
+            m_isDeleteMode = false;
 #if defined(_WIN32)
             std::string path = openWindowsFileDialog(DialogMode::ImageOnly);
 #else
@@ -94,6 +95,7 @@ void SpriteSheetStudioPanel::Initialize() {
         },
         [this]() {
             m_isArtifactMode = false;
+            m_isDeleteMode = false;
 #if defined(_WIN32)
             std::string path = openWindowsFileDialog(DialogMode::CombinedOpen);
 #else
@@ -110,6 +112,7 @@ void SpriteSheetStudioPanel::Initialize() {
         },
         [this]() {
             m_isArtifactMode = false;
+            m_isDeleteMode = false;
 #if defined(_WIN32)
             std::string path = saveWindowsFileDialog("project.sps");
 #else
@@ -119,6 +122,7 @@ void SpriteSheetStudioPanel::Initialize() {
         },
         [this]() {
             m_isArtifactMode = false;
+            m_isDeleteMode = false;
             m_isExportMode = true; 
             m_exportPreview.Activate(m_engine); 
         },
@@ -128,12 +132,14 @@ void SpriteSheetStudioPanel::Initialize() {
         },
         [this]() {
             m_isArtifactMode = false;
+            m_isDeleteMode = false;
             if (!m_engine.IsProjectActive() || !m_engine.GetCurrentProject() || m_engine.GetCurrentProject()->GetSprites().empty()) return;
             m_isWizardMode = true;
             m_animBuilderPanel.Activate(m_engine);
         },
         [this]() {
             m_isArtifactMode = false;
+            m_isDeleteMode = false;
             if (m_engine.IsProjectActive() && m_engine.GetCurrentProject()) {
                 StudioCore::DetectionConfig config;
                 config.minSpriteSize = 10;
@@ -199,24 +205,33 @@ void SpriteSheetStudioPanel::Initialize() {
         },
         [this]() {
             m_isArtifactMode = false;
+            m_isDeleteMode = false;
             m_engine.MergeOverlappingSprites();
             m_viewport.RefreshTexture(m_engine);
         },
         [this]() {
             m_isArtifactMode = false;
+            m_isDeleteMode = false;
             m_engine.CleanCurrentTexture();
             m_viewport.RefreshTexture(m_engine);
         },
         [this]() {
             m_isArtifactMode = !m_isArtifactMode;
+            m_isDeleteMode = false;
+        },
+        [this]() {
+            m_isDeleteMode = !m_isDeleteMode;
+            m_isArtifactMode = false;
         },
         [this]() {
             m_isArtifactMode = false;
+            m_isDeleteMode = false;
             m_engine.RepackFrames();
             m_viewport.RefreshTexture(m_engine);
         },
         [this]() {
             m_isArtifactMode = false;
+            m_isDeleteMode = false;
             m_engine.FlipHorizontal();
             m_viewport.RefreshTexture(m_engine);
         }
@@ -289,6 +304,7 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
         }
         if (event.key.code == sf::Keyboard::Escape) {
             m_isArtifactMode = false;
+            m_isDeleteMode = false;
             m_isDraggingArtifact = false;
         }
     }
@@ -318,15 +334,17 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
     if (m_toolbar.HandleEvent(event, window, m_engine)) return;
 
     if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
-        if (m_isArtifactMode) {
+        if (m_isArtifactMode || m_isDeleteMode) {
             sf::Vector2i pixelPos(event.mouseButton.x, event.mouseButton.y);
             sf::Vector2f worldPos = m_viewport.MapPixelToWorld(pixelPos, window);
 
-            bool isShift = sf::Keyboard::isKeyPressed(sf::Keyboard::LShift) || sf::Keyboard::isKeyPressed(sf::Keyboard::RShift);
-            if (isShift) {
-                m_engine.RemoveColorGlobal(static_cast<int>(worldPos.x), static_cast<int>(worldPos.y), 30.0f);
-                m_viewport.RefreshTexture(m_engine);
-                return;
+            if (m_isArtifactMode) {
+                bool isShift = sf::Keyboard::isKeyPressed(sf::Keyboard::LShift) || sf::Keyboard::isKeyPressed(sf::Keyboard::RShift);
+                if (isShift) {
+                    m_engine.RemoveColorGlobal(static_cast<int>(worldPos.x), static_cast<int>(worldPos.y), 30.0f);
+                    m_viewport.RefreshTexture(m_engine);
+                    return;
+                }
             }
 
             m_artifactDragStart = worldPos;
@@ -357,15 +375,28 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
             float minY = std::min(m_artifactDragStart.y, dragEnd.y);
             float maxY = std::max(m_artifactDragStart.y, dragEnd.y);
 
-            if (std::abs(maxX - minX) < 2.0f && std::abs(maxY - minY) < 2.0f) {
-                m_engine.RemoveArtifacts(static_cast<int>(minX), static_cast<int>(minY));
+            if (m_isDeleteMode) {
+                if (std::abs(maxX - minX) < 2.0f && std::abs(maxY - minY) < 2.0f) {
+                    m_engine.DeleteArea(static_cast<int>(minX), static_cast<int>(minY), 1, 1);
+                } else {
+                    m_engine.DeleteArea(
+                        static_cast<int>(minX),
+                        static_cast<int>(minY),
+                        static_cast<int>(maxX - minX),
+                        static_cast<int>(maxY - minY)
+                    );
+                }
             } else {
-                m_engine.RemoveArtifactsArea(
-                    static_cast<int>(minX),
-                    static_cast<int>(minY),
-                    static_cast<int>(maxX - minX),
-                    static_cast<int>(maxY - minY)
-                );
+                if (std::abs(maxX - minX) < 2.0f && std::abs(maxY - minY) < 2.0f) {
+                    m_engine.RemoveArtifacts(static_cast<int>(minX), static_cast<int>(minY));
+                } else {
+                    m_engine.RemoveArtifactsArea(
+                        static_cast<int>(minX),
+                        static_cast<int>(minY),
+                        static_cast<int>(maxX - minX),
+                        static_cast<int>(maxY - minY)
+                    );
+                }
             }
 
             m_viewport.RefreshTexture(m_engine);
@@ -483,8 +514,13 @@ void SpriteSheetStudioPanel::Render(sf::RenderWindow& window) {
 
             sf::RectangleShape selectionRect(sf::Vector2f(width, height));
             selectionRect.setPosition(minX, minY);
-            selectionRect.setFillColor(sf::Color(255, 0, 0, 100));
-            selectionRect.setOutlineColor(sf::Color::Red);
+            if (m_isDeleteMode) {
+                selectionRect.setFillColor(sf::Color(255, 50, 50, 80));
+                selectionRect.setOutlineColor(sf::Color(255, 80, 80));
+            } else {
+                selectionRect.setFillColor(sf::Color(50, 150, 255, 80));
+                selectionRect.setOutlineColor(sf::Color(80, 180, 255));
+            }
             selectionRect.setOutlineThickness(1.0f);
             
             window.draw(selectionRect);

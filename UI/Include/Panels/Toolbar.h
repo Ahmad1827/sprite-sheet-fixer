@@ -17,7 +17,7 @@ struct ToolbarButton {
     std::function<void(StudioCore::StudioEngineFacade&)> onClick;
     bool isToggle{false};
     bool isToggled{false};
-    float hoverAlpha{0.0f}; // Smooth hover transition state
+    float hoverAlpha{0.0f};
 };
 
 class Toolbar {
@@ -25,18 +25,19 @@ public:
     Toolbar() = default;
     void SetBounds(const sf::FloatRect& bounds) { m_bounds = bounds; }
     void Initialize(const std::string& fontPath,
-                 std::function<void()> onOpenImage,
-                 std::function<void()> onLoadProject,
-                 std::function<void()> onSaveProject,
-                 std::function<void()> onExport,
-                 std::function<void()> onToggleUI,
-                 std::function<void()> onOpenWizard,
-                 std::function<void()> onDetect,
-                 std::function<void()> onMerge,
-                 std::function<void()> onCleanBg,
-                 std::function<void()> onArtifact,
-                 std::function<void()> onRepack,
-                 std::function<void()> onFlipH);
+                     std::function<void()> onOpenImage,
+                     std::function<void()> onLoadProject,
+                     std::function<void()> onSaveProject,
+                     std::function<void()> onExport,
+                     std::function<void()> onToggleUI,
+                     std::function<void()> onOpenWizard,
+                     std::function<void()> onDetect,
+                     std::function<void()> onMerge,
+                     std::function<void()> onCleanBg,
+                     std::function<void()> onArtifact,
+                     std::function<void()> onDelete,
+                     std::function<void()> onRepack,
+                     std::function<void()> onFlipH);
 
     bool HandleEvent(const sf::Event& event, const sf::RenderWindow& window, StudioCore::StudioEngineFacade& engine);
     void Update(float deltaTime, sf::Vector2f mousePos);
@@ -53,4 +54,4 @@ private:
     void LayoutButtons(float windowWidth);
 };
 
-} // namespace StudioUI
+}

@@ -17,6 +17,7 @@ void Toolbar::Initialize(const std::string& fontPath,
                          std::function<void()> onMerge,
                          std::function<void()> onCleanBg,
                          std::function<void()> onArtifact,
+                         std::function<void()> onDelete,
                          std::function<void()> onRepack,
                          std::function<void()> onFlipH) {
     
@@ -37,6 +38,7 @@ void Toolbar::Initialize(const std::string& fontPath,
     m_buttons.push_back({"detect", u8"Detect", {}, [onDetect](StudioCore::StudioEngineFacade&){ onDetect(); }});
     m_buttons.push_back({"merge", u8"Merge", {}, [onMerge](StudioCore::StudioEngineFacade&){ onMerge(); }});
     m_buttons.push_back({"artifact", u8"Artifact", {}, [onArtifact](StudioCore::StudioEngineFacade&){ onArtifact(); }}); 
+    m_buttons.push_back({"delete", u8"Delete", {}, [onDelete](StudioCore::StudioEngineFacade&){ onDelete(); }}); 
     m_buttons.push_back({"repack", u8"Repack", {}, [onRepack](StudioCore::StudioEngineFacade&){ onRepack(); }}); 
     m_buttons.push_back({"flip_h", u8"Flip H", {}, [onFlipH](StudioCore::StudioEngineFacade&){ onFlipH(); }}); 
     m_buttons.push_back({"wizard", u8"Wizard", {}, [onOpenWizard](StudioCore::StudioEngineFacade&){ onOpenWizard(); }});
@@ -65,13 +67,12 @@ void Toolbar::LayoutButtons(float windowWidth) {
         m_buttons[i].bounds = sf::FloatRect(startX, 4.0f, fixedButtonWidth, buttonHeight);
         startX += fixedButtonWidth + spacing;
 
-        // Group Dividers to visually separate functional groups
         if (m_buttons[i].id == "export" || m_buttons[i].id == "redo" || m_buttons[i].id == "wizard") {
             sf::RectangleShape divider({Theme::BorderThickness, buttonHeight - 4.0f});
             divider.setPosition(startX + 2.0f, 6.0f);
             divider.setFillColor(Theme::BorderColor);
             m_dividers.push_back(divider);
-            startX += 8.0f; // Extra space for divider
+            startX += 8.0f;
         }
     }
 }
@@ -116,7 +117,7 @@ bool Toolbar::HandleEvent(const sf::Event& event, const sf::RenderWindow& window
                     m_buttons[i].isToggled = !m_buttons[i].isToggled;
                 }
                 if (m_buttons[i].onClick) {
-                    m_buttons[i].onClick(engine); // Restored callback directly into Engine
+                    m_buttons[i].onClick(engine);
                 }
                 return true;
             }
@@ -181,4 +182,4 @@ void Toolbar::Render(sf::RenderWindow& window) {
     }
 }
 
-} // namespace StudioUI
+}
