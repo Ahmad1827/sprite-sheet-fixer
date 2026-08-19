@@ -1019,6 +1019,43 @@ void StudioEngineFacade::FillTransparencyArea(int x, int y, int width, int heigh
     const int dx[] = {1, -1, 0, 0};
     const int dy[] = {0, 0, 1, -1};
 
+    std::vector<bool> isExterior(texWidth * texHeight, false);
+    std::queue<std::pair<int, int>> eq;
+
+    auto pushExterior = [&](int px, int py) {
+        int pos = py * texWidth + px;
+        if (!isExterior[pos] && newPixels[pos * 4 + 3] == 0) {
+            isExterior[pos] = true;
+            eq.push({px, py});
+        }
+    };
+
+    for (int px = 0; px < texWidth; ++px) {
+        pushExterior(px, 0);
+        pushExterior(px, texHeight - 1);
+    }
+    for (int py = 0; py < texHeight; ++py) {
+        pushExterior(0, py);
+        pushExterior(texWidth - 1, py);
+    }
+
+    while (!eq.empty()) {
+        auto [cx, cy] = eq.front();
+        eq.pop();
+
+        for (int i = 0; i < 4; ++i) {
+            int nx = cx + dx[i];
+            int ny = cy + dy[i];
+            if (nx >= 0 && nx < texWidth && ny >= 0 && ny < texHeight) {
+                int nPos = ny * texWidth + nx;
+                if (!isExterior[nPos] && newPixels[nPos * 4 + 3] == 0) {
+                    isExterior[nPos] = true;
+                    eq.push({nx, ny});
+                }
+            }
+        }
+    }
+
     struct ColorSource {
         int x, y;
         uint8_t r, g, b;
@@ -1026,13 +1063,14 @@ void StudioEngineFacade::FillTransparencyArea(int x, int y, int width, int heigh
 
     std::queue<ColorSource> propQueue;
     std::vector<bool> visited(texWidth * texHeight, false);
-    bool hasHoles = false;
+    bool hasInternalHoles = false;
 
     for (int py = startY; py < endY; ++py) {
         for (int px = startX; px < endX; ++px) {
-            size_t idx = (static_cast<size_t>(py) * texWidth + px) * 4;
-            if (newPixels[idx + 3] == 0) {
-                hasHoles = true;
+            int pos = py * texWidth + px;
+            size_t idx = static_cast<size_t>(pos) * 4;
+            if (newPixels[idx + 3] == 0 && !isExterior[pos]) {
+                hasInternalHoles = true;
                 for (int i = 0; i < 4; ++i) {
                     int nx = px + dx[i];
                     int ny = py + dy[i];
@@ -1049,7 +1087,7 @@ void StudioEngineFacade::FillTransparencyArea(int x, int y, int width, int heigh
         }
     }
 
-    if (!hasHoles || propQueue.empty()) return;
+    if (!hasInternalHoles || propQueue.empty()) return;
 
     while (!propQueue.empty()) {
         auto src = propQueue.front();
@@ -1061,7 +1099,7 @@ void StudioEngineFacade::FillTransparencyArea(int x, int y, int width, int heigh
             if (nx >= startX && nx < endX && ny >= startY && ny < endY) {
                 int nPos = ny * texWidth + nx;
                 size_t idx = static_cast<size_t>(nPos) * 4;
-                if (newPixels[idx + 3] == 0) {
+                if (newPixels[idx + 3] == 0 && !isExterior[nPos]) {
                     newPixels[idx] = src.r;
                     newPixels[idx + 1] = src.g;
                     newPixels[idx + 2] = src.b;
