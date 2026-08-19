@@ -406,26 +406,45 @@ void StudioEngineFacade::MergeOverlappingSprites() {
     m_commandHistory->ExecuteCommand(std::move(cmd));
 }
 
+void StudioEngineFacade::CleanCurrentTexture() {
+    auto project = GetCurrentProject();
+    if (!IsProjectActive() || !project) return;
+    auto constTexture = project->GetTexture();
+    if (!constTexture || !constTexture->IsValid()) return;
+    auto texture = std::const_pointer_cast<SourceTexture>(constTexture);
+
+    std::vector<uint8_t> oldPixels = texture->GetPixels();
+    auto cleanedTex = ImageLoader::RemoveFakeCheckerboard(*texture);
+    if (!cleanedTex) return;
+    std::vector<uint8_t> newPixels = cleanedTex->GetPixels();
+
+    auto cmd = std::make_unique<PixelRegionCommand>(texture, oldPixels, newPixels);
+    if (m_commandHistory) {
+        m_commandHistory->ExecuteCommand(std::move(cmd));
+    } else {
+        texture->SetPixels(newPixels);
+    }
+}
+
 void StudioEngineFacade::RemoveArtifacts(int targetX, int targetY) {
     auto project = GetCurrentProject();
     if (!project) return;
+    auto constTexture = project->GetTexture();
+    if (!constTexture || !constTexture->IsValid()) return;
+    auto texture = std::const_pointer_cast<SourceTexture>(constTexture);
 
-    auto currentTex = project->GetTexture();
-    if (!currentTex) return;
-
-    int texWidth = currentTex->GetWidth();
-    int texHeight = currentTex->GetHeight();
-
+    int texWidth = texture->GetWidth();
+    int texHeight = texture->GetHeight();
     if (targetX < 0 || targetX >= texWidth || targetY < 0 || targetY >= texHeight) return;
 
-    auto* mutableTex = const_cast<SourceTexture*>(currentTex.get());
-    auto& pixels = mutableTex->GetPixelsMutable();
+    std::vector<uint8_t> oldPixels = texture->GetPixels();
+    std::vector<uint8_t> newPixels = oldPixels;
 
     size_t targetIdx = (static_cast<size_t>(targetY) * texWidth + targetX) * 4;
-    uint8_t targetR = pixels[targetIdx];
-    uint8_t targetG = pixels[targetIdx + 1];
-    uint8_t targetB = pixels[targetIdx + 2];
-    uint8_t targetA = pixels[targetIdx + 3];
+    uint8_t targetR = newPixels[targetIdx];
+    uint8_t targetG = newPixels[targetIdx + 1];
+    uint8_t targetB = newPixels[targetIdx + 2];
+    uint8_t targetA = newPixels[targetIdx + 3];
 
     if (targetA == 0) return;
 
@@ -444,10 +463,10 @@ void StudioEngineFacade::RemoveArtifacts(int targetX, int targetY) {
         q.pop();
 
         size_t idx = (static_cast<size_t>(cy) * texWidth + cx) * 4;
-        pixels[idx] = 0;
-        pixels[idx + 1] = 0;
-        pixels[idx + 2] = 0;
-        pixels[idx + 3] = 0;
+        newPixels[idx] = 0;
+        newPixels[idx + 1] = 0;
+        newPixels[idx + 2] = 0;
+        newPixels[idx + 3] = 0;
 
         for (int i = 0; i < 4; ++i) {
             int nx = cx + dx[i];
@@ -458,10 +477,10 @@ void StudioEngineFacade::RemoveArtifacts(int targetX, int targetY) {
                 if (!visited[nPos]) {
                     visited[nPos] = true;
                     size_t nIdx = static_cast<size_t>(nPos) * 4;
-                    if (pixels[nIdx + 3] > 0) {
-                        float dr = static_cast<float>(pixels[nIdx]) - targetR;
-                        float dg = static_cast<float>(pixels[nIdx + 1]) - targetG;
-                        float db = static_cast<float>(pixels[nIdx + 2]) - targetB;
+                    if (newPixels[nIdx + 3] > 0) {
+                        float dr = static_cast<float>(newPixels[nIdx]) - targetR;
+                        float dg = static_cast<float>(newPixels[nIdx + 1]) - targetG;
+                        float db = static_cast<float>(newPixels[nIdx + 2]) - targetB;
                         if (std::sqrt(dr * dr + dg * dg + db * db) <= tolerance) {
                             q.push({nx, ny});
                         }
@@ -470,17 +489,24 @@ void StudioEngineFacade::RemoveArtifacts(int targetX, int targetY) {
             }
         }
     }
+
+    auto cmd = std::make_unique<PixelRegionCommand>(texture, oldPixels, newPixels);
+    if (m_commandHistory) {
+        m_commandHistory->ExecuteCommand(std::move(cmd));
+    } else {
+        texture->SetPixels(newPixels);
+    }
 }
 
 void StudioEngineFacade::RemoveArtifactsArea(int x, int y, int width, int height) {
     auto project = GetCurrentProject();
     if (!project) return;
+    auto constTexture = project->GetTexture();
+    if (!constTexture || !constTexture->IsValid()) return;
+    auto texture = std::const_pointer_cast<SourceTexture>(constTexture);
 
-    auto currentTex = project->GetTexture();
-    if (!currentTex) return;
-
-    int texWidth = currentTex->GetWidth();
-    int texHeight = currentTex->GetHeight();
+    int texWidth = texture->GetWidth();
+    int texHeight = texture->GetHeight();
 
     int startX = std::max(0, x);
     int startY = std::max(0, y);
@@ -489,80 +515,94 @@ void StudioEngineFacade::RemoveArtifactsArea(int x, int y, int width, int height
 
     if (startX >= endX || startY >= endY) return;
 
-    auto* mutableTex = const_cast<SourceTexture*>(currentTex.get());
-    auto& pixels = mutableTex->GetPixelsMutable();
+    std::vector<uint8_t> oldPixels = texture->GetPixels();
+    std::vector<uint8_t> newPixels = oldPixels;
 
     size_t sampleIdx = (static_cast<size_t>(startY) * texWidth + startX) * 4;
-    uint8_t sampleR = pixels[sampleIdx];
-    uint8_t sampleG = pixels[sampleIdx + 1];
-    uint8_t sampleB = pixels[sampleIdx + 2];
-    uint8_t sampleA = pixels[sampleIdx + 3];
+    uint8_t sampleR = newPixels[sampleIdx];
+    uint8_t sampleG = newPixels[sampleIdx + 1];
+    uint8_t sampleB = newPixels[sampleIdx + 2];
+    uint8_t sampleA = newPixels[sampleIdx + 3];
 
     float tolerance = 30.0f;
 
     for (int py = startY; py < endY; ++py) {
         for (int px = startX; px < endX; ++px) {
             size_t idx = (static_cast<size_t>(py) * texWidth + px) * 4;
-            if (pixels[idx + 3] > 0) {
+            if (newPixels[idx + 3] > 0) {
                 if (sampleA > 0) {
-                    float dr = static_cast<float>(pixels[idx]) - sampleR;
-                    float dg = static_cast<float>(pixels[idx + 1]) - sampleG;
-                    float db = static_cast<float>(pixels[idx + 2]) - sampleB;
+                    float dr = static_cast<float>(newPixels[idx]) - sampleR;
+                    float dg = static_cast<float>(newPixels[idx + 1]) - sampleG;
+                    float db = static_cast<float>(newPixels[idx + 2]) - sampleB;
                     if (std::sqrt(dr * dr + dg * dg + db * db) <= tolerance) {
-                        pixels[idx] = 0;
-                        pixels[idx + 1] = 0;
-                        pixels[idx + 2] = 0;
-                        pixels[idx + 3] = 0;
+                        newPixels[idx] = 0;
+                        newPixels[idx + 1] = 0;
+                        newPixels[idx + 2] = 0;
+                        newPixels[idx + 3] = 0;
                     }
                 } else {
-                    pixels[idx] = 0;
-                    pixels[idx + 1] = 0;
-                    pixels[idx + 2] = 0;
-                    pixels[idx + 3] = 0;
+                    pixels_zero:
+                    newPixels[idx] = 0;
+                    newPixels[idx + 1] = 0;
+                    newPixels[idx + 2] = 0;
+                    newPixels[idx + 3] = 0;
                 }
             }
         }
+    }
+
+    auto cmd = std::make_unique<PixelRegionCommand>(texture, oldPixels, newPixels);
+    if (m_commandHistory) {
+        m_commandHistory->ExecuteCommand(std::move(cmd));
+    } else {
+        texture->SetPixels(newPixels);
     }
 }
 
 void StudioEngineFacade::RemoveColorGlobal(int targetX, int targetY, float tolerance) {
     auto project = GetCurrentProject();
     if (!project) return;
-    
-    auto currentTex = project->GetTexture();
-    if (!currentTex) return;
+    auto constTexture = project->GetTexture();
+    if (!constTexture || !constTexture->IsValid()) return;
+    auto texture = std::const_pointer_cast<SourceTexture>(constTexture);
 
-    int texWidth = currentTex->GetWidth();
-    int texHeight = currentTex->GetHeight();
-
+    int texWidth = texture->GetWidth();
+    int texHeight = texture->GetHeight();
     if (targetX < 0 || targetX >= texWidth || targetY < 0 || targetY >= texHeight) return;
 
-    auto* mutableTex = const_cast<SourceTexture*>(currentTex.get());
-    auto& pixels = mutableTex->GetPixelsMutable();
+    std::vector<uint8_t> oldPixels = texture->GetPixels();
+    std::vector<uint8_t> newPixels = oldPixels;
 
     size_t targetIdx = (static_cast<size_t>(targetY) * texWidth + targetX) * 4;
-    uint8_t tr = pixels[targetIdx];
-    uint8_t tg = pixels[targetIdx + 1];
-    uint8_t tb = pixels[targetIdx + 2];
-    uint8_t ta = pixels[targetIdx + 3];
+    uint8_t tr = newPixels[targetIdx];
+    uint8_t tg = newPixels[targetIdx + 1];
+    uint8_t tb = newPixels[targetIdx + 2];
+    uint8_t ta = newPixels[targetIdx + 3];
 
     if (ta == 0) return;
 
     for (size_t i = 0; i < static_cast<size_t>(texWidth) * texHeight; ++i) {
         size_t idx = i * 4;
-        if (pixels[idx + 3] == 0) continue;
+        if (newPixels[idx + 3] == 0) continue;
 
-        float dr = static_cast<float>(pixels[idx]) - tr;
-        float dg = static_cast<float>(pixels[idx + 1]) - tg;
-        float db = static_cast<float>(pixels[idx + 2]) - tb;
+        float dr = static_cast<float>(newPixels[idx]) - tr;
+        float dg = static_cast<float>(newPixels[idx + 1]) - tg;
+        float db = static_cast<float>(newPixels[idx + 2]) - tb;
         float dist = std::sqrt(dr * dr + dg * dg + db * db);
 
         if (dist <= tolerance) {
-            pixels[idx] = 0;
-            pixels[idx + 1] = 0;
-            pixels[idx + 2] = 0;
-            pixels[idx + 3] = 0;
+            newPixels[idx] = 0;
+            newPixels[idx + 1] = 0;
+            newPixels[idx + 2] = 0;
+            newPixels[idx + 3] = 0;
         }
+    }
+
+    auto cmd = std::make_unique<PixelRegionCommand>(texture, oldPixels, newPixels);
+    if (m_commandHistory) {
+        m_commandHistory->ExecuteCommand(std::move(cmd));
+    } else {
+        texture->SetPixels(newPixels);
     }
 }
 }

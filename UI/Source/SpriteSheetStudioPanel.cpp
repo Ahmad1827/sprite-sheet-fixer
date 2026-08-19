@@ -97,7 +97,7 @@ void SpriteSheetStudioPanel::Initialize() {
 #if defined(_WIN32)
             std::string path = openWindowsFileDialog(DialogMode::CombinedOpen);
 #else
-            std::string path = NativeFileDialog::OpenFileDialog("Supported Files (*.png;*.jpg;*.jpeg;*.sps)");
+            std::string path = NativeFileDialog::OpenFileDialog("Supported Files (*.png;*.jpg;*.jpeg;*.jfif;*.sps)");
 #endif
             if (!path.empty()) {
                 if (path.find(".sps") != std::string::npos) {
@@ -204,15 +204,8 @@ void SpriteSheetStudioPanel::Initialize() {
         },
         [this]() {
             m_isArtifactMode = false;
-            if (m_engine.IsProjectActive() && m_engine.GetCurrentProject()) {
-                auto project = m_engine.GetCurrentProject();
-                auto currentTex = project->GetTexture();
-                if (currentTex) {
-                    auto cleanedTex = StudioCore::ImageLoader::RemoveFakeCheckerboard(*currentTex);
-                    project->SetTexture(cleanedTex);
-                    m_viewport.RefreshTexture(m_engine);
-                }
-            }
+            m_engine.CleanCurrentTexture();
+            m_viewport.RefreshTexture(m_engine);
         },
         [this]() {
             m_isArtifactMode = !m_isArtifactMode;
