@@ -71,58 +71,52 @@ std::shared_ptr<SourceTexture> ImageLoader::RemoveFakeCheckerboard(const SourceT
     struct ColorRGB { float r, g, b; };
     std::vector<ColorRGB> bgPalette;
 
-    int sampleRows = std::max(2, std::min(height / 8, 32));
-    for (int y = 0; y < sampleRows; ++y) {
-        for (int x = 0; x < width; x += 2) {
-            int idx = (y * width + x) * 4;
-            if (origPixels[idx + 3] == 0) continue;
+    auto samplePixel = [&](int x, int y) {
+        int idx = (y * width + x) * 4;
+        if (origPixels[idx + 3] == 0) return;
 
-            float pr = origPixels[idx];
-            float pg = origPixels[idx + 1];
-            float pb = origPixels[idx + 2];
+        float pr = origPixels[idx];
+        float pg = origPixels[idx + 1];
+        float pb = origPixels[idx + 2];
 
-            bool matched = false;
-            for (auto& bg : bgPalette) {
-                float dr = pr - bg.r;
-                float dg = pg - bg.g;
-                float db = pb - bg.b;
-                if (std::sqrt(dr * dr + dg * dg + db * db) < 20.0f) {
-                    bg.r = (bg.r + pr) * 0.5f;
-                    bg.g = (bg.g + pg) * 0.5f;
-                    bg.b = (bg.b + pb) * 0.5f;
-                    matched = true;
-                    break;
-                }
-            }
-
-            if (!matched && bgPalette.size() < 32) {
-                bgPalette.push_back({pr, pg, pb});
+        bool matched = false;
+        for (auto& bg : bgPalette) {
+            float dr = pr - bg.r;
+            float dg = pg - bg.g;
+            float db = pb - bg.b;
+            if (std::sqrt(dr * dr + dg * dg + db * db) < 12.0f) {
+                bg.r = (bg.r + pr) * 0.5f;
+                bg.g = (bg.g + pg) * 0.5f;
+                bg.b = (bg.b + pb) * 0.5f;
+                matched = true;
+                break;
             }
         }
-    }
-
-    auto isCheckerOrFringe = [](uint8_t r, uint8_t g, uint8_t b) -> bool {
-        int mx = std::max({r, g, b});
-        int mn = std::min({r, g, b});
-        int diff = mx - mn;
-        int lum = (static_cast<int>(r) + static_cast<int>(g) + static_cast<int>(b)) / 3;
-
-        if (lum > 130 && diff <= 40) return true;
-        if (r > 160 && g > 160 && b > 160) return true;
-        if (lum > 110 && diff <= 20) return true;
-
-        return false;
+        if (!matched && bgPalette.size() < 32) {
+            bgPalette.push_back({pr, pg, pb});
+        }
     };
 
-    auto isMatchingBg = [&](uint8_t r, uint8_t g, uint8_t b, uint8_t a) -> bool {
-        if (a == 0) return true;
-        if (isCheckerOrFringe(r, g, b)) return true;
+    for (int x = 0; x < width; x += std::max(1, width / 32)) {
+        samplePixel(x, 0);
+        samplePixel(x, height - 1);
+    }
+    for (int y = 0; y < height; y += std::max(1, height / 32)) {
+        samplePixel(0, y);
+        samplePixel(width - 1, y);
+    }
 
+    if (bgPalette.empty()) {
+        return std::make_shared<SourceTexture>(width, height, std::move(newPixels));
+    }
+
+    auto isMatchingBg = [&](uint8_t r, uint8_t g, uint8_t b, uint8_t a, float customTol) -> bool {
+        if (a == 0) return true;
         for (const auto& bg : bgPalette) {
             float dr = r - bg.r;
             float dg = g - bg.g;
             float db = b - bg.b;
-            if (std::sqrt(dr * dr + dg * dg + db * db) <= 35.0f) return true;
+            if (std::sqrt(dr * dr + dg * dg + db * db) <= customTol) return true;
         }
         return false;
     };
@@ -130,7 +124,7 @@ std::shared_ptr<SourceTexture> ImageLoader::RemoveFakeCheckerboard(const SourceT
     for (int i = 0; i < width * height; ++i) {
         int pIdx = i * 4;
         if (newPixels[pIdx + 3] > 0) {
-            if (isMatchingBg(newPixels[pIdx], newPixels[pIdx + 1], newPixels[pIdx + 2], newPixels[pIdx + 3])) {
+            if (isMatchingBg(newPixels[pIdx], newPixels[pIdx + 1], newPixels[pIdx + 2], newPixels[pIdx + 3], 18.0f)) {
                 newPixels[pIdx] = 0;
                 newPixels[pIdx + 1] = 0;
                 newPixels[pIdx + 2] = 0;
@@ -158,7 +152,7 @@ std::shared_ptr<SourceTexture> ImageLoader::RemoveFakeCheckerboard(const SourceT
                     auto [cx, cy] = compQueue.front();
                     compQueue.pop();
 
-                    if (componentIndices.size() > 10) break;
+                    if (componentIndices.size() > 8) break;
 
                     for (int i = 0; i < 8; ++i) {
                         int nx = cx + despeckleDx[i];
@@ -174,7 +168,7 @@ std::shared_ptr<SourceTexture> ImageLoader::RemoveFakeCheckerboard(const SourceT
                     }
                 }
 
-                if (componentIndices.size() <= 10) {
+                if (componentIndices.size() <= 8) {
                     for (int idx : componentIndices) {
                         newPixels[idx * 4] = 0;
                         newPixels[idx * 4 + 1] = 0;
