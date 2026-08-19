@@ -21,6 +21,7 @@
 #include "Commands/MergeSpritesCommand.h"
 #include "Commands/RemoveArtifactsCommand.h"
 #include <cmath>
+#include <queue>
 
 namespace StudioCore {
 
@@ -407,22 +408,77 @@ void StudioEngineFacade::MergeOverlappingSprites() {
 
 void StudioEngineFacade::RemoveArtifacts(int targetX, int targetY) {
     auto project = GetCurrentProject();
-    if (!IsProjectActive() || !project || !project->GetTexture()) return;
-    
-    auto cmd = std::make_unique<RemoveArtifactsCommand>(project, targetX, targetY);
-    m_commandHistory->ExecuteCommand(std::move(cmd));
+    if (!project) return;
+
+    auto currentTex = project->GetTexture();
+    if (!currentTex) return;
+
+    int texWidth = currentTex->GetWidth();
+    int texHeight = currentTex->GetHeight();
+
+    if (targetX < 0 || targetX >= texWidth || targetY < 0 || targetY >= texHeight) return;
+
+    auto* mutableTex = const_cast<SourceTexture*>(currentTex.get());
+    auto& pixels = mutableTex->GetPixelsMutable();
+
+    size_t targetIdx = (static_cast<size_t>(targetY) * texWidth + targetX) * 4;
+    uint8_t targetR = pixels[targetIdx];
+    uint8_t targetG = pixels[targetIdx + 1];
+    uint8_t targetB = pixels[targetIdx + 2];
+    uint8_t targetA = pixels[targetIdx + 3];
+
+    if (targetA == 0) return;
+
+    float tolerance = 25.0f;
+    std::vector<bool> visited(texWidth * texHeight, false);
+    std::queue<std::pair<int, int>> q;
+
+    q.push({targetX, targetY});
+    visited[targetY * texWidth + targetX] = true;
+
+    const int dx[] = {1, -1, 0, 0};
+    const int dy[] = {0, 0, 1, -1};
+
+    while (!q.empty()) {
+        auto [cx, cy] = q.front();
+        q.pop();
+
+        size_t idx = (static_cast<size_t>(cy) * texWidth + cx) * 4;
+        pixels[idx] = 0;
+        pixels[idx + 1] = 0;
+        pixels[idx + 2] = 0;
+        pixels[idx + 3] = 0;
+
+        for (int i = 0; i < 4; ++i) {
+            int nx = cx + dx[i];
+            int ny = cy + dy[i];
+
+            if (nx >= 0 && nx < texWidth && ny >= 0 && ny < texHeight) {
+                int nPos = ny * texWidth + nx;
+                if (!visited[nPos]) {
+                    visited[nPos] = true;
+                    size_t nIdx = static_cast<size_t>(nPos) * 4;
+                    if (pixels[nIdx + 3] > 0) {
+                        float dr = static_cast<float>(pixels[nIdx]) - targetR;
+                        float dg = static_cast<float>(pixels[nIdx + 1]) - targetG;
+                        float db = static_cast<float>(pixels[nIdx + 2]) - targetB;
+                        if (std::sqrt(dr * dr + dg * dg + db * db) <= tolerance) {
+                            q.push({nx, ny});
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 void StudioEngineFacade::RemoveArtifactsArea(int x, int y, int width, int height) {
     auto project = GetCurrentProject();
     if (!project) return;
-    
+
     auto currentTex = project->GetTexture();
     if (!currentTex) return;
 
-    auto* mutableTex = const_cast<SourceTexture*>(currentTex.get());
-    auto& pixels = mutableTex->GetPixelsMutable();
-    
     int texWidth = currentTex->GetWidth();
     int texHeight = currentTex->GetHeight();
 
@@ -431,10 +487,40 @@ void StudioEngineFacade::RemoveArtifactsArea(int x, int y, int width, int height
     int endX = std::min(texWidth, x + width);
     int endY = std::min(texHeight, y + height);
 
+    if (startX >= endX || startY >= endY) return;
+
+    auto* mutableTex = const_cast<SourceTexture*>(currentTex.get());
+    auto& pixels = mutableTex->GetPixelsMutable();
+
+    size_t sampleIdx = (static_cast<size_t>(startY) * texWidth + startX) * 4;
+    uint8_t sampleR = pixels[sampleIdx];
+    uint8_t sampleG = pixels[sampleIdx + 1];
+    uint8_t sampleB = pixels[sampleIdx + 2];
+    uint8_t sampleA = pixels[sampleIdx + 3];
+
+    float tolerance = 30.0f;
+
     for (int py = startY; py < endY; ++py) {
         for (int px = startX; px < endX; ++px) {
-            size_t idx = (py * texWidth + px) * 4;
-            pixels[idx + 3] = 0; 
+            size_t idx = (static_cast<size_t>(py) * texWidth + px) * 4;
+            if (pixels[idx + 3] > 0) {
+                if (sampleA > 0) {
+                    float dr = static_cast<float>(pixels[idx]) - sampleR;
+                    float dg = static_cast<float>(pixels[idx + 1]) - sampleG;
+                    float db = static_cast<float>(pixels[idx + 2]) - sampleB;
+                    if (std::sqrt(dr * dr + dg * dg + db * db) <= tolerance) {
+                        pixels[idx] = 0;
+                        pixels[idx + 1] = 0;
+                        pixels[idx + 2] = 0;
+                        pixels[idx + 3] = 0;
+                    }
+                } else {
+                    pixels[idx] = 0;
+                    pixels[idx + 1] = 0;
+                    pixels[idx + 2] = 0;
+                    pixels[idx + 3] = 0;
+                }
+            }
         }
     }
 }
