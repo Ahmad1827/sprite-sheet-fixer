@@ -85,6 +85,7 @@ void SpriteSheetStudioPanel::Initialize() {
     m_toolbar.Initialize("Resources/font.ttf",
         [this]() {
             m_isArtifactMode = false;
+            m_isInfillMode = false;
             m_isDeleteMode = false;
 #if defined(_WIN32)
             std::string path = openWindowsFileDialog(DialogMode::ImageOnly);
@@ -95,6 +96,7 @@ void SpriteSheetStudioPanel::Initialize() {
         },
         [this]() {
             m_isArtifactMode = false;
+            m_isInfillMode = false;
             m_isDeleteMode = false;
 #if defined(_WIN32)
             std::string path = openWindowsFileDialog(DialogMode::CombinedOpen);
@@ -112,6 +114,7 @@ void SpriteSheetStudioPanel::Initialize() {
         },
         [this]() {
             m_isArtifactMode = false;
+            m_isInfillMode = false;
             m_isDeleteMode = false;
 #if defined(_WIN32)
             std::string path = saveWindowsFileDialog("project.sps");
@@ -122,6 +125,7 @@ void SpriteSheetStudioPanel::Initialize() {
         },
         [this]() {
             m_isArtifactMode = false;
+            m_isInfillMode = false;
             m_isDeleteMode = false;
             m_isExportMode = true; 
             m_exportPreview.Activate(m_engine); 
@@ -132,6 +136,7 @@ void SpriteSheetStudioPanel::Initialize() {
         },
         [this]() {
             m_isArtifactMode = false;
+            m_isInfillMode = false;
             m_isDeleteMode = false;
             if (!m_engine.IsProjectActive() || !m_engine.GetCurrentProject() || m_engine.GetCurrentProject()->GetSprites().empty()) return;
             m_isWizardMode = true;
@@ -139,6 +144,7 @@ void SpriteSheetStudioPanel::Initialize() {
         },
         [this]() {
             m_isArtifactMode = false;
+            m_isInfillMode = false;
             m_isDeleteMode = false;
             if (m_engine.IsProjectActive() && m_engine.GetCurrentProject()) {
                 StudioCore::DetectionConfig config;
@@ -205,32 +211,43 @@ void SpriteSheetStudioPanel::Initialize() {
         },
         [this]() {
             m_isArtifactMode = false;
+            m_isInfillMode = false;
             m_isDeleteMode = false;
             m_engine.MergeOverlappingSprites();
             m_viewport.RefreshTexture(m_engine);
         },
         [this]() {
             m_isArtifactMode = false;
+            m_isInfillMode = false;
             m_isDeleteMode = false;
             m_engine.CleanCurrentTexture();
             m_viewport.RefreshTexture(m_engine);
         },
         [this]() {
             m_isArtifactMode = !m_isArtifactMode;
+            m_isInfillMode = false;
+            m_isDeleteMode = false;
+        },
+        [this]() {
+            m_isInfillMode = !m_isInfillMode;
+            m_isArtifactMode = false;
             m_isDeleteMode = false;
         },
         [this]() {
             m_isDeleteMode = !m_isDeleteMode;
             m_isArtifactMode = false;
+            m_isInfillMode = false;
         },
         [this]() {
             m_isArtifactMode = false;
+            m_isInfillMode = false;
             m_isDeleteMode = false;
             m_engine.RepackFrames();
             m_viewport.RefreshTexture(m_engine);
         },
         [this]() {
             m_isArtifactMode = false;
+            m_isInfillMode = false;
             m_isDeleteMode = false;
             m_engine.FlipHorizontal();
             m_viewport.RefreshTexture(m_engine);
@@ -304,6 +321,7 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
         }
         if (event.key.code == sf::Keyboard::Escape) {
             m_isArtifactMode = false;
+            m_isInfillMode = false;
             m_isDeleteMode = false;
             m_isDraggingArtifact = false;
         }
@@ -334,18 +352,9 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
     if (m_toolbar.HandleEvent(event, window, m_engine)) return;
 
     if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
-        if (m_isArtifactMode || m_isDeleteMode) {
+        if (m_isArtifactMode || m_isInfillMode || m_isDeleteMode) {
             sf::Vector2i pixelPos(event.mouseButton.x, event.mouseButton.y);
             sf::Vector2f worldPos = m_viewport.MapPixelToWorld(pixelPos, window);
-
-            if (m_isArtifactMode) {
-                bool isShift = sf::Keyboard::isKeyPressed(sf::Keyboard::LShift) || sf::Keyboard::isKeyPressed(sf::Keyboard::RShift);
-                if (isShift) {
-                    m_engine.FillInternalHoles(static_cast<int>(worldPos.x), static_cast<int>(worldPos.y));
-                    m_viewport.RefreshTexture(m_engine);
-                    return;
-                }
-            }
 
             m_artifactDragStart = worldPos;
             m_artifactDragCurrent = worldPos;
@@ -375,7 +384,14 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
             float minY = std::min(m_artifactDragStart.y, dragEnd.y);
             float maxY = std::max(m_artifactDragStart.y, dragEnd.y);
 
-            if (m_isDeleteMode) {
+            if (m_isInfillMode) {
+                m_engine.FillTransparencyArea(
+                    static_cast<int>(minX),
+                    static_cast<int>(minY),
+                    std::max(1, static_cast<int>(maxX - minX)),
+                    std::max(1, static_cast<int>(maxY - minY))
+                );
+            } else if (m_isDeleteMode) {
                 if (std::abs(maxX - minX) < 2.0f && std::abs(maxY - minY) < 2.0f) {
                     m_engine.DeleteArea(static_cast<int>(minX), static_cast<int>(minY), 1, 1);
                 } else {
@@ -514,7 +530,10 @@ void SpriteSheetStudioPanel::Render(sf::RenderWindow& window) {
 
             sf::RectangleShape selectionRect(sf::Vector2f(width, height));
             selectionRect.setPosition(minX, minY);
-            if (m_isDeleteMode) {
+            if (m_isInfillMode) {
+                selectionRect.setFillColor(sf::Color(80, 220, 120, 80));
+                selectionRect.setOutlineColor(sf::Color(100, 255, 150));
+            } else if (m_isDeleteMode) {
                 selectionRect.setFillColor(sf::Color(255, 50, 50, 80));
                 selectionRect.setOutlineColor(sf::Color(255, 80, 80));
             } else {

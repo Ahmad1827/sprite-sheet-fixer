@@ -45,6 +45,7 @@ private:
     bool m_isWizardMode = false;
     bool m_isUIHidden = false;
     bool m_isDeleteMode{false};
+    bool m_isInfillMode{false};
     float m_autoSaveTimer = 0.0f;
 
     Toolbar m_toolbar;

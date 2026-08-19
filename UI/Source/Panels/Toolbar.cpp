@@ -17,6 +17,7 @@ void Toolbar::Initialize(const std::string& fontPath,
                          std::function<void()> onMerge,
                          std::function<void()> onCleanBg,
                          std::function<void()> onArtifact,
+                         std::function<void()> onInfill,
                          std::function<void()> onDelete,
                          std::function<void()> onRepack,
                          std::function<void()> onFlipH) {
@@ -38,6 +39,7 @@ void Toolbar::Initialize(const std::string& fontPath,
     m_buttons.push_back({"detect", u8"Detect", {}, [onDetect](StudioCore::StudioEngineFacade&){ onDetect(); }});
     m_buttons.push_back({"merge", u8"Merge", {}, [onMerge](StudioCore::StudioEngineFacade&){ onMerge(); }});
     m_buttons.push_back({"artifact", u8"Artifact", {}, [onArtifact](StudioCore::StudioEngineFacade&){ onArtifact(); }}); 
+    m_buttons.push_back({"infill", u8"Infill", {}, [onInfill](StudioCore::StudioEngineFacade&){ onInfill(); }}); 
     m_buttons.push_back({"delete", u8"Delete", {}, [onDelete](StudioCore::StudioEngineFacade&){ onDelete(); }}); 
     m_buttons.push_back({"repack", u8"Repack", {}, [onRepack](StudioCore::StudioEngineFacade&){ onRepack(); }}); 
     m_buttons.push_back({"flip_h", u8"Flip H", {}, [onFlipH](StudioCore::StudioEngineFacade&){ onFlipH(); }}); 
@@ -58,7 +60,7 @@ void Toolbar::LayoutButtons(float windowWidth) {
 
     float startX = 12.0f;
     float buttonHeight = Theme::ToolbarHeight - 8.0f;
-    float fixedButtonWidth = 65.0f;
+    float fixedButtonWidth = 60.0f;
     float spacing = 4.0f;
 
     m_dividers.clear();

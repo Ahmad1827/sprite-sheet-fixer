@@ -35,6 +35,7 @@ public:
                      std::function<void()> onMerge,
                      std::function<void()> onCleanBg,
                      std::function<void()> onArtifact,
+                     std::function<void()> onInfill,
                      std::function<void()> onDelete,
                      std::function<void()> onRepack,
                      std::function<void()> onFlipH);

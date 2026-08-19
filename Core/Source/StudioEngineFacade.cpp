@@ -996,5 +996,87 @@ void StudioEngineFacade::FillInternalHoles(int targetX, int targetY) {
         texture->SetPixels(newPixels);
     }
 }
+void StudioEngineFacade::FillTransparencyArea(int x, int y, int width, int height) {
+    auto project = GetCurrentProject();
+    if (!project) return;
+    auto constTexture = project->GetTexture();
+    if (!constTexture || !constTexture->IsValid()) return;
+    auto texture = std::const_pointer_cast<SourceTexture>(constTexture);
 
+    int texWidth = texture->GetWidth();
+    int texHeight = texture->GetHeight();
+
+    int startX = std::max(0, x);
+    int startY = std::max(0, y);
+    int endX = std::min(texWidth, x + width);
+    int endY = std::min(texHeight, y + height);
+
+    if (startX >= endX || startY >= endY) return;
+
+    std::vector<uint8_t> oldPixels = texture->GetPixels();
+    std::vector<uint8_t> newPixels = oldPixels;
+
+    const int dx[] = {1, -1, 0, 0};
+    const int dy[] = {0, 0, 1, -1};
+
+    struct ColorSource {
+        int x, y;
+        uint8_t r, g, b;
+    };
+
+    std::queue<ColorSource> propQueue;
+    std::vector<bool> visited(texWidth * texHeight, false);
+    bool hasHoles = false;
+
+    for (int py = startY; py < endY; ++py) {
+        for (int px = startX; px < endX; ++px) {
+            size_t idx = (static_cast<size_t>(py) * texWidth + px) * 4;
+            if (newPixels[idx + 3] == 0) {
+                hasHoles = true;
+                for (int i = 0; i < 4; ++i) {
+                    int nx = px + dx[i];
+                    int ny = py + dy[i];
+                    if (nx >= 0 && nx < texWidth && ny >= 0 && ny < texHeight) {
+                        int nPos = ny * texWidth + nx;
+                        size_t nIdx = static_cast<size_t>(nPos) * 4;
+                        if (newPixels[nIdx + 3] > 0 && !visited[nPos]) {
+                            visited[nPos] = true;
+                            propQueue.push({nx, ny, newPixels[nIdx], newPixels[nIdx + 1], newPixels[nIdx + 2]});
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (!hasHoles || propQueue.empty()) return;
+
+    while (!propQueue.empty()) {
+        auto src = propQueue.front();
+        propQueue.pop();
+
+        for (int i = 0; i < 4; ++i) {
+            int nx = src.x + dx[i];
+            int ny = src.y + dy[i];
+            if (nx >= startX && nx < endX && ny >= startY && ny < endY) {
+                int nPos = ny * texWidth + nx;
+                size_t idx = static_cast<size_t>(nPos) * 4;
+                if (newPixels[idx + 3] == 0) {
+                    newPixels[idx] = src.r;
+                    newPixels[idx + 1] = src.g;
+                    newPixels[idx + 2] = src.b;
+                    newPixels[idx + 3] = 255;
+                    propQueue.push({nx, ny, src.r, src.g, src.b});
+                }
+            }
+        }
+    }
+
+    auto cmd = std::make_unique<PixelRegionCommand>(texture, oldPixels, newPixels);
+    if (m_commandHistory) {
+        m_commandHistory->ExecuteCommand(std::move(cmd));
+    } else {
+        texture->SetPixels(newPixels);
+    }
+}
 }
