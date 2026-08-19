@@ -766,4 +766,191 @@ void StudioEngineFacade::DeleteArea(int x, int y, int width, int height) {
         texture->SetPixels(newPixels);
     }
 }
+
+void StudioEngineFacade::FillInternalHoles(int targetX, int targetY) {
+    auto project = GetCurrentProject();
+    if (!project) return;
+    auto constTexture = project->GetTexture();
+    if (!constTexture || !constTexture->IsValid()) return;
+    auto texture = std::const_pointer_cast<SourceTexture>(constTexture);
+
+    int texWidth = texture->GetWidth();
+    int texHeight = texture->GetHeight();
+    if (targetX < 0 || targetX >= texWidth || targetY < 0 || targetY >= texHeight) return;
+
+    std::vector<uint8_t> oldPixels = texture->GetPixels();
+    std::vector<uint8_t> newPixels = oldPixels;
+
+    const int dx[] = {1, -1, 0, 0};
+    const int dy[] = {0, 0, 1, -1};
+
+    size_t clickIdx = (static_cast<size_t>(targetY) * texWidth + targetX) * 4;
+    bool clickedOnTransparent = (newPixels[clickIdx + 3] == 0);
+
+    std::vector<bool> isExterior(texWidth * texHeight, false);
+    std::queue<std::pair<int, int>> eq;
+
+    auto pushExterior = [&](int x, int y) {
+        int pos = y * texWidth + x;
+        if (!isExterior[pos] && newPixels[pos * 4 + 3] == 0) {
+            isExterior[pos] = true;
+            eq.push({x, y});
+        }
+    };
+
+    for (int x = 0; x < texWidth; ++x) {
+        pushExterior(x, 0);
+        pushExterior(x, texHeight - 1);
+    }
+    for (int y = 0; y < texHeight; ++y) {
+        pushExterior(0, y);
+        pushExterior(texWidth - 1, y);
+    }
+
+    while (!eq.empty()) {
+        auto [cx, cy] = eq.front();
+        eq.pop();
+
+        for (int i = 0; i < 4; ++i) {
+            int nx = cx + dx[i];
+            int ny = cy + dy[i];
+            if (nx >= 0 && nx < texWidth && ny >= 0 && ny < texHeight) {
+                int nPos = ny * texWidth + nx;
+                if (!isExterior[nPos] && newPixels[nPos * 4 + 3] == 0) {
+                    isExterior[nPos] = true;
+                    eq.push({nx, ny});
+                }
+            }
+        }
+    }
+
+    int clickPos = targetY * texWidth + targetX;
+    if (clickedOnTransparent && isExterior[clickPos]) {
+        return;
+    }
+
+    std::vector<int> holesToFill;
+    std::vector<bool> targetHoleMask(texWidth * texHeight, false);
+
+    if (clickedOnTransparent) {
+        std::queue<std::pair<int, int>> hq;
+        hq.push({targetX, targetY});
+        targetHoleMask[clickPos] = true;
+        holesToFill.push_back(clickPos);
+
+        while (!hq.empty()) {
+            auto [cx, cy] = hq.front();
+            hq.pop();
+
+            for (int i = 0; i < 4; ++i) {
+                int nx = cx + dx[i];
+                int ny = cy + dy[i];
+                if (nx >= 0 && nx < texWidth && ny >= 0 && ny < texHeight) {
+                    int nPos = ny * texWidth + nx;
+                    if (!targetHoleMask[nPos] && !isExterior[nPos] && newPixels[nPos * 4 + 3] == 0) {
+                        targetHoleMask[nPos] = true;
+                        hq.push({nx, ny});
+                        holesToFill.push_back(nPos);
+                    }
+                }
+            }
+        }
+    } else {
+        std::vector<bool> spriteVisited(texWidth * texHeight, false);
+        std::queue<std::pair<int, int>> sq;
+        sq.push({targetX, targetY});
+        spriteVisited[clickPos] = true;
+
+        int minX = targetX, maxX = targetX, minY = targetY, maxY = targetY;
+
+        while (!sq.empty()) {
+            auto [cx, cy] = sq.front();
+            sq.pop();
+
+            minX = std::min(minX, cx);
+            maxX = std::max(maxX, cx);
+            minY = std::min(minY, cy);
+            maxY = std::max(maxY, cy);
+
+            for (int i = 0; i < 4; ++i) {
+                int nx = cx + dx[i];
+                int ny = cy + dy[i];
+                if (nx >= 0 && nx < texWidth && ny >= 0 && ny < texHeight) {
+                    int nPos = ny * texWidth + nx;
+                    if (!spriteVisited[nPos] && newPixels[nPos * 4 + 3] > 0) {
+                        spriteVisited[nPos] = true;
+                        sq.push({nx, ny});
+                    }
+                }
+            }
+        }
+
+        for (int y = minY; y <= maxY; ++y) {
+            for (int x = minX; x <= maxX; ++x) {
+                int pos = y * texWidth + x;
+                if (newPixels[pos * 4 + 3] == 0 && !isExterior[pos] && !targetHoleMask[pos]) {
+                    targetHoleMask[pos] = true;
+                    holesToFill.push_back(pos);
+                }
+            }
+        }
+    }
+
+    if (holesToFill.empty()) return;
+
+    struct ColorSource {
+        int x, y;
+        uint8_t r, g, b;
+    };
+
+    std::queue<ColorSource> propQueue;
+    std::vector<bool> propVisited(texWidth * texHeight, false);
+
+    for (int hPos : holesToFill) {
+        int hx = hPos % texWidth;
+        int hy = hPos / texWidth;
+
+        for (int i = 0; i < 4; ++i) {
+            int nx = hx + dx[i];
+            int ny = hy + dy[i];
+            if (nx >= 0 && nx < texWidth && ny >= 0 && ny < texHeight) {
+                int nPos = ny * texWidth + nx;
+                if (newPixels[nPos * 4 + 3] > 0 && !propVisited[nPos]) {
+                    propVisited[nPos] = true;
+                    propQueue.push({nx, ny, newPixels[nPos * 4], newPixels[nPos * 4 + 1], newPixels[nPos * 4 + 2]});
+                }
+            }
+        }
+    }
+
+    if (propQueue.empty()) return;
+
+    while (!propQueue.empty()) {
+        auto src = propQueue.front();
+        propQueue.pop();
+
+        for (int i = 0; i < 4; ++i) {
+            int nx = src.x + dx[i];
+            int ny = src.y + dy[i];
+            if (nx >= 0 && nx < texWidth && ny >= 0 && ny < texHeight) {
+                int nPos = ny * texWidth + nx;
+                if (targetHoleMask[nPos] && newPixels[nPos * 4 + 3] == 0) {
+                    size_t idx = static_cast<size_t>(nPos) * 4;
+                    newPixels[idx] = src.r;
+                    newPixels[idx + 1] = src.g;
+                    newPixels[idx + 2] = src.b;
+                    newPixels[idx + 3] = 255;
+                    propQueue.push({nx, ny, src.r, src.g, src.b});
+                }
+            }
+        }
+    }
+
+    auto cmd = std::make_unique<PixelRegionCommand>(texture, oldPixels, newPixels);
+    if (m_commandHistory) {
+        m_commandHistory->ExecuteCommand(std::move(cmd));
+    } else {
+        texture->SetPixels(newPixels);
+    }
+}
 }

@@ -341,7 +341,7 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
             if (m_isArtifactMode) {
                 bool isShift = sf::Keyboard::isKeyPressed(sf::Keyboard::LShift) || sf::Keyboard::isKeyPressed(sf::Keyboard::RShift);
                 if (isShift) {
-                    m_engine.RemoveColorGlobal(static_cast<int>(worldPos.x), static_cast<int>(worldPos.y), 30.0f);
+                    m_engine.FillInternalHoles(static_cast<int>(worldPos.x), static_cast<int>(worldPos.y));
                     m_viewport.RefreshTexture(m_engine);
                     return;
                 }

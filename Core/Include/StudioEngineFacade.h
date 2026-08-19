@@ -74,6 +74,7 @@ public:
     void RemoveColorGlobal(int targetX, int targetY, float tolerance = 25.0f);
     void CleanCurrentTexture();
     void DeleteArea(int x, int y, int width, int height);
+    void FillInternalHoles(int targetX, int targetY);
 private:
     std::shared_ptr<WorkspaceManager> m_workspace;
     std::unique_ptr<BackgroundJobQueue> m_jobQueue;
