@@ -5,6 +5,7 @@
 #include "DataModels/SpriteDefinition.h"
 #include <algorithm>
 #include <queue>
+#include <cmath>
 
 #ifdef LoadImage
 #undef LoadImage
@@ -213,8 +214,12 @@ void SpriteSheetStudioPanel::Initialize() {
             m_isArtifactMode = false;
             m_isInfillMode = false;
             m_isDeleteMode = false;
-            m_engine.MergeOverlappingSprites();
-            m_viewport.RefreshTexture(m_engine);
+            auto selectedIds = m_viewport.GetSelectedSpriteIds();
+            if (selectedIds.size() >= 2) {
+                m_engine.MergeSelectedSprites(selectedIds);
+                m_viewport.ClearSelection();
+                m_viewport.RefreshTexture(m_engine);
+            }
         },
         [this]() {
             m_isArtifactMode = false;
@@ -482,7 +487,7 @@ void SpriteSheetStudioPanel::Update(float deltaTime, const sf::RenderWindow& win
         m_engine.Update(deltaTime);
         m_viewport.Update(deltaTime);
         m_autoSaveTimer += deltaTime;
-        if (m_autoSaveTimer >= 300.0f) {
+        if (m_autoSaveTimer >= 30.0f) {
             if (m_engine.IsProjectActive()) m_engine.SaveProject("autosave_backup.sps");
             m_autoSaveTimer = 0.0f;
         }
