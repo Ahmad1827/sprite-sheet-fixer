@@ -17,57 +17,54 @@
 #include <commdlg.h>
 
 enum class DialogMode {
-    ImageOnly,
-    CombinedOpen,
-    ProjectSave
+    OpenImage,
+    SaveImage
 };
 
-static std::string openWindowsFileDialog(DialogMode mode) {
+static std::string openWindowsFileDialog(DialogMode mode, const char* defaultName = "spritesheet.png") {
     char currentDir[MAX_PATH];
     GetCurrentDirectoryA(MAX_PATH, currentDir);
     OPENFILENAMEA ofn;
     char szFile[MAX_PATH] = { 0 };
-    ZeroMemory(&ofn, sizeof(ofn));
-    ofn.lStructSize = sizeof(ofn);
-    ofn.hwndOwner = NULL;
-    ofn.lpstrFile = szFile;
-    ofn.nMaxFile = sizeof(szFile);
-    const char imageFilter[] = "Image Files (*.png;*.jpg;*.jpeg)\0*.png;*.jpg;*.jpeg\0All Files (*.*)\0*.*\0\0";
-    const char combinedFilter[] = "All Supported Files (*.png;*.jpg;*.jpeg;*.sps)\0*.png;*.jpg;*.jpeg;*.sps\0Image Files (*.png;*.jpg;*.jpeg)\0*.png;*.jpg;*.jpeg\0Sprite Sheet Studio (*.sps)\0*.sps\0All Files (*.*)\0*.*\0\0";
-    ofn.lpstrFilter = (mode == DialogMode::CombinedOpen) ? combinedFilter : imageFilter;
-    ofn.nFilterIndex = 1;
-    ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
-    std::string result = "";
-    if (GetOpenFileNameA(&ofn)) {
-        result = std::string(ofn.lpstrFile);
+    if (mode == DialogMode::SaveImage && defaultName) {
+        strcpy_s(szFile, defaultName);
     }
-    SetCurrentDirectoryA(currentDir);
-    return result;
-}
-
-static std::string saveWindowsFileDialog(const char* defaultName = "project.sps") {
-    char currentDir[MAX_PATH];
-    GetCurrentDirectoryA(MAX_PATH, currentDir);
-    OPENFILENAMEA ofn;
-    char szFile[MAX_PATH] = { 0 };
-    strcpy_s(szFile, defaultName);
     ZeroMemory(&ofn, sizeof(ofn));
     ofn.lStructSize = sizeof(ofn);
     ofn.hwndOwner = NULL;
     ofn.lpstrFile = szFile;
     ofn.nMaxFile = sizeof(szFile);
-    const char saveFilter[] = "Sprite Sheet Studio (*.sps)\0*.sps\0All Files (*.*)\0*.*\0\0";
-    ofn.lpstrFilter = saveFilter;
+    const char imageFilter[] = "Image Files (*.png;*.jpg;*.jpeg;*.jfif;*.bmp;*.webp)\0*.png;*.jpg;*.jpeg;*.jfif;*.bmp;*.webp\0All Files (*.*)\0*.*\0\0";
+    ofn.lpstrFilter = imageFilter;
     ofn.nFilterIndex = 1;
-    ofn.Flags = OFN_PATHMUSTEXIST | OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR;
+    ofn.Flags = OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
+
     std::string result = "";
-    if (GetSaveFileNameA(&ofn)) {
-        result = std::string(ofn.lpstrFile);
+    if (mode == DialogMode::OpenImage) {
+        ofn.Flags |= OFN_FILEMUSTEXIST;
+        if (GetOpenFileNameA(&ofn)) {
+            result = std::string(ofn.lpstrFile);
+        }
+    } else {
+        ofn.Flags |= OFN_OVERWRITEPROMPT;
+        if (GetSaveFileNameA(&ofn)) {
+            result = std::string(ofn.lpstrFile);
+        }
     }
     SetCurrentDirectoryA(currentDir);
     return result;
 }
 #endif
+
+static std::string CleanPath(std::string path) {
+    while (!path.empty() && (path.back() == '\n' || path.back() == '\r' || path.back() == ' ' || path.back() == '\t')) {
+        path.pop_back();
+    }
+    while (!path.empty() && (path.front() == ' ' || path.front() == '\t')) {
+        path.erase(path.begin());
+    }
+    return path;
+}
 
 namespace StudioUI {
 
@@ -81,19 +78,22 @@ void SpriteSheetStudioPanel::Initialize() {
     m_engine.Initialize();
     m_engine.CreateProject();
     m_viewport.Initialize();
+
     if (!m_engine.IsAutoAlignEnabled()) {
         m_engine.ToggleAutoAlign();
     }
+
     m_toolbar.Initialize("Resources/font.ttf",
         [this]() {
             m_isArtifactMode = false;
             m_isInfillMode = false;
             m_isDeleteMode = false;
 #if defined(_WIN32)
-            std::string path = openWindowsFileDialog(DialogMode::ImageOnly);
+            std::string path = openWindowsFileDialog(DialogMode::OpenImage);
 #else
-            std::string path = NativeFileDialog::OpenFileDialog();
+            std::string path = NativeFileDialog::OpenFileDialog("Image Files (*.png;*.jpg;*.jpeg;*.jfif;*.bmp;*.webp)");
 #endif
+            path = CleanPath(path);
             if (!path.empty()) LoadImage(path);
         },
         [this]() {
@@ -101,29 +101,30 @@ void SpriteSheetStudioPanel::Initialize() {
             m_isInfillMode = false;
             m_isDeleteMode = false;
 #if defined(_WIN32)
-            std::string path = openWindowsFileDialog(DialogMode::CombinedOpen);
+            std::string path = openWindowsFileDialog(DialogMode::OpenImage);
 #else
-            std::string path = NativeFileDialog::OpenFileDialog("Supported Files (*.png;*.jpg;*.jpeg;*.jfif;*.sps)");
+            std::string path = NativeFileDialog::OpenFileDialog("Image Files (*.png;*.jpg;*.jpeg;*.jfif;*.bmp;*.webp)");
 #endif
-            if (!path.empty()) {
-                if (path.find(".sps") != std::string::npos) {
-                    std::string err;
-                    if (m_engine.LoadProject(path, err)) m_viewport.RefreshTexture(m_engine);
-                } else {
-                    LoadImage(path);
-                }
-            }
+            path = CleanPath(path);
+            if (!path.empty()) LoadImage(path);
         },
         [this]() {
             m_isArtifactMode = false;
             m_isInfillMode = false;
             m_isDeleteMode = false;
 #if defined(_WIN32)
-            std::string path = saveWindowsFileDialog("project.sps");
+            std::string path = openWindowsFileDialog(DialogMode::SaveImage, "spritesheet.png");
 #else
-            std::string path = NativeFileDialog::SaveFileDialog("project.sps");
+            std::string path = NativeFileDialog::SaveFileDialog("spritesheet.png");
 #endif
-            if (!path.empty()) m_engine.SaveProject(path);
+            path = CleanPath(path);
+            if (!path.empty() && m_engine.IsProjectActive()) {
+                namespace fs = std::filesystem;
+                fs::path p(path);
+                std::string folder = p.parent_path().string();
+                std::string base = p.stem().string();
+                m_engine.ExportIndividualSprites(folder.empty() ? "." : folder, base);
+            }
         },
         [this]() {
             m_isArtifactMode = false;
@@ -137,10 +138,11 @@ void SpriteSheetStudioPanel::Initialize() {
             m_isInfillMode = false;
             m_isDeleteMode = false;
 #if defined(_WIN32)
-            std::string path = saveWindowsFileDialog("frame.png");
+            std::string path = openWindowsFileDialog(DialogMode::SaveImage, "frame.png");
 #else
             std::string path = NativeFileDialog::SaveFileDialog("frame.png");
 #endif
+            path = CleanPath(path);
             if (!path.empty()) {
                 namespace fs = std::filesystem;
                 fs::path p(path);
@@ -283,8 +285,9 @@ void SpriteSheetStudioPanel::Initialize() {
 }
 
 void SpriteSheetStudioPanel::LoadImage(const std::string& filePath) {
+    std::string clean = CleanPath(filePath);
     std::string errorMsg;
-    if (m_engine.ImportImage(filePath, errorMsg)) {
+    if (m_engine.ImportImage(clean, errorMsg)) {
         m_viewport.RefreshTexture(m_engine);
     }
 }
@@ -308,32 +311,51 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
             }
         }
         if (isControl) {
-            if (event.key.code == sf::Keyboard::Z) { m_engine.Undo(); m_viewport.RefreshTexture(m_engine); return; }
-            if (event.key.code == sf::Keyboard::Y) { m_engine.Redo(); m_viewport.RefreshTexture(m_engine); return; }
-            if (event.key.code == sf::Keyboard::E) { m_isExportMode = true; m_exportPreview.Activate(m_engine); return; }
-            if (event.key.code == sf::Keyboard::L) {
+            if (event.key.code == sf::Keyboard::Z) {
+                if (isShift) {
+                    m_engine.Redo();
+                } else {
+                    m_engine.Undo();
+                }
+                m_viewport.RefreshTexture(m_engine);
+                return;
+            }
+            if (event.key.code == sf::Keyboard::Y) {
+                m_engine.Redo();
+                m_viewport.RefreshTexture(m_engine);
+                return;
+            }
+            if (event.key.code == sf::Keyboard::E) {
+                m_isExportMode = true;
+                m_exportPreview.Activate(m_engine);
+                return;
+            }
+            if (event.key.code == sf::Keyboard::L || event.key.code == sf::Keyboard::O) {
 #if defined(_WIN32)
-                std::string path = openWindowsFileDialog(DialogMode::CombinedOpen);
+                std::string path = openWindowsFileDialog(DialogMode::OpenImage);
 #else
-                std::string path = NativeFileDialog::OpenFileDialog("Supported Files (*.png;*.jpg;*.jpeg;*.jfif;*.sps)");
+                std::string path = NativeFileDialog::OpenFileDialog("Image Files (*.png;*.jpg;*.jpeg;*.jfif;*.bmp;*.webp)");
 #endif
+                path = CleanPath(path);
                 if (!path.empty()) {
-                    if (path.find(".sps") != std::string::npos) {
-                        std::string err;
-                        if (m_engine.LoadProject(path, err)) m_viewport.RefreshTexture(m_engine);
-                    } else {
-                        LoadImage(path);
-                    }
+                    LoadImage(path);
                 }
                 return;
             }
             if (event.key.code == sf::Keyboard::S) {
 #if defined(_WIN32)
-                std::string path = saveWindowsFileDialog("project.sps");
+                std::string path = openWindowsFileDialog(DialogMode::SaveImage, "spritesheet.png");
 #else
-                std::string path = NativeFileDialog::SaveFileDialog("project.sps");
+                std::string path = NativeFileDialog::SaveFileDialog("spritesheet.png");
 #endif
-                if (!path.empty()) m_engine.SaveProject(path);
+                path = CleanPath(path);
+                if (!path.empty() && m_engine.IsProjectActive()) {
+                    namespace fs = std::filesystem;
+                    fs::path p(path);
+                    std::string folder = p.parent_path().string();
+                    std::string base = p.stem().string();
+                    m_engine.ExportIndividualSprites(folder.empty() ? "." : folder, base);
+                }
                 return;
             }
         }
@@ -504,11 +526,6 @@ void SpriteSheetStudioPanel::Update(float deltaTime, const sf::RenderWindow& win
     if (!m_isWizardMode) {
         m_engine.Update(deltaTime);
         m_viewport.Update(deltaTime);
-        m_autoSaveTimer += deltaTime;
-        if (m_autoSaveTimer >= 30.0f) {
-            if (m_engine.IsProjectActive()) m_engine.SaveProject("autosave_backup.sps");
-            m_autoSaveTimer = 0.0f;
-        }
         sf::Vector2i pixelPos = sf::Mouse::getPosition(window);
         sf::Vector2f worldPos = window.mapPixelToCoords(pixelPos);
         int totalSprites = (m_engine.IsProjectActive() && m_engine.GetCurrentProject())
