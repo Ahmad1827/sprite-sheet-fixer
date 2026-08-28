@@ -68,6 +68,63 @@ static std::string CleanPath(std::string path) {
     return path;
 }
 
+static std::vector<std::vector<std::shared_ptr<StudioCore::SpriteDefinition>>> g_undoSprites;
+static std::vector<std::vector<std::shared_ptr<StudioCore::SpriteDefinition>>> g_redoSprites;
+
+static void PushUndoState(StudioCore::StudioEngineFacade& engine) {
+    if (!engine.IsProjectActive() || !engine.GetCurrentProject()) return;
+    auto project = engine.GetCurrentProject();
+    std::vector<std::shared_ptr<StudioCore::SpriteDefinition>> cloned;
+    for (const auto& s : project->GetSprites()) {
+        if (!s) continue;
+        auto copy = std::make_shared<StudioCore::SpriteDefinition>(s->GetId(), s->GetSourceRect());
+        copy->SetPivot(s->GetPivot());
+        cloned.push_back(copy);
+    }
+    g_undoSprites.push_back(cloned);
+    g_redoSprites.clear();
+}
+
+static void PerformUndo(StudioCore::StudioEngineFacade& engine) {
+    if (!g_undoSprites.empty() && engine.IsProjectActive() && engine.GetCurrentProject()) {
+        auto project = engine.GetCurrentProject();
+        std::vector<std::shared_ptr<StudioCore::SpriteDefinition>> currentCloned;
+        for (const auto& s : project->GetSprites()) {
+            if (!s) continue;
+            auto copy = std::make_shared<StudioCore::SpriteDefinition>(s->GetId(), s->GetSourceRect());
+            copy->SetPivot(s->GetPivot());
+            currentCloned.push_back(copy);
+        }
+        g_redoSprites.push_back(currentCloned);
+
+        auto prevState = g_undoSprites.back();
+        g_undoSprites.pop_back();
+
+        project->SetSprites(prevState);
+    }
+    engine.Undo();
+}
+
+static void PerformRedo(StudioCore::StudioEngineFacade& engine) {
+    if (!g_redoSprites.empty() && engine.IsProjectActive() && engine.GetCurrentProject()) {
+        auto project = engine.GetCurrentProject();
+        std::vector<std::shared_ptr<StudioCore::SpriteDefinition>> currentCloned;
+        for (const auto& s : project->GetSprites()) {
+            if (!s) continue;
+            auto copy = std::make_shared<StudioCore::SpriteDefinition>(s->GetId(), s->GetSourceRect());
+            copy->SetPivot(s->GetPivot());
+            currentCloned.push_back(copy);
+        }
+        g_undoSprites.push_back(currentCloned);
+
+        auto nextState = g_redoSprites.back();
+        g_redoSprites.pop_back();
+
+        project->SetSprites(nextState);
+    }
+    engine.Redo();
+}
+
 static void ExportAtlasMetadata(StudioCore::StudioEngineFacade& engine, const std::string& baseFilePath) {
     if (!engine.IsProjectActive() || !engine.GetCurrentProject()) return;
     auto project = engine.GetCurrentProject();
@@ -245,6 +302,8 @@ void SpriteSheetStudioPanel::Initialize() {
             m_isInfillMode = false;
             m_isDeleteMode = false;
             if (m_engine.IsProjectActive() && m_engine.GetCurrentProject()) {
+                PushUndoState(m_engine);
+
                 StudioCore::DetectionConfig config;
                 config.minSpriteSize = 10;
                 m_engine.RunAutoDetection(config);
@@ -316,6 +375,7 @@ void SpriteSheetStudioPanel::Initialize() {
             m_isDeleteMode = false;
             auto selectedIds = m_viewport.GetSelectedSpriteIds();
             if (selectedIds.size() >= 2) {
+                PushUndoState(m_engine);
                 m_engine.MergeSelectedSprites(selectedIds);
                 m_viewport.ClearSelection();
                 m_viewport.RefreshTexture(m_engine);
@@ -325,6 +385,7 @@ void SpriteSheetStudioPanel::Initialize() {
             m_isArtifactMode = false;
             m_isInfillMode = false;
             m_isDeleteMode = false;
+            PushUndoState(m_engine);
             m_engine.CleanCurrentTexture();
             m_viewport.RefreshTexture(m_engine);
         },
@@ -347,6 +408,7 @@ void SpriteSheetStudioPanel::Initialize() {
             m_isArtifactMode = false;
             m_isInfillMode = false;
             m_isDeleteMode = false;
+            PushUndoState(m_engine);
             m_engine.RepackFrames();
             m_viewport.RefreshTexture(m_engine);
         },
@@ -354,6 +416,7 @@ void SpriteSheetStudioPanel::Initialize() {
             m_isArtifactMode = false;
             m_isInfillMode = false;
             m_isDeleteMode = false;
+            PushUndoState(m_engine);
             m_engine.FlipHorizontal();
             m_viewport.RefreshTexture(m_engine);
         }
@@ -367,6 +430,7 @@ void SpriteSheetStudioPanel::Initialize() {
 void SpriteSheetStudioPanel::LoadImage(const std::string& filePath) {
     std::string clean = CleanPath(filePath);
     std::string errorMsg;
+    PushUndoState(m_engine);
     if (m_engine.ImportImage(clean, errorMsg)) {
         m_viewport.RefreshTexture(m_engine);
     }
@@ -384,6 +448,7 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
 
         if (isShift && event.key.code == sf::Keyboard::N) {
             if (m_engine.IsProjectActive()) {
+                PushUndoState(m_engine);
                 static int animCounter = 1;
                 m_engine.CreateAnimation("New Animation " + std::to_string(animCounter++));
                 m_viewport.RefreshTexture(m_engine);
@@ -393,15 +458,17 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
         if (isControl) {
             if (event.key.code == sf::Keyboard::Z) {
                 if (isShift) {
-                    m_engine.Redo();
+                    PerformRedo(m_engine);
                 } else {
-                    m_engine.Undo();
+                    PerformUndo(m_engine);
                 }
+                m_viewport.ClearSelection();
                 m_viewport.RefreshTexture(m_engine);
                 return;
             }
             if (event.key.code == sf::Keyboard::Y) {
-                m_engine.Redo();
+                PerformRedo(m_engine);
+                m_viewport.ClearSelection();
                 m_viewport.RefreshTexture(m_engine);
                 return;
             }
@@ -470,7 +537,10 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
             m_exportPreview.HandleEvent(event, window, m_engine);
             if (!m_exportPreview.IsActive()) {
                 m_isExportMode = false;
-                ExportAtlasMetadata(m_engine, "assetsfixed2.png");
+                std::string lastPath = m_exportPreview.GetLastExportPath();
+                if (!lastPath.empty()) {
+                    ExportAtlasMetadata(m_engine, lastPath);
+                }
             }
         }
         return;
@@ -510,6 +580,8 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
             float maxX = std::max(m_artifactDragStart.x, dragEnd.x);
             float minY = std::min(m_artifactDragStart.y, dragEnd.y);
             float maxY = std::max(m_artifactDragStart.y, dragEnd.y);
+
+            PushUndoState(m_engine);
 
             if (m_isInfillMode) {
                 m_engine.FillTransparencyArea(
@@ -568,6 +640,7 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
         if (!targetSpriteId.empty()) {
             std::vector<StudioUI::ContextMenuItem> items = {
                 {"Delete Sprite", [this, targetSpriteId]() {
+                    PushUndoState(m_engine);
                     m_engine.DeleteSpriteWithPixels(targetSpriteId);
                     m_viewport.RefreshTexture(m_engine);
                 }},
@@ -576,6 +649,7 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
                     if (!proj) return;
                     auto sprite = proj->GetSpriteById(targetSpriteId);
                     if (sprite) {
+                        PushUndoState(m_engine);
                         auto rect = sprite->GetSourceRect();
                         sprite->SetPivot({rect.width / 2.0f, rect.height / 2.0f});
                         m_viewport.RefreshTexture(m_engine);

@@ -1,6 +1,9 @@
 #include "Panels/ExportPreviewPanel.h"
 #include "StudioEngineFacade.h"
 #include <iostream>
+#include <vector>
+#include <fstream>
+#include <filesystem>
 #include "Utils/NativeFileDialog.h"
 
 namespace StudioUI {
@@ -41,7 +44,8 @@ void ExportPreviewPanel::RefreshPreview(const StudioCore::StudioEngineFacade& en
 
 void ExportPreviewPanel::Activate(const StudioCore::StudioEngineFacade& engine) {
     m_isActive = true;
-    m_keepOriginalResolution = false; // Defaults to clean cropped packaging
+    m_keepOriginalResolution = false;
+    m_lastExportPath.clear();
     RefreshPreview(engine);
     m_view.setCenter(0.0f, 0.0f);
     m_currentZoom = 1.0f;
@@ -63,6 +67,7 @@ bool ExportPreviewPanel::HandleEvent(const sf::Event& event, const sf::RenderWin
             if (!savePath.empty()) {
                 if (engine.ExportPNG(savePath, 8, m_keepOriginalResolution)) {
                     std::cout << "[✓] Exported successfully to: " << savePath << std::endl;
+                    m_lastExportPath = savePath;
                     m_isActive = false;
                 } else {
                     std::cerr << "[X] Failed to save exported image." << std::endl;

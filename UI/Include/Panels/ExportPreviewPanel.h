@@ -18,6 +18,7 @@ public:
     void Render(sf::RenderWindow& window);
 
     bool IsActive() const { return m_isActive; }
+    const std::string& GetLastExportPath() const { return m_lastExportPath; }
 
 private:
     void RefreshPreview(const StudioCore::StudioEngineFacade& engine);
@@ -34,6 +35,7 @@ private:
     float m_currentZoom{1.0f};
     bool m_isActive{false};
     bool m_keepOriginalResolution{false};
+    std::string m_lastExportPath;
 };
 
 }
