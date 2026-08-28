@@ -7,6 +7,7 @@
 #include <queue>
 #include <cmath>
 #include <fstream>
+#include <iostream>
 #include <filesystem>
 
 #ifdef LoadImage
@@ -70,8 +71,24 @@ static std::string CleanPath(std::string path) {
 static void ExportAtlasMetadata(StudioCore::StudioEngineFacade& engine, const std::string& baseFilePath) {
     if (!engine.IsProjectActive() || !engine.GetCurrentProject()) return;
     auto project = engine.GetCurrentProject();
+
+    if (project->GetSprites().empty()) {
+        StudioCore::DetectionConfig cfg;
+        cfg.minSpriteSize = 10;
+        engine.RunAutoDetection(cfg);
+    }
+
     auto sprites = project->GetSprites();
     if (sprites.empty()) return;
+
+    std::sort(sprites.begin(), sprites.end(), [](const std::shared_ptr<StudioCore::SpriteDefinition>& a, const std::shared_ptr<StudioCore::SpriteDefinition>& b) {
+        auto ra = a->GetSourceRect();
+        auto rb = b->GetSourceRect();
+        if (std::abs(ra.y - rb.y) > 20) {
+            return ra.y < rb.y;
+        }
+        return ra.x < rb.x;
+    });
 
     namespace fs = std::filesystem;
     fs::path p(baseFilePath);
@@ -119,6 +136,9 @@ static void ExportAtlasMetadata(StudioCore::StudioEngineFacade& engine, const st
         }
         tf.close();
     }
+
+    std::cout << "[SpriteSheetStudio] Atlas generated: " << atlasJsonPath << " (" << sprites.size() << " sprites)" << std::endl;
+    std::cout << "[SpriteSheetStudio] Atlas generated: " << atlasTxtPath << std::endl;
 }
 
 namespace StudioUI {
@@ -274,6 +294,9 @@ void SpriteSheetStudioPanel::Initialize() {
                 }
 
                 std::sort(mainSprites.begin(), mainSprites.end(), [](const StudioCore::Rect& a, const StudioCore::Rect& b) {
+                    if (std::abs(a.y - b.y) > 20) {
+                        return a.y < b.y;
+                    }
                     return a.x < b.x; 
                 });
 
@@ -447,6 +470,7 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
             m_exportPreview.HandleEvent(event, window, m_engine);
             if (!m_exportPreview.IsActive()) {
                 m_isExportMode = false;
+                ExportAtlasMetadata(m_engine, "assetsfixed2.png");
             }
         }
         return;
