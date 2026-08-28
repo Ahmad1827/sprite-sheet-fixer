@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <queue>
 #include <cmath>
+#include <fstream>
 #include <filesystem>
 
 #ifdef LoadImage
@@ -66,6 +67,60 @@ static std::string CleanPath(std::string path) {
     return path;
 }
 
+static void ExportAtlasMetadata(StudioCore::StudioEngineFacade& engine, const std::string& baseFilePath) {
+    if (!engine.IsProjectActive() || !engine.GetCurrentProject()) return;
+    auto project = engine.GetCurrentProject();
+    auto sprites = project->GetSprites();
+    if (sprites.empty()) return;
+
+    namespace fs = std::filesystem;
+    fs::path p(baseFilePath);
+    std::string folder = p.parent_path().string();
+    if (folder.empty()) folder = ".";
+    std::string stem = p.stem().string();
+
+    std::string atlasJsonPath = (fs::path(folder) / (stem + "-ATLAS.json")).string();
+    std::string atlasTxtPath = (fs::path(folder) / (stem + "-ATLAS.txt")).string();
+
+    std::ofstream jf(atlasJsonPath);
+    if (jf.is_open()) {
+        jf << "{\n";
+        jf << "  \"exported_file\": \"" << stem << "\",\n";
+        jf << "  \"total_sprites\": " << sprites.size() << ",\n";
+        jf << "  \"sprites\": [\n";
+        for (size_t i = 0; i < sprites.size(); ++i) {
+            const auto& s = sprites[i];
+            auto r = s->GetSourceRect();
+            jf << "    {\n";
+            jf << "      \"index\": " << (i + 1) << ",\n";
+            jf << "      \"id\": \"" << s->GetId() << "\",\n";
+            jf << "      \"x\": " << r.x << ",\n";
+            jf << "      \"y\": " << r.y << ",\n";
+            jf << "      \"width\": " << r.width << ",\n";
+            jf << "      \"height\": " << r.height << "\n";
+            jf << "    }" << (i + 1 < sprites.size() ? "," : "") << "\n";
+        }
+        jf << "  ]\n";
+        jf << "}\n";
+        jf.close();
+    }
+
+    std::ofstream tf(atlasTxtPath);
+    if (tf.is_open()) {
+        tf << "========================================================\n";
+        tf << " ATLAS METADATA: " << stem << "\n";
+        tf << "========================================================\n";
+        tf << "INDEX | ID | X | Y | WIDTH | HEIGHT\n";
+        tf << "--------------------------------------------------------\n";
+        for (size_t i = 0; i < sprites.size(); ++i) {
+            const auto& s = sprites[i];
+            auto r = s->GetSourceRect();
+            tf << (i + 1) << " | " << s->GetId() << " | X=" << r.x << " Y=" << r.y << " W=" << r.width << " H=" << r.height << "\n";
+        }
+        tf.close();
+    }
+}
+
 namespace StudioUI {
 
 SpriteSheetStudioPanel::SpriteSheetStudioPanel() {
@@ -124,6 +179,7 @@ void SpriteSheetStudioPanel::Initialize() {
                 std::string folder = p.parent_path().string();
                 std::string base = p.stem().string();
                 m_engine.ExportIndividualSprites(folder.empty() ? "." : folder, base);
+                ExportAtlasMetadata(m_engine, path);
             }
         },
         [this]() {
@@ -149,6 +205,7 @@ void SpriteSheetStudioPanel::Initialize() {
                 std::string folder = p.parent_path().string();
                 std::string base = p.stem().string();
                 m_engine.ExportIndividualSprites(folder.empty() ? "." : folder, base);
+                ExportAtlasMetadata(m_engine, path);
             }
         },
         [this]() {
@@ -355,6 +412,7 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
                     std::string folder = p.parent_path().string();
                     std::string base = p.stem().string();
                     m_engine.ExportIndividualSprites(folder.empty() ? "." : folder, base);
+                    ExportAtlasMetadata(m_engine, path);
                 }
                 return;
             }
