@@ -2,107 +2,59 @@
 
 A professional, cross-platform sprite sheet processing and animation preparation tool built with **C++17** and **SFML**.
 
-Sprite Sheet Studio is designed as a standalone engine module that automatically detects sprites, aligns animation frames, edits pivots and baselines non-destructively, previews animations in real time, and exports production-ready sprite atlases with metadata.
-
-The architecture is intentionally separated into a reusable **Core engine** and an embeddable **UI module**, allowing the tool to be integrated into larger applications such as **Wisdom Park** without modifying its processing pipeline.
+Sprite Sheet Studio is designed as a modular engine component that automatically detects sprites, aligns animation frames, edits pivots and baselines non-destructively, previews animations in real time, and exports production-ready sprite atlases with structured metadata.
 
 ---
 
-# Features
+## Preview
 
-## Image Import
-
-- Import PNG sprite sheets
-- Cross-platform file dialogs (Linux / Windows)
-- Large texture support
-- Immutable source texture architecture
+![Sprite Sheet Studio Demo](Resources/gifSSF.gif)
 
 ---
 
-## Automatic Sprite Detection
+## Features
 
-- Connected Component Labeling (CCL)
-- Alpha-based sprite extraction
-- Automatic bounding box generation
-- Batch sprite detection
+### Image Import & Handling
+- **PNG Sprite Sheet Support:** High-resolution texture processing.
+- **Cross-Platform File Dialogs:** Native file pickers for both Linux and Windows.
+- **Immutable Source Architecture:** Original assets remain untouched in memory and on disk.
 
----
+### Automatic Sprite Detection
+- **Connected Component Labeling (CCL):** Fast pixel-connectivity grouping.
+- **Alpha-Based Extraction:** Isolate sprites based on transparency thresholds.
+- **Bounding Box Generation:** Automatic bounding calculations with customizable padding and spacing.
+- **Batch Detection:** Single-click workspace population for dense atlases.
 
-## Sprite Editing
+### Interactive Sprite & Pivot Editing
+- **Direct Manipulation:** Interactive sprite selection, bounding box resizing, and repositioning.
+- **Baseline & Pivot Tuning:** Dedicated tools to align ground baselines and rotation/anchor pivots.
+- **Multi-Selection Operations:** Move, group, and bulk-adjust frames simultaneously.
 
-- Interactive sprite selection
-- Resize selection
-- Pivot editing
-- Baseline editing
-- Sprite alignment tools
-- Multi-sprite selection support
+### Animation & Timeline Engine
+- **Timeline Workspace:** Multi-frame timeline editor with drag-and-drop reordering.
+- **Playback Controls:** Real-time preview with loop, pause, step, and dynamic FPS controls.
+- **Automatic Animation Builder:** Auto-group sequenced frames based on spatial layout.
 
----
+### Alignment Engine
+- **Baseline Detection:** Automatic detection of ground contact points across sequences.
+- **Frame Normalization:** Uniform positioning across disparate frame bounding dimensions.
+- **Visual Diffing:** Real-time visual comparison overlay before finalizing exports.
 
-## Animation Tools
+### Export Pipeline
+- **PNG Atlas:** Packed texture atlas generated with tight packing algorithms.
+- **JSON Metadata:** Structured frame definitions, pivots, bounding boxes, and animation tags.
+- **Configurable Layouts:** Adjustable padding, borders, and power-of-two constraints.
 
-- Animation creation
-- Timeline editor
-- Frame ordering
-- Playback controls
-- Live animation preview
-- FPS adjustment
-- Automatic animation builder
-
----
-
-## Alignment Engine
-
-- Automatic baseline detection
-- Frame alignment
-- Uniform animation positioning
-- Batch alignment workflow
-- Visual comparison before export
+### Editor & Workflow
+- **History Management:** Full multi-level Undo / Redo system.
+- **Viewport Navigation:** Smooth pan, zoom, coordinate axes, and responsive grid overlays.
+- **Dark Theme UI:** Engineered for workflow focus and tool accessibility.
 
 ---
 
-## Export Pipeline
+## Architecture
 
-Export aligned sprite sheets as:
-
-- PNG Atlas
-- JSON Metadata
-
-Supports:
-
-- Configurable spacing
-- Padding
-- Grid generation
-- Production-ready atlases
-
----
-
-## Project System
-
-- Save projects
-- Load projects
-- Non-destructive editing
-- Metadata-driven workflow
-
----
-
-## Editor Features
-
-- Undo
-- Redo
-- Zoom
-- Pan
-- Grid rendering
-- Sprite gizmos
-- Status bar
-- Professional dark UI
-- Keyboard shortcuts
-
----
-
-# Architecture
-
-The project is divided into two independent modules.
+The project is structured into two completely decoupled layers:
 
 ```
 SpriteSheetStudio
@@ -123,135 +75,75 @@ SpriteSheetStudio
     └── SpriteSheetStudioPanel
 ```
 
-## Core
+### Core Engine
+The `Core` module contains all pure processing algorithms, state machines, math operations, and serialization routines. It does not depend on the rendering UI or application framework.
 
-The Core contains all processing logic and is completely independent of the user interface.
+Key subsystems:
+- Sprite detection & segmentation algorithms
+- Baseline analysis & alignment transformations
+- Command pattern stack (Undo/Redo execution)
+- Export & packing processors
 
-Responsibilities include:
-
-- Sprite detection
-- Image loading
-- Baseline analysis
-- Sprite alignment
-- Animation management
-- Export pipeline
-- Project serialization
-- Undo / Redo system
-
-The Core exposes a single public API:
-
-```
+The entire engine communicates via a single public entry point:
+```cpp
 StudioEngineFacade
 ```
 
----
-
-## UI
-
-The UI is responsible only for visualization.
-
-It communicates exclusively with the `StudioEngineFacade` and never performs image processing itself.
-
-The UI can be embedded into external applications as a reusable module.
+### UI Module
+The `UI` module handles user interaction, rendering gizmos, panels, and viewports. It delegates all operations to `StudioEngineFacade`, ensuring the UI can be embedded directly into external host engines (such as **Wisdom Park**) without architectural modifications.
 
 ---
 
-# Non-Destructive Workflow
+## Non-Destructive Workflow
 
-Sprite Sheet Studio never modifies the original imported image.
+Every transformation, crop, baseline adjustment, and pivot shift is stored strictly as metadata. The underlying source texture remains untouched throughout the workflow:
 
-Instead, every edit is stored as metadata:
-
-- Bounding rectangles
-- Pivot positions
-- Baselines
-- Animation groups
-- Export settings
-
-The final aligned sprite sheet is generated only during export.
+**Source Image + Metadata Operations -> Export Pipeline -> Optimized Atlas + JSON Manifest**
 
 ---
 
-# Current Capabilities
+## Tech Stack
 
-- PNG Import
-- Automatic sprite detection
-- Interactive sprite editing
-- Baseline editing
-- Pivot editing
-- Animation timeline
-- Automatic animation builder
-- Live animation preview
-- Sprite alignment
-- Project save/load
-- PNG export
-- JSON metadata export
-- Undo / Redo
-- Professional editor interface
+- **Language:** C++17
+- **Graphics & Windowing:** SFML 2.6+
+- **Build System:** CMake / MSBuild / Make
+- **Packaging:** `ship` standalone packaging utility
 
 ---
 
-# Planned Integration
+## Building & Installation
 
-Sprite Sheet Studio has been architected to integrate directly into **Wisdom Park**.
-
-The engine has been separated from the application lifecycle, allowing it to function as an embeddable workspace tool rather than a standalone application.
-
-Future integration will allow Sprite Sheet Studio to run inside Wisdom Park while sharing the same rendering window and event system.
-
----
-
-# Technologies
-
-- C++17
-- SFML
-- CMake
-- STL
-- JSON Serialization
-
----
-
-# Building
-
-## Linux
+### Linux / WSL
 
 ```bash
-git clone https://github.com/Ahmad1827/sprite-sheet-fixer.git
-
+git clone [https://github.com/Ahmad1827/sprite-sheet-fixer.git](https://github.com/Ahmad1827/sprite-sheet-fixer.git)
 cd sprite-sheet-fixer
 
-mkdir build
-cd build
-
+mkdir build && cd build
 cmake ..
-make -j
+make -j$(nproc)
 
 ./UI/SpriteSheetStudioApp
 ```
 
----
+### Windows (Visual Studio)
 
-## Windows
+1. Open the project folder or generated solution in Visual Studio 2022.
+2. Select **Release** and **x64**.
+3. Build the solution (`Ctrl + Shift + B`).
 
-Open the generated Visual Studio solution and build the project in either:
+### Standalone Packaging (via Ship)
 
-- Debug
-- Release
+To bundle the application, all dynamic runtime dependencies, and assets into a single standalone binary:
 
----
+```bash
+ship -s
+```
 
-# Project Goals
-
-- Fast sprite extraction
-- Professional animation preparation
-- Non-destructive editing
-- Cross-platform support
-- Modular architecture
-- Easy engine integration
-- Production-ready export pipeline
+The resulting binary will be output to `dist/`.
 
 ---
 
-# License
+## License
 
 This project is provided for educational and portfolio purposes.
