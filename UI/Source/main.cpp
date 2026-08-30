@@ -1,5 +1,8 @@
 #include <SFML/Graphics.hpp>
 #include "SpriteSheetStudioPanel.h"
+#include <vector>
+#include <cstdint>
+#include <algorithm>
 
 #if defined(_WIN32)
 #include <windows.h>
@@ -62,9 +65,74 @@ static void EnableDropPrivileges(HWND hwnd) {
 }
 #endif
 
+static sf::Image DownscaleIcon(const sf::Image& src, unsigned int targetSize = 32) {
+    sf::Image dest;
+    dest.create(targetSize, targetSize);
+    unsigned int srcW = src.getSize().x;
+    unsigned int srcH = src.getSize().y;
+
+    for (unsigned int y = 0; y < targetSize; ++y) {
+        for (unsigned int x = 0; x < targetSize; ++x) {
+            unsigned int srcX = (x * srcW) / targetSize;
+            unsigned int srcY = (y * srcH) / targetSize;
+            dest.setPixel(x, y, src.getPixel(srcX, srcY));
+        }
+    }
+    return dest;
+}
+
 int main() {
     sf::RenderWindow window(sf::VideoMode(1280, 720), "Sprite Sheet Fixer");
     window.setFramerateLimit(60);
+
+    sf::Image rawIcon;
+    bool loaded = rawIcon.loadFromFile("Resources/icon.png") ||
+                  rawIcon.loadFromFile("testiconssffixed.jpg") ||
+                  rawIcon.loadFromFile("Resources/icon.jpg");
+
+    if (loaded) {
+        sf::Image safeIcon = DownscaleIcon(rawIcon, 32);
+        window.setIcon(safeIcon.getSize().x, safeIcon.getSize().y, safeIcon.getPixelsPtr());
+    } else {
+        std::vector<uint8_t> pixels(16 * 16 * 4, 0);
+        const char* keyMap[16] = {
+            "................",
+            ".....#####......",
+            "....#OOOOO#.....",
+            "....#O...O#.....",
+            "....#O...O#.....",
+            "....#OOOOO#.....",
+            ".....##O##......",
+            "......#O#.......",
+            "......#O#.......",
+            "......#O#.......",
+            "......#O##......",
+            "......#OOO#.....",
+            "......#O##......",
+            "......#OOO#.....",
+            "......#O#.......",
+            ".......#........"
+        };
+        for (int y = 0; y < 16; ++y) {
+            for (int x = 0; x < 16; ++x) {
+                int idx = (y * 16 + x) * 4;
+                char c = keyMap[y][x];
+                if (c == '#') {
+                    pixels[idx + 0] = 160;
+                    pixels[idx + 1] = 110;
+                    pixels[idx + 2] = 20;
+                    pixels[idx + 3] = 255;
+                } else if (c == 'O') {
+                    pixels[idx + 0] = 255;
+                    pixels[idx + 1] = 210;
+                    pixels[idx + 2] = 40;
+                    pixels[idx + 3] = 255;
+                }
+            }
+        }
+        rawIcon.create(16, 16, pixels.data());
+        window.setIcon(16, 16, rawIcon.getPixelsPtr());
+    }
 
 #if defined(_WIN32)
     HWND hwnd = window.getSystemHandle();
