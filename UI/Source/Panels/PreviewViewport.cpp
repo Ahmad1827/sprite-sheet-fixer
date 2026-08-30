@@ -21,7 +21,6 @@ void PreviewViewport::RefreshTexture(const StudioCore::StudioEngineFacade& engin
     if (engine.HasTexture()) {
         auto coreTex = engine.GetCurrentTexture();
         
-        // Check if this is a completely new image or just a pixel update
         bool isNewImage = (!m_hasValidTexture || 
                            m_gpuTexture.getSize().x != coreTex->GetWidth() || 
                            m_gpuTexture.getSize().y != coreTex->GetHeight());
@@ -32,7 +31,6 @@ void PreviewViewport::RefreshTexture(const StudioCore::StudioEngineFacade& engin
         m_sprite.setTexture(m_gpuTexture, true);
         m_hasValidTexture = true;
         
-        // Only destroy selection and camera if a new image was loaded
         if (isNewImage) {
             m_selection.ClearSelection();
             m_selectedSpriteIds.clear();

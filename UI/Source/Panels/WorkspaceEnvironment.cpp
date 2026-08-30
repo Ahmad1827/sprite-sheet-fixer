@@ -1,10 +1,14 @@
 #include "Panels/WorkspaceEnvironment.h"
 #include "Theme.h"
+#include <vector>
 
 namespace StudioUI {
 
 void WorkspaceEnvironment::InitializeFont(const std::string& fontPath) {
-    m_font.loadFromFile(fontPath);
+    std::vector<std::string> fontCandidates = { fontPath, "Resources/font.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf" };
+    for (const auto& path : fontCandidates) {
+        if (!path.empty() && m_font.loadFromFile(path)) break;
+    }
     
     m_statusBarBg.setFillColor(Theme::PanelBackground);
     m_statusBarTopBorder.setFillColor(Theme::BorderColor);
@@ -114,4 +118,5 @@ void WorkspaceEnvironment::Render(sf::RenderWindow& window) {
         }
     }
 }
+
 }

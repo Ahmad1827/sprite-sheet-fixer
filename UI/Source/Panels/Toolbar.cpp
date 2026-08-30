@@ -23,8 +23,10 @@ void Toolbar::Initialize(const std::string& fontPath,
                          std::function<void()> onRepack,
                          std::function<void()> onFlipH) {
     
-    std::vector<std::string> fontCandidates = { fontPath, "Resources/font.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf" };
-    for (const auto& path : fontCandidates) { if (m_font.loadFromFile(path)) break; }
+    std::vector<std::string> fontCandidates = { fontPath, "Resources/font.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf" };
+    for (const auto& path : fontCandidates) {
+        if (!path.empty() && m_font.loadFromFile(path)) break;
+    }
 
     m_buttons.clear();
     
@@ -68,8 +70,13 @@ void Toolbar::LayoutButtons(float windowWidth) {
     m_dividers.clear();
 
     for (size_t i = 0; i < m_buttons.size(); ++i) {
-        m_buttons[i].bounds = sf::FloatRect(startX, 4.0f, fixedButtonWidth, buttonHeight);
-        startX += fixedButtonWidth + spacing;
+        float btnWidth = fixedButtonWidth;
+        if (m_buttons[i].id == "artifact" || m_buttons[i].id == "wizard") {
+            btnWidth = 60.0f;
+        }
+
+        m_buttons[i].bounds = sf::FloatRect(startX, 4.0f, btnWidth, buttonHeight);
+        startX += btnWidth + spacing;
 
         if (m_buttons[i].id == "export_frames" || m_buttons[i].id == "redo" || m_buttons[i].id == "wizard") {
             sf::RectangleShape divider({Theme::BorderThickness, buttonHeight - 4.0f});
@@ -132,7 +139,6 @@ bool Toolbar::HandleEvent(const sf::Event& event, const sf::RenderWindow& window
 }
 
 void Toolbar::Render(sf::RenderWindow& window) {
-    sf::Vector2u winSize = window.getSize();
     LayoutButtons(static_cast<float>(m_bounds.width));
 
     sf::Vector2i mousePixel = sf::Mouse::getPosition(window);
