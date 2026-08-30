@@ -229,11 +229,11 @@ void OverlayRenderer::RenderEmptyState(sf::RenderWindow& window) {
     
     sf::Vector2f center(window.getSize().x / 2.0f, (window.getSize().y - Theme::StatusBarHeight) / 2.0f);
     
-    sf::Text title("Wisdom Park Asset Tools", m_font, 20);
+    sf::Text title("Sprite Sheet Fixer", m_font, 20);
     title.setFillColor(Theme::TextSecondary);
     title.setStyle(sf::Text::Bold);
     
-    sf::Text subtitle("Sprite Sheet Studio", m_font, 14);
+    sf::Text subtitle("AtodDev", m_font, 14);
     subtitle.setFillColor(Theme::AccentColor);
     
     sf::Text instructions("Drag & Drop PNG\n\nor\n\nClick Import Image", m_font, 14);
