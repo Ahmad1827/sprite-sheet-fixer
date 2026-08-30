@@ -1,3 +1,6 @@
+#if defined(_WIN32)
+#pragma comment(linker, "/SUBSYSTEM:windows /ENTRY:mainCRTStartup")
+#endif
 #include <SFML/Graphics.hpp>
 #include "SpriteSheetStudioPanel.h"
 #include <vector>
@@ -82,6 +85,16 @@ static sf::Image DownscaleIcon(const sf::Image& src, unsigned int targetSize = 3
 }
 
 int main() {
+#if defined(_WIN32)
+    FreeConsole();
+#endif
+#if defined(_WIN32)
+    HWND consoleHwnd = GetConsoleWindow();
+    if (consoleHwnd) {
+        ShowWindow(consoleHwnd, SW_HIDE);
+    }
+#endif
+
     sf::RenderWindow window(sf::VideoMode(1280, 720), "Sprite Sheet Fixer");
     window.setFramerateLimit(60);
 
