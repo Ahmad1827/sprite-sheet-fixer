@@ -34,12 +34,12 @@ public:
     }
     void SetUIHidden(bool hidden) { m_isUIHidden = hidden; }
     
-    // Restored Dynamic Bounds to prevent Timeline click hijacking
+    float GetZoom() const { return m_currentZoom; }
+
     sf::FloatRect GetViewportBounds(const sf::RenderWindow& window) const {
         if (m_bounds.width > 0.0f && m_bounds.height > 0.0f) {
             return m_bounds;
         }
-        // Fallback for standalone safety
         sf::Vector2u size = window.getSize();
         float startY = 40.f; 
         float rightPad = m_isUIHidden ? 0.f : 300.f;

@@ -3,12 +3,14 @@
 #include "DataModels/Project.h"
 #include "Processing/ImageLoader.h"
 #include "DataModels/SpriteDefinition.h"
+#include "Theme.h"
 #include <algorithm>
 #include <queue>
 #include <cmath>
 #include <fstream>
 #include <iostream>
 #include <filesystem>
+#include <cstdint>
 
 #ifdef LoadImage
 #undef LoadImage
@@ -68,59 +70,105 @@ static std::string CleanPath(std::string path) {
     return path;
 }
 
-static std::vector<std::vector<std::shared_ptr<StudioCore::SpriteDefinition>>> g_undoSprites;
-static std::vector<std::vector<std::shared_ptr<StudioCore::SpriteDefinition>>> g_redoSprites;
+struct EditorHistoryState {
+    std::vector<std::shared_ptr<StudioCore::SpriteDefinition>> sprites;
+    std::vector<uint8_t> pixels;
+    int width{0};
+    int height{0};
+};
+
+static std::vector<EditorHistoryState> g_undoStack;
+static std::vector<EditorHistoryState> g_redoStack;
 
 static void PushUndoState(StudioCore::StudioEngineFacade& engine) {
     if (!engine.IsProjectActive() || !engine.GetCurrentProject()) return;
     auto project = engine.GetCurrentProject();
-    std::vector<std::shared_ptr<StudioCore::SpriteDefinition>> cloned;
+    
+    EditorHistoryState state;
     for (const auto& s : project->GetSprites()) {
         if (!s) continue;
         auto copy = std::make_shared<StudioCore::SpriteDefinition>(s->GetId(), s->GetSourceRect());
         copy->SetPivot(s->GetPivot());
-        cloned.push_back(copy);
+        state.sprites.push_back(copy);
     }
-    g_undoSprites.push_back(cloned);
-    g_redoSprites.clear();
+
+    if (engine.HasTexture() && engine.GetCurrentTexture()) {
+        auto tex = engine.GetCurrentTexture();
+        state.width = tex->GetWidth();
+        state.height = tex->GetHeight();
+        state.pixels = tex->GetPixels();
+    }
+
+    g_undoStack.push_back(state);
+    g_redoStack.clear();
 }
 
 static void PerformUndo(StudioCore::StudioEngineFacade& engine) {
-    if (!g_undoSprites.empty() && engine.IsProjectActive() && engine.GetCurrentProject()) {
+    if (!g_undoStack.empty() && engine.IsProjectActive() && engine.GetCurrentProject()) {
         auto project = engine.GetCurrentProject();
-        std::vector<std::shared_ptr<StudioCore::SpriteDefinition>> currentCloned;
+        
+        EditorHistoryState currentCloned;
         for (const auto& s : project->GetSprites()) {
             if (!s) continue;
             auto copy = std::make_shared<StudioCore::SpriteDefinition>(s->GetId(), s->GetSourceRect());
             copy->SetPivot(s->GetPivot());
-            currentCloned.push_back(copy);
+            currentCloned.sprites.push_back(copy);
         }
-        g_redoSprites.push_back(currentCloned);
+        if (engine.HasTexture() && engine.GetCurrentTexture()) {
+            auto tex = engine.GetCurrentTexture();
+            currentCloned.width = tex->GetWidth();
+            currentCloned.height = tex->GetHeight();
+            currentCloned.pixels = tex->GetPixels();
+        }
+        g_redoStack.push_back(currentCloned);
 
-        auto prevState = g_undoSprites.back();
-        g_undoSprites.pop_back();
+        auto prevState = g_undoStack.back();
+        g_undoStack.pop_back();
 
-        project->SetSprites(prevState);
+        project->SetSprites(prevState.sprites);
+
+        if (engine.HasTexture() && engine.GetCurrentTexture() && !prevState.pixels.empty()) {
+            auto tex = engine.GetCurrentTexture();
+            if (tex->GetWidth() == prevState.width && tex->GetHeight() == prevState.height) {
+                auto& rawPixels = const_cast<std::vector<uint8_t>&>(tex->GetPixels());
+                rawPixels = prevState.pixels;
+            }
+        }
     }
     engine.Undo();
 }
 
 static void PerformRedo(StudioCore::StudioEngineFacade& engine) {
-    if (!g_redoSprites.empty() && engine.IsProjectActive() && engine.GetCurrentProject()) {
+    if (!g_redoStack.empty() && engine.IsProjectActive() && engine.GetCurrentProject()) {
         auto project = engine.GetCurrentProject();
-        std::vector<std::shared_ptr<StudioCore::SpriteDefinition>> currentCloned;
+        
+        EditorHistoryState currentCloned;
         for (const auto& s : project->GetSprites()) {
             if (!s) continue;
             auto copy = std::make_shared<StudioCore::SpriteDefinition>(s->GetId(), s->GetSourceRect());
             copy->SetPivot(s->GetPivot());
-            currentCloned.push_back(copy);
+            currentCloned.sprites.push_back(copy);
         }
-        g_undoSprites.push_back(currentCloned);
+        if (engine.HasTexture() && engine.GetCurrentTexture()) {
+            auto tex = engine.GetCurrentTexture();
+            currentCloned.width = tex->GetWidth();
+            currentCloned.height = tex->GetHeight();
+            currentCloned.pixels = tex->GetPixels();
+        }
+        g_undoStack.push_back(currentCloned);
 
-        auto nextState = g_redoSprites.back();
-        g_redoSprites.pop_back();
+        auto nextState = g_redoStack.back();
+        g_redoStack.pop_back();
 
-        project->SetSprites(nextState);
+        project->SetSprites(nextState.sprites);
+
+        if (engine.HasTexture() && engine.GetCurrentTexture() && !nextState.pixels.empty()) {
+            auto tex = engine.GetCurrentTexture();
+            if (tex->GetWidth() == nextState.width && tex->GetHeight() == nextState.height) {
+                auto& rawPixels = const_cast<std::vector<uint8_t>&>(tex->GetPixels());
+                rawPixels = nextState.pixels;
+            }
+        }
     }
     engine.Redo();
 }
@@ -193,9 +241,6 @@ static void ExportAtlasMetadata(StudioCore::StudioEngineFacade& engine, const st
         }
         tf.close();
     }
-
-    std::cout << "[SpriteSheetStudio] Atlas generated: " << atlasJsonPath << " (" << sprites.size() << " sprites)" << std::endl;
-    std::cout << "[SpriteSheetStudio] Atlas generated: " << atlasTxtPath << std::endl;
 }
 
 namespace StudioUI {
@@ -337,7 +382,7 @@ void SpriteSheetStudioPanel::Initialize() {
                         float d = (fcx - mcx) * (fcx - mcx) + (fcy - mcy) * (fcy - mcy);
                         if (d < minD) {
                             minD = d;
-                            bestIdx = i;
+                            bestIdx = static_cast<int>(i);
                         }
                     }
                     if (bestIdx != -1) {
@@ -507,7 +552,7 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
                 return;
             }
         }
-        if (event.key.code == sf::Keyboard::A) {
+        if (event.key.code == sf::Keyboard::A && !isControl) {
             m_engine.ToggleAutoAlign();
             m_viewport.RefreshTexture(m_engine);
             return;
@@ -549,6 +594,121 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
     if (m_toolbar.HandleEvent(event, window, m_engine)) return;
 
     if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
+        bool isControl = sf::Keyboard::isKeyPressed(sf::Keyboard::LControl) || sf::Keyboard::isKeyPressed(sf::Keyboard::RControl);
+
+        if (isControl && (m_isArtifactMode || m_isDeleteMode)) {
+            sf::Vector2i pixelPos(event.mouseButton.x, event.mouseButton.y);
+            sf::Vector2f worldPos = m_viewport.MapPixelToWorld(pixelPos, window);
+            int px = static_cast<int>(std::floor(worldPos.x));
+            int py = static_cast<int>(std::floor(worldPos.y));
+
+            if (m_engine.HasTexture() && m_engine.GetCurrentTexture()) {
+                auto tex = m_engine.GetCurrentTexture();
+                int width = tex->GetWidth();
+                int height = tex->GetHeight();
+
+                if (px >= 0 && px < width && py >= 0 && py < height) {
+                    auto& rawPixels = const_cast<std::vector<uint8_t>&>(tex->GetPixels());
+                    size_t targetIdx = static_cast<size_t>(py * width + px) * 4;
+
+                    uint8_t targetR = rawPixels[targetIdx];
+                    uint8_t targetG = rawPixels[targetIdx + 1];
+                    uint8_t targetB = rawPixels[targetIdx + 2];
+                    uint8_t targetA = rawPixels[targetIdx + 3];
+
+                    if (targetA > 0) {
+                        PushUndoState(m_engine);
+
+                        if (m_isDeleteMode) {
+                            for (int y = 0; y < height; ++y) {
+                                for (int x = 0; x < width; ++x) {
+                                    size_t idx = static_cast<size_t>(y * width + x) * 4;
+                                    if (rawPixels[idx + 3] == 0) continue;
+
+                                    int dr = std::abs(static_cast<int>(rawPixels[idx]) - targetR);
+                                    int dg = std::abs(static_cast<int>(rawPixels[idx + 1]) - targetG);
+                                    int db = std::abs(static_cast<int>(rawPixels[idx + 2]) - targetB);
+                                    int da = std::abs(static_cast<int>(rawPixels[idx + 3]) - targetA);
+
+                                    if (dr <= 10 && dg <= 10 && db <= 10 && da <= 15) {
+                                        rawPixels[idx] = 0;
+                                        rawPixels[idx + 1] = 0;
+                                        rawPixels[idx + 2] = 0;
+                                        rawPixels[idx + 3] = 0;
+                                    }
+                                }
+                            }
+                        } else if (m_isArtifactMode) {
+                            std::vector<bool> visited(static_cast<size_t>(width * height), false);
+
+                            for (int y = 0; y < height; ++y) {
+                                for (int x = 0; x < width; ++x) {
+                                    size_t idx = static_cast<size_t>(y * width + x);
+                                    if (visited[idx]) continue;
+
+                                    size_t pIdx = idx * 4;
+                                    if (rawPixels[pIdx + 3] == 0) {
+                                        visited[idx] = true;
+                                        continue;
+                                    }
+
+                                    int dr = std::abs(static_cast<int>(rawPixels[pIdx]) - targetR);
+                                    int dg = std::abs(static_cast<int>(rawPixels[pIdx + 1]) - targetG);
+                                    int db = std::abs(static_cast<int>(rawPixels[pIdx + 2]) - targetB);
+
+                                    if (dr <= 12 && dg <= 12 && db <= 12) {
+                                        std::vector<std::pair<int, int>> component;
+                                        std::queue<std::pair<int, int>> q;
+                                        q.push({x, y});
+                                        visited[idx] = true;
+
+                                        while (!q.empty()) {
+                                            auto [cx, cy] = q.front();
+                                            q.pop();
+                                            component.push_back({cx, cy});
+
+                                            const int dx[4] = {1, -1, 0, 0};
+                                            const int dy[4] = {0, 0, 1, -1};
+                                            for (int d = 0; d < 4; ++d) {
+                                                int nx = cx + dx[d];
+                                                int ny = cy + dy[d];
+                                                if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                                                    size_t nIdx = static_cast<size_t>(ny * width + nx);
+                                                    if (!visited[nIdx]) {
+                                                        size_t npIdx = nIdx * 4;
+                                                        if (rawPixels[npIdx + 3] > 0) {
+                                                            int ndr = std::abs(static_cast<int>(rawPixels[npIdx]) - targetR);
+                                                            int ndg = std::abs(static_cast<int>(rawPixels[npIdx + 1]) - targetG);
+                                                            int ndb = std::abs(static_cast<int>(rawPixels[npIdx + 2]) - targetB);
+                                                            if (ndr <= 12 && ndg <= 12 && ndb <= 12) {
+                                                                visited[nIdx] = true;
+                                                                q.push({nx, ny});
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        for (const auto& [cx, cy] : component) {
+                                            size_t cIdx = static_cast<size_t>(cy * width + cx) * 4;
+                                            rawPixels[cIdx] = 0;
+                                            rawPixels[cIdx + 1] = 0;
+                                            rawPixels[cIdx + 2] = 0;
+                                            rawPixels[cIdx + 3] = 0;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        m_viewport.RefreshTexture(m_engine);
+                        return;
+                    }
+                }
+            }
+        }
+
         if (m_isArtifactMode || m_isInfillMode || m_isDeleteMode) {
             sf::Vector2i pixelPos(event.mouseButton.x, event.mouseButton.y);
             sf::Vector2f worldPos = m_viewport.MapPixelToWorld(pixelPos, window);
@@ -686,7 +846,8 @@ void SpriteSheetStudioPanel::Update(float deltaTime, const sf::RenderWindow& win
         sf::Vector2f worldPos = window.mapPixelToCoords(pixelPos);
         int totalSprites = (m_engine.IsProjectActive() && m_engine.GetCurrentProject())
                             ? static_cast<int>(m_engine.GetCurrentProject()->GetSprites().size()) : 0;
-        m_workspace.UpdateStatusBar(1.0f, worldPos, totalSprites, 0, "Ready");
+        int selectedCount = static_cast<int>(m_viewport.GetSelectedSpriteIds().size());
+        m_workspace.UpdateStatusBar(m_viewport.GetZoom(), worldPos, totalSprites, selectedCount, "Ready");
     }
 }
 
