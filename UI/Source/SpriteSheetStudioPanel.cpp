@@ -491,6 +491,19 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
         bool isShift = sf::Keyboard::isKeyPressed(sf::Keyboard::LShift) || sf::Keyboard::isKeyPressed(sf::Keyboard::RShift);
         bool isControl = sf::Keyboard::isKeyPressed(sf::Keyboard::LControl) || sf::Keyboard::isKeyPressed(sf::Keyboard::RControl);
 
+        if (event.key.code == sf::Keyboard::Delete) {
+            auto selectedIds = m_viewport.GetSelectedSpriteIds();
+            if (!selectedIds.empty()) {
+                PushUndoState(m_engine);
+                for (const auto& id : selectedIds) {
+                    m_engine.DeleteSpriteWithPixels(id);
+                }
+                m_viewport.ClearSelection();
+                m_viewport.RefreshTexture(m_engine);
+                return;
+            }
+        }
+
         if (isShift && event.key.code == sf::Keyboard::N) {
             if (m_engine.IsProjectActive()) {
                 PushUndoState(m_engine);
@@ -758,22 +771,42 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
             }
         }
         if (!targetSpriteId.empty()) {
+            auto selectedIds = m_viewport.GetSelectedSpriteIds();
+            std::vector<std::string> targetsToDelete;
+            if (std::find(selectedIds.begin(), selectedIds.end(), targetSpriteId) != selectedIds.end()) {
+                targetsToDelete = selectedIds;
+            } else {
+                targetsToDelete = { targetSpriteId };
+            }
+
+            std::string deleteLabel = targetsToDelete.size() > 1 
+                ? "Delete " + std::to_string(targetsToDelete.size()) + " Sprites" 
+                : "Delete Sprite";
+            std::string pivotLabel = targetsToDelete.size() > 1
+                ? "Reset Pivots (" + std::to_string(targetsToDelete.size()) + ")"
+                : "Reset Pivot";
+
             std::vector<StudioUI::ContextMenuItem> items = {
-                {"Delete Sprite", [this, targetSpriteId]() {
+                {deleteLabel, [this, targetsToDelete]() {
                     PushUndoState(m_engine);
-                    m_engine.DeleteSpriteWithPixels(targetSpriteId);
+                    for (const auto& id : targetsToDelete) {
+                        m_engine.DeleteSpriteWithPixels(id);
+                    }
+                    m_viewport.ClearSelection();
                     m_viewport.RefreshTexture(m_engine);
                 }},
-                {"Reset Pivot", [this, targetSpriteId]() {
+                {pivotLabel, [this, targetsToDelete]() {
                     auto proj = m_engine.GetCurrentProject();
                     if (!proj) return;
-                    auto sprite = proj->GetSpriteById(targetSpriteId);
-                    if (sprite) {
-                        PushUndoState(m_engine);
-                        auto rect = sprite->GetSourceRect();
-                        sprite->SetPivot({rect.width / 2.0f, rect.height / 2.0f});
-                        m_viewport.RefreshTexture(m_engine);
+                    PushUndoState(m_engine);
+                    for (const auto& id : targetsToDelete) {
+                        auto sprite = proj->GetSpriteById(id);
+                        if (sprite) {
+                            auto rect = sprite->GetSourceRect();
+                            sprite->SetPivot({rect.width / 2.0f, rect.height / 2.0f});
+                        }
                     }
+                    m_viewport.RefreshTexture(m_engine);
                 }}
             };
             m_workspace.ShowContextMenu({static_cast<float>(event.mouseButton.x), static_cast<float>(event.mouseButton.y)}, items);
