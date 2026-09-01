@@ -620,86 +620,46 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
                         PushUndoState(m_engine);
 
                         if (m_isDeleteMode) {
-                            for (int y = 0; y < height; ++y) {
-                                for (int x = 0; x < width; ++x) {
-                                    size_t idx = static_cast<size_t>(y * width + x) * 4;
-                                    if (rawPixels[idx + 3] == 0) continue;
+                            std::vector<bool> visited(static_cast<size_t>(width * height), false);
+                            std::queue<std::pair<int, int>> q;
+                            q.push({px, py});
+                            visited[py * width + px] = true;
 
-                                    int dr = std::abs(static_cast<int>(rawPixels[idx]) - targetR);
-                                    int dg = std::abs(static_cast<int>(rawPixels[idx + 1]) - targetG);
-                                    int db = std::abs(static_cast<int>(rawPixels[idx + 2]) - targetB);
-                                    int da = std::abs(static_cast<int>(rawPixels[idx + 3]) - targetA);
+                            const int dx[4] = {1, -1, 0, 0};
+                            const int dy[4] = {0, 0, 1, -1};
 
-                                    if (dr <= 10 && dg <= 10 && db <= 10 && da <= 15) {
-                                        rawPixels[idx] = 0;
-                                        rawPixels[idx + 1] = 0;
-                                        rawPixels[idx + 2] = 0;
-                                        rawPixels[idx + 3] = 0;
+                            while (!q.empty()) {
+                                auto [cx, cy] = q.front();
+                                q.pop();
+
+                                size_t cIdx = static_cast<size_t>(cy * width + cx) * 4;
+                                rawPixels[cIdx] = 0;
+                                rawPixels[cIdx + 1] = 0;
+                                rawPixels[cIdx + 2] = 0;
+                                rawPixels[cIdx + 3] = 0;
+
+                                for (int d = 0; d < 4; ++d) {
+                                    int nx = cx + dx[d];
+                                    int ny = cy + dy[d];
+                                    if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                                        size_t nPos = static_cast<size_t>(ny * width + nx);
+                                        if (!visited[nPos]) {
+                                            visited[nPos] = true;
+                                            size_t nIdx = nPos * 4;
+                                            if (rawPixels[nIdx + 3] > 0) {
+                                                int dr = std::abs(static_cast<int>(rawPixels[nIdx]) - targetR);
+                                                int dg = std::abs(static_cast<int>(rawPixels[nIdx + 1]) - targetG);
+                                                int db = std::abs(static_cast<int>(rawPixels[nIdx + 2]) - targetB);
+                                                if (dr <= 25 && dg <= 25 && db <= 25) {
+                                                    q.push({nx, ny});
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
                         } else if (m_isArtifactMode) {
-                            std::vector<bool> visited(static_cast<size_t>(width * height), false);
-
-                            for (int y = 0; y < height; ++y) {
-                                for (int x = 0; x < width; ++x) {
-                                    size_t idx = static_cast<size_t>(y * width + x);
-                                    if (visited[idx]) continue;
-
-                                    size_t pIdx = idx * 4;
-                                    if (rawPixels[pIdx + 3] == 0) {
-                                        visited[idx] = true;
-                                        continue;
-                                    }
-
-                                    int dr = std::abs(static_cast<int>(rawPixels[pIdx]) - targetR);
-                                    int dg = std::abs(static_cast<int>(rawPixels[pIdx + 1]) - targetG);
-                                    int db = std::abs(static_cast<int>(rawPixels[pIdx + 2]) - targetB);
-
-                                    if (dr <= 12 && dg <= 12 && db <= 12) {
-                                        std::vector<std::pair<int, int>> component;
-                                        std::queue<std::pair<int, int>> q;
-                                        q.push({x, y});
-                                        visited[idx] = true;
-
-                                        while (!q.empty()) {
-                                            auto [cx, cy] = q.front();
-                                            q.pop();
-                                            component.push_back({cx, cy});
-
-                                            const int dx[4] = {1, -1, 0, 0};
-                                            const int dy[4] = {0, 0, 1, -1};
-                                            for (int d = 0; d < 4; ++d) {
-                                                int nx = cx + dx[d];
-                                                int ny = cy + dy[d];
-                                                if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-                                                    size_t nIdx = static_cast<size_t>(ny * width + nx);
-                                                    if (!visited[nIdx]) {
-                                                        size_t npIdx = nIdx * 4;
-                                                        if (rawPixels[npIdx + 3] > 0) {
-                                                            int ndr = std::abs(static_cast<int>(rawPixels[npIdx]) - targetR);
-                                                            int ndg = std::abs(static_cast<int>(rawPixels[npIdx + 1]) - targetG);
-                                                            int ndb = std::abs(static_cast<int>(rawPixels[npIdx + 2]) - targetB);
-                                                            if (ndr <= 12 && ndg <= 12 && ndb <= 12) {
-                                                                visited[nIdx] = true;
-                                                                q.push({nx, ny});
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        for (const auto& [cx, cy] : component) {
-                                            size_t cIdx = static_cast<size_t>(cy * width + cx) * 4;
-                                            rawPixels[cIdx] = 0;
-                                            rawPixels[cIdx + 1] = 0;
-                                            rawPixels[cIdx + 2] = 0;
-                                            rawPixels[cIdx + 3] = 0;
-                                        }
-                                    }
-                                }
-                            }
+                            m_engine.RemoveArtifacts(px, py);
                         }
 
                         m_viewport.RefreshTexture(m_engine);

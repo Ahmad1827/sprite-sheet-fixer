@@ -457,10 +457,178 @@ void StudioEngineFacade::CleanCurrentTexture() {
     if (!constTexture || !constTexture->IsValid()) return;
     auto texture = std::const_pointer_cast<SourceTexture>(constTexture);
 
+    int w = texture->GetWidth();
+    int h = texture->GetHeight();
+    if (w <= 0 || h <= 0) return;
+
     std::vector<uint8_t> oldPixels = texture->GetPixels();
-    auto cleanedTex = ImageLoader::RemoveFakeCheckerboard(*texture);
-    if (!cleanedTex) return;
-    std::vector<uint8_t> newPixels = cleanedTex->GetPixels();
+    std::vector<uint8_t> newPixels = oldPixels;
+
+    struct ColorRGB {
+        uint8_t r, g, b;
+    };
+    std::vector<ColorRGB> bgPalette;
+
+    auto addBorderSample = [&](int x, int y) {
+        size_t idx = static_cast<size_t>(y * w + x) * 4;
+        if (oldPixels[idx + 3] > 0) {
+            uint8_t r = oldPixels[idx];
+            uint8_t g = oldPixels[idx + 1];
+            uint8_t b = oldPixels[idx + 2];
+            bool exists = false;
+            for (const auto& c : bgPalette) {
+                float dr = static_cast<float>(r) - c.r;
+                float dg = static_cast<float>(g) - c.g;
+                float db = static_cast<float>(b) - c.b;
+                if (std::sqrt(dr * dr + dg * dg + db * db) < 18.0f) {
+                    exists = true;
+                    break;
+                }
+            }
+            if (!exists) {
+                bgPalette.push_back({ r, g, b });
+            }
+        }
+    };
+
+    for (int x = 0; x < w; ++x) {
+        addBorderSample(x, 0);
+        addBorderSample(x, 1);
+        addBorderSample(x, h - 2);
+        addBorderSample(x, h - 1);
+    }
+    for (int y = 0; y < h; ++y) {
+        addBorderSample(0, y);
+        addBorderSample(1, y);
+        addBorderSample(w - 2, y);
+        addBorderSample(w - 1, y);
+    }
+
+    auto isBgColor = [&](uint8_t r, uint8_t g, uint8_t b, uint8_t a, float tolerance = 28.0f) -> bool {
+        if (a == 0) return true;
+        for (const auto& c : bgPalette) {
+            float dr = static_cast<float>(r) - c.r;
+            float dg = static_cast<float>(g) - c.g;
+            float db = static_cast<float>(b) - c.b;
+            if (std::sqrt(dr * dr + dg * dg + db * db) <= tolerance) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    std::vector<uint8_t> isForeground(w * h, 0);
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            size_t idx = static_cast<size_t>(y * w + x) * 4;
+            if (!isBgColor(oldPixels[idx], oldPixels[idx + 1], oldPixels[idx + 2], oldPixels[idx + 3], 26.0f)) {
+                isForeground[y * w + x] = 1;
+            }
+        }
+    }
+
+    std::vector<uint8_t> sealedForeground = isForeground;
+    const int DILATE_RAD = 2;
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            if (isForeground[y * w + x]) {
+                for (int dy = -DILATE_RAD; dy <= DILATE_RAD; ++dy) {
+                    for (int dx = -DILATE_RAD; dx <= DILATE_RAD; ++dx) {
+                        int nx = x + dx;
+                        int ny = y + dy;
+                        if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                            sealedForeground[ny * w + nx] = 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    std::vector<uint8_t> exterior(w * h, 0);
+    std::queue<std::pair<int, int>> q;
+
+    auto pushBorderNode = [&](int x, int y) {
+        int pos = y * w + x;
+        if (!sealedForeground[pos] && !exterior[pos]) {
+            exterior[pos] = 1;
+            q.push({ x, y });
+        }
+    };
+
+    for (int x = 0; x < w; ++x) {
+        pushBorderNode(x, 0);
+        pushBorderNode(x, h - 1);
+    }
+    for (int y = 0; y < h; ++y) {
+        pushBorderNode(0, y);
+        pushBorderNode(w - 1, y);
+    }
+
+    const int dx4[4] = { 1, -1, 0, 0 };
+    const int dy4[4] = { 0, 0, 1, -1 };
+
+    while (!q.empty()) {
+        auto [cx, cy] = q.front();
+        q.pop();
+
+        for (int d = 0; d < 4; ++d) {
+            int nx = cx + dx4[d];
+            int ny = cy + dy4[d];
+            if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                int nPos = ny * w + nx;
+                if (!sealedForeground[nPos] && !exterior[nPos]) {
+                    exterior[nPos] = 1;
+                    q.push({ nx, ny });
+                }
+            }
+        }
+    }
+
+    for (int pass = 0; pass < DILATE_RAD + 2; ++pass) {
+        std::vector<std::pair<int, int>> toAdd;
+        for (int y = 0; y < h; ++y) {
+            for (int x = 0; x < w; ++x) {
+                int pos = y * w + x;
+                if (!exterior[pos]) {
+                    size_t idx = static_cast<size_t>(pos) * 4;
+                    if (isBgColor(oldPixels[idx], oldPixels[idx + 1], oldPixels[idx + 2], oldPixels[idx + 3], 26.0f)) {
+                        bool touchesExterior = false;
+                        for (int d = 0; d < 4; ++d) {
+                            int nx = x + dx4[d];
+                            int ny = y + dy4[d];
+                            if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                                if (exterior[ny * w + nx]) {
+                                    touchesExterior = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (touchesExterior) {
+                            toAdd.push_back({ x, y });
+                        }
+                    }
+                }
+            }
+        }
+        if (toAdd.empty()) break;
+        for (const auto& [ax, ay] : toAdd) {
+            exterior[ay * w + ax] = 1;
+        }
+    }
+
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            int pos = y * w + x;
+            if (exterior[pos]) {
+                size_t idx = static_cast<size_t>(pos) * 4;
+                newPixels[idx] = 0;
+                newPixels[idx + 1] = 0;
+                newPixels[idx + 2] = 0;
+                newPixels[idx + 3] = 0;
+            }
+        }
+    }
 
     auto cmd = std::make_unique<PixelRegionCommand>(texture, oldPixels, newPixels);
     if (m_commandHistory) {
@@ -574,7 +742,7 @@ void StudioEngineFacade::RemoveArtifacts(int targetX, int targetY) {
         uint8_t targetG = newPixels[targetIdx + 1];
         uint8_t targetB = newPixels[targetIdx + 2];
 
-        float tolerance = 35.0f;
+        float tolerance = 25.0f;
         std::vector<bool> visited(texWidth * texHeight, false);
         std::queue<std::pair<int, int>> q;
 
@@ -652,19 +820,40 @@ void StudioEngineFacade::RemoveArtifactsArea(int x, int y, int width, int height
     const int dy[] = {0, 0, 1, -1};
 
     if (sampleA > 0) {
-        float tolerance = 35.0f;
-        for (int py = startY; py < endY; ++py) {
-            for (int px = startX; px < endX; ++px) {
-                size_t idx = (static_cast<size_t>(py) * texWidth + px) * 4;
-                if (newPixels[idx + 3] > 0) {
-                    float dr = static_cast<float>(newPixels[idx]) - sampleR;
-                    float dg = static_cast<float>(newPixels[idx + 1]) - sampleG;
-                    float db = static_cast<float>(newPixels[idx + 2]) - sampleB;
-                    if (std::sqrt(dr * dr + dg * dg + db * db) <= tolerance) {
-                        newPixels[idx] = 0;
-                        newPixels[idx + 1] = 0;
-                        newPixels[idx + 2] = 0;
-                        newPixels[idx + 3] = 0;
+        float tolerance = 25.0f;
+        std::vector<bool> visited(texWidth * texHeight, false);
+        std::queue<std::pair<int, int>> q;
+
+        q.push({startX, startY});
+        visited[startY * texWidth + startX] = true;
+
+        while (!q.empty()) {
+            auto [cx, cy] = q.front();
+            q.pop();
+
+            size_t idx = (static_cast<size_t>(cy) * texWidth + cx) * 4;
+            newPixels[idx] = 0;
+            newPixels[idx + 1] = 0;
+            newPixels[idx + 2] = 0;
+            newPixels[idx + 3] = 0;
+
+            for (int i = 0; i < 4; ++i) {
+                int nx = cx + dx[i];
+                int ny = cy + dy[i];
+
+                if (nx >= startX && nx < endX && ny >= startY && ny < endY) {
+                    int nPos = ny * texWidth + nx;
+                    if (!visited[nPos]) {
+                        visited[nPos] = true;
+                        size_t nIdx = static_cast<size_t>(nPos) * 4;
+                        if (newPixels[nIdx + 3] > 0) {
+                            float dr = static_cast<float>(newPixels[nIdx]) - sampleR;
+                            float dg = static_cast<float>(newPixels[nIdx + 1]) - sampleG;
+                            float db = static_cast<float>(newPixels[nIdx + 2]) - sampleB;
+                            if (std::sqrt(dr * dr + dg * dg + db * db) <= tolerance) {
+                                q.push({nx, ny});
+                            }
+                        }
                     }
                 }
             }
@@ -748,20 +937,69 @@ void StudioEngineFacade::RemoveColorGlobal(int targetX, int targetY, float toler
 
     if (ta == 0) return;
 
-    for (size_t i = 0; i < static_cast<size_t>(texWidth) * texHeight; ++i) {
-        size_t idx = i * 4;
-        if (newPixels[idx + 3] == 0) continue;
+    std::vector<bool> visited(texWidth * texHeight, false);
+    std::queue<std::pair<int, int>> q;
 
-        float dr = static_cast<float>(newPixels[idx]) - tr;
-        float dg = static_cast<float>(newPixels[idx + 1]) - tg;
-        float db = static_cast<float>(newPixels[idx + 2]) - tb;
-        float dist = std::sqrt(dr * dr + dg * dg + db * db);
+    const int dx[] = {1, -1, 0, 0};
+    const int dy[] = {0, 0, 1, -1};
 
-        if (dist <= tolerance) {
-            newPixels[idx] = 0;
-            newPixels[idx + 1] = 0;
-            newPixels[idx + 2] = 0;
-            newPixels[idx + 3] = 0;
+    auto pushIfBorderMatch = [&](int x, int y) {
+        int pos = y * texWidth + x;
+        if (!visited[pos]) {
+            size_t idx = static_cast<size_t>(pos) * 4;
+            if (newPixels[idx + 3] > 0) {
+                float dr = static_cast<float>(newPixels[idx]) - tr;
+                float dg = static_cast<float>(newPixels[idx + 1]) - tg;
+                float db = static_cast<float>(newPixels[idx + 2]) - tb;
+                if (std::sqrt(dr * dr + dg * dg + db * db) <= tolerance) {
+                    visited[pos] = true;
+                    q.push({x, y});
+                }
+            }
+        }
+    };
+
+    for (int x = 0; x < texWidth; ++x) {
+        pushIfBorderMatch(x, 0);
+        pushIfBorderMatch(x, texHeight - 1);
+    }
+    for (int y = 0; y < texHeight; ++y) {
+        pushIfBorderMatch(0, y);
+        pushIfBorderMatch(texWidth - 1, y);
+    }
+
+    if (q.empty()) {
+        pushIfBorderMatch(targetX, targetY);
+    }
+
+    while (!q.empty()) {
+        auto [cx, cy] = q.front();
+        q.pop();
+
+        size_t idx = (static_cast<size_t>(cy) * texWidth + cx) * 4;
+        newPixels[idx] = 0;
+        newPixels[idx + 1] = 0;
+        newPixels[idx + 2] = 0;
+        newPixels[idx + 3] = 0;
+
+        for (int i = 0; i < 4; ++i) {
+            int nx = cx + dx[i];
+            int ny = cy + dy[i];
+            if (nx >= 0 && nx < texWidth && ny >= 0 && ny < texHeight) {
+                int nPos = ny * texWidth + nx;
+                if (!visited[nPos]) {
+                    visited[nPos] = true;
+                    size_t nIdx = static_cast<size_t>(nPos) * 4;
+                    if (newPixels[nIdx + 3] > 0) {
+                        float dr = static_cast<float>(newPixels[nIdx]) - tr;
+                        float dg = static_cast<float>(newPixels[nIdx + 1]) - tg;
+                        float db = static_cast<float>(newPixels[nIdx + 2]) - tb;
+                        if (std::sqrt(dr * dr + dg * dg + db * db) <= tolerance) {
+                            q.push({nx, ny});
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -997,6 +1235,7 @@ void StudioEngineFacade::FillInternalHoles(int targetX, int targetY) {
         texture->SetPixels(newPixels);
     }
 }
+
 void StudioEngineFacade::FillTransparencyArea(int x, int y, int width, int height) {
     auto project = GetCurrentProject();
     if (!project) return;
