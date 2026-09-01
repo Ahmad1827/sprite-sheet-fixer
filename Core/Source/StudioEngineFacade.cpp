@@ -1,909 +1,1517 @@
-#include "SpriteSheetStudioPanel.h"
-#include "Utils/NativeFileDialog.h"
-#include "DataModels/Project.h"
+#include "StudioEngineFacade.h"
+#include "Systems/WorkspaceManager.h"
+#include "Systems/BackgroundJobQueue.h"
+#include "Systems/PlaybackEngine.h"
+#include "Systems/ExportManager.h"
+#include "Systems/ProjectManager.h"
+#include "Commands/CommandHistory.h"
+#include "Commands/EditMetadataCommand.h"
+#include "Commands/AnimationCommands.h"
 #include "Processing/ImageLoader.h"
+#include "DataModels/Project.h"
+#include "Commands/BatchCommands.h"
+#include "Commands/PixelCommands.h"
 #include "DataModels/SpriteDefinition.h"
-#include "Theme.h"
-#include <algorithm>
-#include <queue>
-#include <cmath>
-#include <fstream>
+#include "DataModels/SourceTexture.h"
 #include <iostream>
+#include "Commands/MoveSpriteCommand.h"
+#include "Commands/MoveSpriteWithPixelsCommand.h"
+#include "Commands/RepackFramesCommand.h"
+#include "Commands/FlipHorizontalCommand.h"
+#include "Commands/MergeSpritesCommand.h"
+#include "Commands/RemoveArtifactsCommand.h"
+#include <cmath>
+#include <queue>
+#include <algorithm>
 #include <filesystem>
-#include <cstdint>
 
-#ifdef LoadImage
-#undef LoadImage
-#endif
+namespace StudioCore {
 
-#if defined(_WIN32)
-#include <windows.h>
-#include <commdlg.h>
+StudioEngineFacade::StudioEngineFacade() = default;
+StudioEngineFacade::~StudioEngineFacade() = default;
 
-enum class DialogMode {
-    OpenImage,
-    SaveImage
-};
-
-static std::string openWindowsFileDialog(DialogMode mode, const char* defaultName = "spritesheet.png") {
-    char currentDir[MAX_PATH];
-    GetCurrentDirectoryA(MAX_PATH, currentDir);
-    OPENFILENAMEA ofn;
-    char szFile[MAX_PATH] = { 0 };
-    if (mode == DialogMode::SaveImage && defaultName) {
-        strcpy_s(szFile, defaultName);
-    }
-    ZeroMemory(&ofn, sizeof(ofn));
-    ofn.lStructSize = sizeof(ofn);
-    ofn.hwndOwner = NULL;
-    ofn.lpstrFile = szFile;
-    ofn.nMaxFile = sizeof(szFile);
-    const char imageFilter[] = "Image Files (*.png;*.jpg;*.jpeg;*.jfif;*.bmp;*.webp)\0*.png;*.jpg;*.jpeg;*.jfif;*.bmp;*.webp\0All Files (*.*)\0*.*\0\0";
-    ofn.lpstrFilter = imageFilter;
-    ofn.nFilterIndex = 1;
-    ofn.Flags = OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
-
-    std::string result = "";
-    if (mode == DialogMode::OpenImage) {
-        ofn.Flags |= OFN_FILEMUSTEXIST;
-        if (GetOpenFileNameA(&ofn)) {
-            result = std::string(ofn.lpstrFile);
-        }
-    } else {
-        ofn.Flags |= OFN_OVERWRITEPROMPT;
-        if (GetSaveFileNameA(&ofn)) {
-            result = std::string(ofn.lpstrFile);
-        }
-    }
-    SetCurrentDirectoryA(currentDir);
-    return result;
-}
-#endif
-
-static std::string CleanPath(std::string path) {
-    while (!path.empty() && (path.back() == '\n' || path.back() == '\r' || path.back() == ' ' || path.back() == '\t')) {
-        path.pop_back();
-    }
-    while (!path.empty() && (path.front() == ' ' || path.front() == '\t')) {
-        path.erase(path.begin());
-    }
-    return path;
+void StudioEngineFacade::Initialize() {
+    m_workspace = std::make_shared<WorkspaceManager>();
+    m_jobQueue = std::make_unique<BackgroundJobQueue>();
+    m_commandHistory = std::make_unique<CommandHistory>();
+    m_playbackEngine = std::make_unique<PlaybackEngine>();
+    m_exportManager = std::make_unique<ExportManager>();
 }
 
-struct EditorHistoryState {
-    std::vector<std::shared_ptr<StudioCore::SpriteDefinition>> sprites;
-    std::vector<uint8_t> pixels;
-    int width{0};
-    int height{0};
-};
+void StudioEngineFacade::Update(float deltaTime) {
+    if (m_jobQueue && m_jobQueue->HasResults()) {
+        auto results = m_jobQueue->ConsumeResults();
+        if (IsProjectActive()) {
+            for (auto& sprite : results) {
+                m_workspace->GetActiveProject()->AddSprite(*sprite);
+            }
+        }
+    }
+    if (IsProjectActive() && m_playbackEngine) {
+        m_playbackEngine->Update(deltaTime, m_workspace->GetActiveProject().get());
+    }
+}
 
-static std::vector<EditorHistoryState> g_undoStack;
-static std::vector<EditorHistoryState> g_redoStack;
+void StudioEngineFacade::CreateProject() {
+    if (m_workspace) m_workspace->CreateNewProject();
+    if (m_commandHistory) m_commandHistory->Clear();
+    if (m_playbackEngine) m_playbackEngine->Stop();
+    m_animIdCounter = 1;
+}
 
-static void PushUndoState(StudioCore::StudioEngineFacade& engine) {
-    if (!engine.IsProjectActive() || !engine.GetCurrentProject()) return;
-    auto project = engine.GetCurrentProject();
+bool StudioEngineFacade::IsProjectActive() const {
+    return m_workspace && m_workspace->HasActiveProject();
+}
+
+bool StudioEngineFacade::ImportImage(const std::string& filePath, std::string& outErrorMessage) {
+    if (!IsProjectActive()) return false;
+    auto texture = ImageLoader::LoadFromFile(filePath, outErrorMessage);
+    if (!texture) return false;
+    m_workspace->GetActiveProject()->SetTexture(std::move(texture));
+    m_workspace->GetActiveProject()->SetImagePath(filePath);
+    return true;
+}
+
+bool StudioEngineFacade::SaveProject(const std::string& filePath) const {
+    if (!IsProjectActive()) return false;
+    return ProjectManager::SaveProject(*GetCurrentProject(), filePath);
+}
+
+bool StudioEngineFacade::LoadProject(const std::string& filePath, std::string& outErrorMessage) {
+    auto proj = ProjectManager::LoadProject(filePath, outErrorMessage);
+    if (!proj) return false;
+
+    m_workspace->CreateNewProject();
+    auto tex = std::const_pointer_cast<SourceTexture>(proj->GetTexture());
+    m_workspace->GetActiveProject()->SetTexture(tex);
+    m_workspace->GetActiveProject()->SetImagePath(proj->GetImagePath());
+
+    for (const auto& s : proj->GetSprites()) {
+        m_workspace->GetActiveProject()->AddSprite(*s);
+    }
+    for (const auto& a : proj->GetAnimationGroups()) {
+        m_workspace->GetActiveProject()->AddAnimationGroup(std::make_shared<AnimationGroup>(*a));
+    }
+
+    if (m_commandHistory) m_commandHistory->Clear();
+    if (m_playbackEngine) m_playbackEngine->Stop();
+
+    return true;
+}
+
+std::shared_ptr<Project> StudioEngineFacade::GetCurrentProject() const {
+    if (IsProjectActive()) return m_workspace->GetActiveProject();
+    return nullptr;
+}
+
+std::shared_ptr<const SourceTexture> StudioEngineFacade::GetCurrentTexture() const {
+    auto p = GetCurrentProject();
+    if (p) return p->GetTexture();
+    return nullptr;
+}
+
+bool StudioEngineFacade::HasTexture() const {
+    return GetCurrentTexture() != nullptr;
+}
+
+void StudioEngineFacade::RunAutoDetection(const DetectionConfig& config) {
+    if (!HasTexture() || m_jobQueue->IsRunning()) return;
+    std::shared_ptr<const SourceTexture> tex = GetCurrentTexture();
+    m_jobQueue->StartJob([tex, config](std::atomic<float>& p, std::atomic<bool>& c) {
+        return SpriteDetector::Detect(*tex, config, p, c);
+    });
+}
+
+void StudioEngineFacade::CancelDetection() {
+    if (m_jobQueue) m_jobQueue->Cancel();
+}
+
+bool StudioEngineFacade::IsDetectionRunning() const {
+    return m_jobQueue && m_jobQueue->IsRunning();
+}
+
+float StudioEngineFacade::GetDetectionProgress() const {
+    return m_jobQueue ? m_jobQueue->GetProgress() : 0.0f;
+}
+
+void StudioEngineFacade::Undo() {
+    if (m_commandHistory) {
+        m_commandHistory->Undo();
+    }
+}
+
+void StudioEngineFacade::Redo() {
+    if (m_commandHistory) {
+        m_commandHistory->Redo();
+    }
+}
+
+void StudioEngineFacade::EditPivot(const std::vector<std::string>& spriteIds, Point newPivot) {
+    if (!IsProjectActive() || spriteIds.empty()) return;
+    auto cmd = std::make_unique<EditMetadataCommand>(GetCurrentProject(), spriteIds, EditType::Pivot, newPivot, 0.0f);
+    m_commandHistory->ExecuteCommand(std::move(cmd));
+}
+
+void StudioEngineFacade::EditBaseline(const std::vector<std::string>& spriteIds, float newBaseline) {
+    if (!IsProjectActive() || spriteIds.empty()) return;
+    auto cmd = std::make_unique<EditMetadataCommand>(GetCurrentProject(), spriteIds, EditType::Baseline, Point{0,0}, newBaseline);
+    m_commandHistory->ExecuteCommand(std::move(cmd));
+}
+
+void StudioEngineFacade::CreateAnimation(const std::string& name) {
+    if (!IsProjectActive()) return;
+    std::string id = "anim_" + std::to_string(m_animIdCounter++);
+    auto cmd = std::make_unique<CreateAnimationCommand>(GetCurrentProject(), id, name);
+    m_commandHistory->ExecuteCommand(std::move(cmd));
+}
+
+void StudioEngineFacade::DeleteAnimation(const std::string& id) {
+    if (!IsProjectActive()) return;
+    if (m_playbackEngine->GetActiveAnimation() == id) m_playbackEngine->Stop();
+    auto cmd = std::make_unique<DeleteAnimationCommand>(GetCurrentProject(), id);
+    m_commandHistory->ExecuteCommand(std::move(cmd));
+}
+
+void StudioEngineFacade::ModifyAnimationFrames(const std::string& id, const std::vector<std::string>& newFrames) {
+    if (!IsProjectActive()) return;
+    auto cmd = std::make_unique<ModifyFramesCommand>(GetCurrentProject(), id, newFrames);
+    m_commandHistory->ExecuteCommand(std::move(cmd));
+}
+
+void StudioEngineFacade::EditAnimationSettings(const std::string& id, const std::string& newName, float fps, bool looping) {
+    if (!IsProjectActive()) return;
+    auto cmd = std::make_unique<EditAnimationSettingsCommand>(GetCurrentProject(), id, newName, fps, looping);
+    m_commandHistory->ExecuteCommand(std::move(cmd));
+}
+
+void StudioEngineFacade::ToggleAutoAlign() {
+    if (m_playbackEngine) {
+        m_playbackEngine->SetAutoAlign(!m_playbackEngine->IsAutoAlignEnabled());
+    }
+}
+
+bool StudioEngineFacade::IsAutoAlignEnabled() const {
+    return m_playbackEngine ? m_playbackEngine->IsAutoAlignEnabled() : false;
+}
+
+sf::Image StudioEngineFacade::GenerateExportPreview(int padding, bool keepOriginalResolution) const {
+    if (!IsProjectActive()) return sf::Image();
+
+    auto tex = GetCurrentTexture();
+    if (!tex || !tex->IsValid()) return sf::Image();
+
+    int w = tex->GetWidth();
+    int h = tex->GetHeight();
+    const auto& pixels = tex->GetPixels();
+
+    if (keepOriginalResolution) {
+        sf::Image img;
+        img.create(w, h, pixels.data());
+        return img;
+    }
+
+    if (m_exportManager) {
+        sf::Image mgrPreview = m_exportManager->GeneratePreview(*GetCurrentProject(), padding);
+        if (mgrPreview.getSize().x > 0 && mgrPreview.getSize().y > 0) {
+            return mgrPreview;
+        }
+    }
+
+    int minX = w, minY = h, maxX = -1, maxY = -1;
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            size_t idx = (y * w + x) * 4;
+            if (pixels[idx + 3] > 0) {
+                if (x < minX) minX = x;
+                if (x > maxX) maxX = x;
+                if (y < minY) minY = y;
+                if (y > maxY) maxY = y;
+            }
+        }
+    }
+
+    if (maxX < minX || maxY < minY) {
+        sf::Image emptyImg;
+        emptyImg.create(1, 1, sf::Color::Transparent);
+        return emptyImg;
+    }
+
+    int cropW = (maxX - minX) + 1;
+    int cropH = (maxY - minY) + 1;
+
+    sf::Image croppedImg;
+    croppedImg.create(cropW, cropH);
+
+    for (int cy = 0; cy < cropH; ++cy) {
+        for (int cx = 0; cx < cropW; ++cx) {
+            size_t srcIdx = ((minY + cy) * w + (minX + cx)) * 4;
+            croppedImg.setPixel(cx, cy, sf::Color(
+                pixels[srcIdx],
+                pixels[srcIdx + 1],
+                pixels[srcIdx + 2],
+                pixels[srcIdx + 3]
+            ));
+        }
+    }
+
+    return croppedImg;
+}
+
+bool StudioEngineFacade::ExportPNG(const std::string& filePath, int padding, bool keepOriginalResolution) const {
+    sf::Image img = GenerateExportPreview(padding, keepOriginalResolution);
+    if (img.getSize().x == 0 || img.getSize().y == 0) return false;
+    return img.saveToFile(filePath);
+}
+
+PlaybackEngine& StudioEngineFacade::GetPlaybackEngine() {
+    return *m_playbackEngine;
+}
+
+const PlaybackEngine& StudioEngineFacade::GetPlaybackEngine() const {
+    return *m_playbackEngine;
+}
+
+std::shared_ptr<WorkspaceManager> StudioEngineFacade::GetWorkspace() const {
+    return m_workspace;
+}
+
+void StudioEngineFacade::ExecuteBatchOperation(const std::vector<std::string>& spriteIds, BatchOp op) {
+    if (!IsProjectActive() || spriteIds.empty()) return;
+    auto cmd = std::make_unique<BatchOperationCommand>(GetCurrentProject(), spriteIds, op);
+    m_commandHistory->ExecuteCommand(std::move(cmd));
+}
+
+void StudioEngineFacade::ExecuteAlignSprites(const std::vector<std::string>& spriteIds, AlignOp op) {
+    if (!IsProjectActive() || spriteIds.empty()) return;
+    auto cmd = std::make_unique<AlignSpritesCommand>(GetCurrentProject(), spriteIds, op);
+    m_commandHistory->ExecuteCommand(std::move(cmd));
+}
+
+std::vector<ProposedAnimation> StudioEngineFacade::BuildAnimationsByRow() {
+    auto proj = GetCurrentProject();
+    if (!proj) return {};
     
-    EditorHistoryState state;
-    for (const auto& s : project->GetSprites()) {
-        if (!s) continue;
-        auto copy = std::make_shared<StudioCore::SpriteDefinition>(s->GetId(), s->GetSourceRect());
-        copy->SetPivot(s->GetPivot());
-        state.sprites.push_back(copy);
-    }
-
-    if (engine.HasTexture() && engine.GetCurrentTexture()) {
-        auto tex = engine.GetCurrentTexture();
-        state.width = tex->GetWidth();
-        state.height = tex->GetHeight();
-        state.pixels = tex->GetPixels();
-    }
-
-    g_undoStack.push_back(state);
-    g_redoStack.clear();
+    AnimationBuilder builder;
+    return builder.DetectByRows(proj->GetSprites());
 }
 
-static void PerformUndo(StudioCore::StudioEngineFacade& engine) {
-    if (!g_undoStack.empty() && engine.IsProjectActive() && engine.GetCurrentProject()) {
-        auto project = engine.GetCurrentProject();
+void StudioEngineFacade::CommitProposedAnimations(const std::vector<ProposedAnimation>& animations) {
+    auto proj = GetCurrentProject();
+    if (!proj) return;
+
+    for (const auto& prop : animations) {
+        std::string animId = "anim_" + prop.name;
         
-        EditorHistoryState currentCloned;
-        for (const auto& s : project->GetSprites()) {
-            if (!s) continue;
-            auto copy = std::make_shared<StudioCore::SpriteDefinition>(s->GetId(), s->GetSourceRect());
-            copy->SetPivot(s->GetPivot());
-            currentCloned.sprites.push_back(copy);
+        auto group = std::make_shared<AnimationGroup>(animId, prop.name);
+        group->SetFPS(static_cast<float>(prop.fps));
+        group->SetLooping(prop.isLooping);
+        
+        auto idsToAdd = prop.spriteIds;
+        if (prop.reverseOrder) {
+            std::reverse(idsToAdd.begin(), idsToAdd.end());
         }
-        if (engine.HasTexture() && engine.GetCurrentTexture()) {
-            auto tex = engine.GetCurrentTexture();
-            currentCloned.width = tex->GetWidth();
-            currentCloned.height = tex->GetHeight();
-            currentCloned.pixels = tex->GetPixels();
-        }
-        g_redoStack.push_back(currentCloned);
 
-        auto prevState = g_undoStack.back();
-        g_undoStack.pop_back();
+        group->SetFrames(idsToAdd);
+        proj->AddAnimationGroup(group);
+    }
+}
 
-        project->SetSprites(prevState.sprites);
+void StudioEngineFacade::DeleteSpriteWithPixels(const std::string& spriteId) {
+    auto proj = GetCurrentProject();
+    if (!proj) return;
 
-        if (engine.HasTexture() && engine.GetCurrentTexture() && !prevState.pixels.empty()) {
-            auto tex = engine.GetCurrentTexture();
-            if (tex->GetWidth() == prevState.width && tex->GetHeight() == prevState.height) {
-                auto& rawPixels = const_cast<std::vector<uint8_t>&>(tex->GetPixels());
-                rawPixels = prevState.pixels;
+    auto constTexture = proj->GetTexture();
+    if (!constTexture) return;
+
+    auto texture = std::const_pointer_cast<SourceTexture>(constTexture);
+    if (!texture || !texture->IsValid()) return;
+
+    auto sprite = proj->GetSpriteById(spriteId);
+    if (!sprite) return;
+
+    auto rect = sprite->GetSourceRect();
+    int imgWidth = texture->GetWidth();
+    int imgHeight = texture->GetHeight();
+
+    sf::Image currentCanvas;
+    currentCanvas.create(imgWidth, imgHeight, texture->GetPixels().data());
+    sf::Image erasedCanvas = currentCanvas;
+
+    sf::IntRect srcRect(static_cast<int>(rect.x), static_cast<int>(rect.y),
+                        static_cast<int>(rect.width), static_cast<int>(rect.height));
+
+    for (int y = srcRect.top; y < srcRect.top + srcRect.height; ++y) {
+        for (int x = srcRect.left; x < srcRect.left + srcRect.width; ++x) {
+            if (x >= 0 && x < imgWidth && y >= 0 && y < imgHeight) {
+                erasedCanvas.setPixel(x, y, sf::Color::Transparent);
             }
         }
     }
-    engine.Undo();
-}
 
-static void PerformRedo(StudioCore::StudioEngineFacade& engine) {
-    if (!g_redoStack.empty() && engine.IsProjectActive() && engine.GetCurrentProject()) {
-        auto project = engine.GetCurrentProject();
-        
-        EditorHistoryState currentCloned;
-        for (const auto& s : project->GetSprites()) {
-            if (!s) continue;
-            auto copy = std::make_shared<StudioCore::SpriteDefinition>(s->GetId(), s->GetSourceRect());
-            copy->SetPivot(s->GetPivot());
-            currentCloned.sprites.push_back(copy);
-        }
-        if (engine.HasTexture() && engine.GetCurrentTexture()) {
-            auto tex = engine.GetCurrentTexture();
-            currentCloned.width = tex->GetWidth();
-            currentCloned.height = tex->GetHeight();
-            currentCloned.pixels = tex->GetPixels();
-        }
-        g_undoStack.push_back(currentCloned);
+    std::vector<uint8_t> oldPixels = texture->GetPixels();
+    std::vector<uint8_t> newPixels(erasedCanvas.getPixelsPtr(), erasedCanvas.getPixelsPtr() + (imgWidth * imgHeight * 4));
 
-        auto nextState = g_redoStack.back();
-        g_redoStack.pop_back();
+    auto pixelCmd = std::make_unique<PixelRegionCommand>(texture, oldPixels, newPixels);
+    pixelCmd->Execute();
 
-        project->SetSprites(nextState.sprites);
+    proj->RemoveSprite(spriteId);
 
-        if (engine.HasTexture() && engine.GetCurrentTexture() && !nextState.pixels.empty()) {
-            auto tex = engine.GetCurrentTexture();
-            if (tex->GetWidth() == nextState.width && tex->GetHeight() == nextState.height) {
-                auto& rawPixels = const_cast<std::vector<uint8_t>&>(tex->GetPixels());
-                rawPixels = nextState.pixels;
-            }
-        }
+    if (m_commandHistory) {
+        m_commandHistory->ExecuteCommand(std::move(pixelCmd));
     }
-    engine.Redo();
 }
 
-static void ExportAtlasMetadata(StudioCore::StudioEngineFacade& engine, const std::string& baseFilePath) {
-    if (!engine.IsProjectActive() || !engine.GetCurrentProject()) return;
-    auto project = engine.GetCurrentProject();
-
+void StudioEngineFacade::RepackFrames() {
+    auto project = GetCurrentProject();
+    if (!IsProjectActive() || !project) return;
+    
     if (project->GetSprites().empty()) {
-        StudioCore::DetectionConfig cfg;
-        cfg.minSpriteSize = 10;
-        engine.RunAutoDetection(cfg);
+        DetectionConfig config;
+        config.minSpriteSize = 25;
+        RunAutoDetection(config);
+    }
+    
+    if (project->GetSprites().empty()) return; 
+
+    auto cmd = std::make_unique<RepackFramesCommand>(project);
+    m_commandHistory->ExecuteCommand(std::move(cmd)); 
+}
+
+void StudioEngineFacade::FlipHorizontal() {
+    auto project = GetCurrentProject();
+    if (!IsProjectActive() || !project) return;
+    
+    if (project->GetSprites().empty()) {
+        DetectionConfig config;
+        config.minSpriteSize = 35;
+        RunAutoDetection(config);
+    }
+    
+    if (project->GetSprites().empty()) return;
+
+    auto cmd = std::make_unique<FlipHorizontalCommand>(project);
+    m_commandHistory->ExecuteCommand(std::move(cmd));
+}
+
+void StudioEngineFacade::MergeOverlappingSprites() {
+    auto project = GetCurrentProject();
+    if (!IsProjectActive() || !project || project->GetSprites().empty()) return;
+    
+    auto cmd = std::make_unique<MergeSpritesCommand>(project);
+    m_commandHistory->ExecuteCommand(std::move(cmd));
+}
+
+void StudioEngineFacade::MergeSelectedSprites(const std::vector<std::string>& selectedIds) {
+    if (selectedIds.size() < 2) return;
+    auto project = GetCurrentProject();
+    if (!IsProjectActive() || !project) return;
+
+    auto allSprites = project->GetSprites();
+    std::vector<std::shared_ptr<SpriteDefinition>> toMerge;
+    std::vector<std::shared_ptr<SpriteDefinition>> remaining;
+
+    for (const auto& s : allSprites) {
+        if (!s) continue;
+        if (std::find(selectedIds.begin(), selectedIds.end(), s->GetId()) != selectedIds.end()) {
+            toMerge.push_back(s);
+        } else {
+            remaining.push_back(s);
+        }
     }
 
-    auto sprites = project->GetSprites();
-    if (sprites.empty()) return;
+    if (toMerge.size() < 2) return;
 
-    std::sort(sprites.begin(), sprites.end(), [](const std::shared_ptr<StudioCore::SpriteDefinition>& a, const std::shared_ptr<StudioCore::SpriteDefinition>& b) {
-        auto ra = a->GetSourceRect();
-        auto rb = b->GetSourceRect();
-        if (std::abs(ra.y - rb.y) > 20) {
-            return ra.y < rb.y;
-        }
-        return ra.x < rb.x;
+    int minX = 999999;
+    int minY = 999999;
+    int maxX = -999999;
+    int maxY = -999999;
+
+    for (const auto& s : toMerge) {
+        auto r = s->GetSourceRect();
+        minX = std::min(minX, static_cast<int>(r.x));
+        minY = std::min(minY, static_cast<int>(r.y));
+        maxX = std::max(maxX, static_cast<int>(r.x + r.width));
+        maxY = std::max(maxY, static_cast<int>(r.y + r.height));
+    }
+
+    Rect mergedRect;
+    mergedRect.x = static_cast<float>(minX);
+    mergedRect.y = static_cast<float>(minY);
+    mergedRect.width = static_cast<float>(maxX - minX);
+    mergedRect.height = static_cast<float>(maxY - minY);
+
+    auto mergedSprite = std::make_shared<SpriteDefinition>(toMerge.front()->GetId(), mergedRect);
+    remaining.push_back(mergedSprite);
+
+    std::sort(remaining.begin(), remaining.end(), [](const std::shared_ptr<SpriteDefinition>& a, const std::shared_ptr<SpriteDefinition>& b) {
+        return a->GetSourceRect().x < b->GetSourceRect().x;
     });
 
-    namespace fs = std::filesystem;
-    fs::path p(baseFilePath);
-    std::string folder = p.parent_path().string();
-    if (folder.empty()) folder = ".";
-    std::string stem = p.stem().string();
-
-    std::string atlasJsonPath = (fs::path(folder) / (stem + "-ATLAS.json")).string();
-    std::string atlasTxtPath = (fs::path(folder) / (stem + "-ATLAS.txt")).string();
-
-    std::ofstream jf(atlasJsonPath);
-    if (jf.is_open()) {
-        jf << "{\n";
-        jf << "  \"exported_file\": \"" << stem << "\",\n";
-        jf << "  \"total_sprites\": " << sprites.size() << ",\n";
-        jf << "  \"sprites\": [\n";
-        for (size_t i = 0; i < sprites.size(); ++i) {
-            const auto& s = sprites[i];
-            auto r = s->GetSourceRect();
-            jf << "    {\n";
-            jf << "      \"index\": " << (i + 1) << ",\n";
-            jf << "      \"id\": \"" << s->GetId() << "\",\n";
-            jf << "      \"x\": " << r.x << ",\n";
-            jf << "      \"y\": " << r.y << ",\n";
-            jf << "      \"width\": " << r.width << ",\n";
-            jf << "      \"height\": " << r.height << "\n";
-            jf << "    }" << (i + 1 < sprites.size() ? "," : "") << "\n";
-        }
-        jf << "  ]\n";
-        jf << "}\n";
-        jf.close();
-    }
-
-    std::ofstream tf(atlasTxtPath);
-    if (tf.is_open()) {
-        tf << "========================================================\n";
-        tf << " ATLAS METADATA: " << stem << "\n";
-        tf << "========================================================\n";
-        tf << "INDEX | ID | X | Y | WIDTH | HEIGHT\n";
-        tf << "--------------------------------------------------------\n";
-        for (size_t i = 0; i < sprites.size(); ++i) {
-            const auto& s = sprites[i];
-            auto r = s->GetSourceRect();
-            tf << (i + 1) << " | " << s->GetId() << " | X=" << r.x << " Y=" << r.y << " W=" << r.width << " H=" << r.height << "\n";
-        }
-        tf.close();
-    }
+    project->SetSprites(remaining);
 }
 
-namespace StudioUI {
+void StudioEngineFacade::CleanCurrentTexture() {
+    auto project = GetCurrentProject();
+    if (!IsProjectActive() || !project) return;
+    auto constTexture = project->GetTexture();
+    if (!constTexture || !constTexture->IsValid()) return;
+    auto texture = std::const_pointer_cast<SourceTexture>(constTexture);
 
-SpriteSheetStudioPanel::SpriteSheetStudioPanel() {
-    m_animationPanel = std::make_unique<AnimationPanel>();
-}
+    int w = texture->GetWidth();
+    int h = texture->GetHeight();
+    if (w <= 0 || h <= 0) return;
 
-SpriteSheetStudioPanel::~SpriteSheetStudioPanel() = default;
+    std::vector<uint8_t> oldPixels = texture->GetPixels();
+    std::vector<uint8_t> newPixels = oldPixels;
 
-void SpriteSheetStudioPanel::Initialize() {
-    m_engine.Initialize();
-    m_engine.CreateProject();
-    m_viewport.Initialize();
+    struct ColorRGB {
+        uint8_t r, g, b;
+    };
+    std::vector<ColorRGB> bgPalette;
 
-    if (!m_engine.IsAutoAlignEnabled()) {
-        m_engine.ToggleAutoAlign();
+    auto addSample = [&](uint8_t r, uint8_t g, uint8_t b) {
+        for (const auto& c : bgPalette) {
+            float dr = static_cast<float>(r) - c.r;
+            float dg = static_cast<float>(g) - c.g;
+            float db = static_cast<float>(b) - c.b;
+            if (std::sqrt(dr * dr + dg * dg + db * db) < 14.0f) {
+                return;
+            }
+        }
+        bgPalette.push_back({ r, g, b });
+    };
+
+    for (int x = 0; x < w; ++x) {
+        size_t iTop = static_cast<size_t>(x) * 4;
+        size_t iBot = static_cast<size_t>((h - 1) * w + x) * 4;
+        if (oldPixels[iTop + 3] > 0) addSample(oldPixels[iTop], oldPixels[iTop + 1], oldPixels[iTop + 2]);
+        if (oldPixels[iBot + 3] > 0) addSample(oldPixels[iBot], oldPixels[iBot + 1], oldPixels[iBot + 2]);
+    }
+    for (int y = 0; y < h; ++y) {
+        size_t iLeft = static_cast<size_t>(y * w) * 4;
+        size_t iRight = static_cast<size_t>(y * w + (w - 1)) * 4;
+        if (oldPixels[iLeft + 3] > 0) addSample(oldPixels[iLeft], oldPixels[iLeft + 1], oldPixels[iLeft + 2]);
+        if (oldPixels[iRight + 3] > 0) addSample(oldPixels[iRight], oldPixels[iRight + 1], oldPixels[iRight + 2]);
     }
 
-    m_toolbar.Initialize("Resources/font.ttf",
-        [this]() {
-            m_isArtifactMode = false;
-            m_isInfillMode = false;
-            m_isDeleteMode = false;
-#if defined(_WIN32)
-            std::string path = openWindowsFileDialog(DialogMode::OpenImage);
-#else
-            std::string path = NativeFileDialog::OpenFileDialog("Image Files (*.png;*.jpg;*.jpeg;*.jfif;*.bmp;*.webp)");
-#endif
-            path = CleanPath(path);
-            if (!path.empty()) LoadImage(path);
-        },
-        [this]() {
-            m_isArtifactMode = false;
-            m_isInfillMode = false;
-            m_isDeleteMode = false;
-#if defined(_WIN32)
-            std::string path = openWindowsFileDialog(DialogMode::OpenImage);
-#else
-            std::string path = NativeFileDialog::OpenFileDialog("Image Files (*.png;*.jpg;*.jpeg;*.jfif;*.bmp;*.webp)");
-#endif
-            path = CleanPath(path);
-            if (!path.empty()) LoadImage(path);
-        },
-        [this]() {
-            m_isArtifactMode = false;
-            m_isInfillMode = false;
-            m_isDeleteMode = false;
-#if defined(_WIN32)
-            std::string path = openWindowsFileDialog(DialogMode::SaveImage, "spritesheet.png");
-#else
-            std::string path = NativeFileDialog::SaveFileDialog("spritesheet.png");
-#endif
-            path = CleanPath(path);
-            if (!path.empty() && m_engine.IsProjectActive()) {
-                namespace fs = std::filesystem;
-                fs::path p(path);
-                std::string folder = p.parent_path().string();
-                std::string base = p.stem().string();
-                m_engine.ExportIndividualSprites(folder.empty() ? "." : folder, base);
-                ExportAtlasMetadata(m_engine, path);
+    auto isBlueprintOrBgColor = [&](uint8_t r, uint8_t g, uint8_t b, uint8_t a) -> bool {
+        if (a == 0) return true;
+
+        for (const auto& c : bgPalette) {
+            float dr = static_cast<float>(r) - c.r;
+            float dg = static_cast<float>(g) - c.g;
+            float db = static_cast<float>(b) - c.b;
+            if (std::sqrt(dr * dr + dg * dg + db * db) <= 24.0f) {
+                return true;
             }
-        },
-        [this]() {
-            m_isArtifactMode = false;
-            m_isInfillMode = false;
-            m_isDeleteMode = false;
-            m_isExportMode = true; 
-            m_exportPreview.Activate(m_engine); 
-        },
-        [this]() {
-            m_isArtifactMode = false;
-            m_isInfillMode = false;
-            m_isDeleteMode = false;
-#if defined(_WIN32)
-            std::string path = openWindowsFileDialog(DialogMode::SaveImage, "frame.png");
-#else
-            std::string path = NativeFileDialog::SaveFileDialog("frame.png");
-#endif
-            path = CleanPath(path);
-            if (!path.empty()) {
-                namespace fs = std::filesystem;
-                fs::path p(path);
-                std::string folder = p.parent_path().string();
-                std::string base = p.stem().string();
-                m_engine.ExportIndividualSprites(folder.empty() ? "." : folder, base);
-                ExportAtlasMetadata(m_engine, path);
+        }
+
+        int ir = static_cast<int>(r);
+        int ig = static_cast<int>(g);
+        int ib = static_cast<int>(b);
+
+        // Blueprint Grid Blue Detection:
+        // Characteristic: Blue strongly exceeds Red (ib - ir >= 14), with blue-cyan dominance
+        if (ib >= 32 && (ib - ir >= 14) && (ib >= ig - 8)) {
+            // Protect green foliage/bamboo: ig >> ib
+            if (ig > ib + 20) return false;
+            // Protect warm straw/wood/stone highlights: ir > 110 & ig > 95
+            if (ir > 110 && ig > 95 && ir >= ib) return false;
+            return true;
+        }
+
+        return false;
+    };
+
+    std::vector<uint8_t> isForeground(w * h, 0);
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            size_t idx = static_cast<size_t>(y * w + x) * 4;
+            if (!isBlueprintOrBgColor(oldPixels[idx], oldPixels[idx + 1], oldPixels[idx + 2], oldPixels[idx + 3])) {
+                isForeground[y * w + x] = 1;
             }
-        },
-        [this]() {
-            m_isUIHidden = !m_isUIHidden;
-            m_viewport.SetUIHidden(m_isUIHidden);
-        },
-        [this]() {
-            m_isArtifactMode = false;
-            m_isInfillMode = false;
-            m_isDeleteMode = false;
-            if (!m_engine.IsProjectActive() || !m_engine.GetCurrentProject() || m_engine.GetCurrentProject()->GetSprites().empty()) return;
-            m_isWizardMode = true;
-            m_animBuilderPanel.Activate(m_engine);
-        },
-        [this]() {
-            m_isArtifactMode = false;
-            m_isInfillMode = false;
-            m_isDeleteMode = false;
-            if (m_engine.IsProjectActive() && m_engine.GetCurrentProject()) {
-                PushUndoState(m_engine);
+        }
+    }
 
-                StudioCore::DetectionConfig config;
-                config.minSpriteSize = 10;
-                m_engine.RunAutoDetection(config);
-                
-                auto project = m_engine.GetCurrentProject();
-                auto rawSprites = project->GetSprites();
-                std::vector<StudioCore::Rect> rawRects;
-                for (const auto& s : rawSprites) {
-                    rawRects.push_back(s->GetSourceRect());
-                }
-
-                std::vector<StudioCore::Rect> mainSprites;
-                std::vector<StudioCore::Rect> fragments;
-                for (const auto& r : rawRects) {
-                    if (r.width > 35 && r.height > 35) {
-                        mainSprites.push_back(r);
-                    } else {
-                        fragments.push_back(r);
-                    }
-                }
-
-                for (const auto& frag : fragments) {
-                    if (mainSprites.empty()) break;
-                    float minD = 999999.0f;
-                    int bestIdx = -1;
-                    float fcx = frag.x + frag.width / 2.0f;
-                    float fcy = frag.y + frag.height / 2.0f;
-                    for (size_t i = 0; i < mainSprites.size(); ++i) {
-                        float mcx = mainSprites[i].x + mainSprites[i].width / 2.0f;
-                        float mcy = mainSprites[i].y + mainSprites[i].height / 2.0f;
-                        float d = (fcx - mcx) * (fcx - mcx) + (fcy - mcy) * (fcy - mcy);
-                        if (d < minD) {
-                            minD = d;
-                            bestIdx = static_cast<int>(i);
+    // 1. Morphological Closing (Dilate by 2px) to seal micro-cracks
+    std::vector<uint8_t> sealedForeground = isForeground;
+    const int DILATE_RAD = 2;
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            if (isForeground[y * w + x]) {
+                for (int dy = -DILATE_RAD; dy <= DILATE_RAD; ++dy) {
+                    for (int dx = -DILATE_RAD; dx <= DILATE_RAD; ++dx) {
+                        int nx = x + dx;
+                        int ny = y + dy;
+                        if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                            sealedForeground[ny * w + nx] = 1;
                         }
                     }
-                    if (bestIdx != -1) {
-                        float minX = std::min(mainSprites[bestIdx].x, frag.x);
-                        float minY = std::min(mainSprites[bestIdx].y, frag.y);
-                        float maxX = std::max(mainSprites[bestIdx].x + mainSprites[bestIdx].width, frag.x + frag.width);
-                        float maxY = std::max(mainSprites[bestIdx].y + mainSprites[bestIdx].height, frag.y + frag.height);
-                        mainSprites[bestIdx].x = minX;
-                        mainSprites[bestIdx].y = minY;
-                        mainSprites[bestIdx].width = maxX - minX;
-                        mainSprites[bestIdx].height = maxY - minY;
-                    }
                 }
-
-                std::sort(mainSprites.begin(), mainSprites.end(), [](const StudioCore::Rect& a, const StudioCore::Rect& b) {
-                    if (std::abs(a.y - b.y) > 20) {
-                        return a.y < b.y;
-                    }
-                    return a.x < b.x; 
-                });
-
-                std::vector<std::shared_ptr<StudioCore::SpriteDefinition>> newSprites;
-                for (size_t i = 0; i < mainSprites.size(); ++i) {
-                    auto def = std::make_shared<StudioCore::SpriteDefinition>("sprite_" + std::to_string(i + 1), mainSprites[i]);
-                    newSprites.push_back(def);
-                }
-                
-                project->SetSprites(newSprites);
-                m_viewport.RefreshTexture(m_engine);
             }
-        },
-        [this]() {
-            m_isArtifactMode = false;
-            m_isInfillMode = false;
-            m_isDeleteMode = false;
-            auto selectedIds = m_viewport.GetSelectedSpriteIds();
-            if (selectedIds.size() >= 2) {
-                PushUndoState(m_engine);
-                m_engine.MergeSelectedSprites(selectedIds);
-                m_viewport.ClearSelection();
-                m_viewport.RefreshTexture(m_engine);
-            }
-        },
-        [this]() {
-            m_isArtifactMode = false;
-            m_isInfillMode = false;
-            m_isDeleteMode = false;
-            PushUndoState(m_engine);
-            m_engine.CleanCurrentTexture();
-            m_viewport.RefreshTexture(m_engine);
-        },
-        [this]() {
-            m_isArtifactMode = !m_isArtifactMode;
-            m_isInfillMode = false;
-            m_isDeleteMode = false;
-        },
-        [this]() {
-            m_isInfillMode = !m_isInfillMode;
-            m_isArtifactMode = false;
-            m_isDeleteMode = false;
-        },
-        [this]() {
-            m_isDeleteMode = !m_isDeleteMode;
-            m_isArtifactMode = false;
-            m_isInfillMode = false;
-        },
-        [this]() {
-            m_isArtifactMode = false;
-            m_isInfillMode = false;
-            m_isDeleteMode = false;
-            PushUndoState(m_engine);
-            m_engine.RepackFrames();
-            m_viewport.RefreshTexture(m_engine);
-        },
-        [this]() {
-            m_isArtifactMode = false;
-            m_isInfillMode = false;
-            m_isDeleteMode = false;
-            PushUndoState(m_engine);
-            m_engine.FlipHorizontal();
-            m_viewport.RefreshTexture(m_engine);
-        }
-    );
-    m_animationPanel->InitializeFont("Resources/font.ttf");
-    m_exportPreview.InitializeFont("Resources/font.ttf");
-    m_animBuilderPanel.InitializeFont("Resources/font.ttf");
-    m_workspace.InitializeFont("Resources/font.ttf");
-}
-
-void SpriteSheetStudioPanel::LoadImage(const std::string& filePath) {
-    std::string clean = CleanPath(filePath);
-    std::string errorMsg;
-    PushUndoState(m_engine);
-    if (m_engine.ImportImage(clean, errorMsg)) {
-        m_viewport.RefreshTexture(m_engine);
-    }
-}
-
-void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::RenderWindow& window) {
-    if (!m_isActive) return;
-
-    sf::FloatRect currentBounds(0.f, 0.f, static_cast<float>(window.getSize().x), static_cast<float>(window.getSize().y));
-    SetBounds(currentBounds);
-
-    if (event.type == sf::Event::KeyPressed) {
-        bool isShift = sf::Keyboard::isKeyPressed(sf::Keyboard::LShift) || sf::Keyboard::isKeyPressed(sf::Keyboard::RShift);
-        bool isControl = sf::Keyboard::isKeyPressed(sf::Keyboard::LControl) || sf::Keyboard::isKeyPressed(sf::Keyboard::RControl);
-
-        if (event.key.code == sf::Keyboard::Delete) {
-            auto selectedIds = m_viewport.GetSelectedSpriteIds();
-            if (!selectedIds.empty()) {
-                PushUndoState(m_engine);
-                for (const auto& id : selectedIds) {
-                    m_engine.DeleteSpriteWithPixels(id);
-                }
-                m_viewport.ClearSelection();
-                m_viewport.RefreshTexture(m_engine);
-                return;
-            }
-        }
-
-        if (isShift && event.key.code == sf::Keyboard::N) {
-            if (m_engine.IsProjectActive()) {
-                PushUndoState(m_engine);
-                static int animCounter = 1;
-                m_engine.CreateAnimation("New Animation " + std::to_string(animCounter++));
-                m_viewport.RefreshTexture(m_engine);
-                return;
-            }
-        }
-        if (isControl) {
-            if (event.key.code == sf::Keyboard::Z) {
-                if (isShift) {
-                    PerformRedo(m_engine);
-                } else {
-                    PerformUndo(m_engine);
-                }
-                m_viewport.ClearSelection();
-                m_viewport.RefreshTexture(m_engine);
-                return;
-            }
-            if (event.key.code == sf::Keyboard::Y) {
-                PerformRedo(m_engine);
-                m_viewport.ClearSelection();
-                m_viewport.RefreshTexture(m_engine);
-                return;
-            }
-            if (event.key.code == sf::Keyboard::E) {
-                m_isExportMode = true;
-                m_exportPreview.Activate(m_engine);
-                return;
-            }
-            if (event.key.code == sf::Keyboard::L || event.key.code == sf::Keyboard::O) {
-#if defined(_WIN32)
-                std::string path = openWindowsFileDialog(DialogMode::OpenImage);
-#else
-                std::string path = NativeFileDialog::OpenFileDialog("Image Files (*.png;*.jpg;*.jpeg;*.jfif;*.bmp;*.webp)");
-#endif
-                path = CleanPath(path);
-                if (!path.empty()) {
-                    LoadImage(path);
-                }
-                return;
-            }
-            if (event.key.code == sf::Keyboard::S) {
-#if defined(_WIN32)
-                std::string path = openWindowsFileDialog(DialogMode::SaveImage, "spritesheet.png");
-#else
-                std::string path = NativeFileDialog::SaveFileDialog("spritesheet.png");
-#endif
-                path = CleanPath(path);
-                if (!path.empty() && m_engine.IsProjectActive()) {
-                    namespace fs = std::filesystem;
-                    fs::path p(path);
-                    std::string folder = p.parent_path().string();
-                    std::string base = p.stem().string();
-                    m_engine.ExportIndividualSprites(folder.empty() ? "." : folder, base);
-                    ExportAtlasMetadata(m_engine, path);
-                }
-                return;
-            }
-        }
-        if (event.key.code == sf::Keyboard::A && !isControl) {
-            m_engine.ToggleAutoAlign();
-            m_viewport.RefreshTexture(m_engine);
-            return;
-        }
-        if (event.key.code == sf::Keyboard::Escape) {
-            m_isArtifactMode = false;
-            m_isInfillMode = false;
-            m_isDeleteMode = false;
-            m_isDraggingArtifact = false;
         }
     }
 
-    if (m_workspace.HandleEvent(event, window)) return;
+    // 2. Exterior Reachability Flood-Fill
+    std::vector<uint8_t> exterior(w * h, 0);
+    std::queue<std::pair<int, int>> q;
 
-    if (m_isWizardMode) {
-        bool exitWizard = false;
-        m_animBuilderPanel.HandleEvent(event, window, m_engine, exitWizard);
-        if (exitWizard) m_isWizardMode = false;
-        return;
+    auto pushBorderNode = [&](int x, int y) {
+        int pos = y * w + x;
+        if (!sealedForeground[pos] && !exterior[pos]) {
+            exterior[pos] = 1;
+            q.push({ x, y });
+        }
+    };
+
+    for (int x = 0; x < w; ++x) {
+        pushBorderNode(x, 0);
+        pushBorderNode(x, h - 1);
+    }
+    for (int y = 0; y < h; ++y) {
+        pushBorderNode(0, y);
+        pushBorderNode(w - 1, y);
     }
 
-    if (m_isExportMode) {
-        if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape) {
-            m_exportPreview.Deactivate();
-            m_isExportMode = false;
-        } else {
-            m_exportPreview.HandleEvent(event, window, m_engine);
-            if (!m_exportPreview.IsActive()) {
-                m_isExportMode = false;
-                std::string lastPath = m_exportPreview.GetLastExportPath();
-                if (!lastPath.empty()) {
-                    ExportAtlasMetadata(m_engine, lastPath);
+    const int dx4[4] = { 1, -1, 0, 0 };
+    const int dy4[4] = { 0, 0, 1, -1 };
+
+    while (!q.empty()) {
+        auto [cx, cy] = q.front();
+        q.pop();
+
+        for (int d = 0; d < 4; ++d) {
+            int nx = cx + dx4[d];
+            int ny = cy + dy4[d];
+            if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                int nPos = ny * w + nx;
+                if (!sealedForeground[nPos] && !exterior[nPos]) {
+                    exterior[nPos] = 1;
+                    q.push({ nx, ny });
                 }
             }
         }
-        return;
     }
 
-    if (m_toolbar.HandleEvent(event, window, m_engine)) return;
-
-    if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
-        bool isControl = sf::Keyboard::isKeyPressed(sf::Keyboard::LControl) || sf::Keyboard::isKeyPressed(sf::Keyboard::RControl);
-
-        if (isControl && (m_isArtifactMode || m_isDeleteMode)) {
-            sf::Vector2i pixelPos(event.mouseButton.x, event.mouseButton.y);
-            sf::Vector2f worldPos = m_viewport.MapPixelToWorld(pixelPos, window);
-            int px = static_cast<int>(std::floor(worldPos.x));
-            int py = static_cast<int>(std::floor(worldPos.y));
-
-            if (m_engine.HasTexture() && m_engine.GetCurrentTexture()) {
-                auto tex = m_engine.GetCurrentTexture();
-                int width = tex->GetWidth();
-                int height = tex->GetHeight();
-
-                if (px >= 0 && px < width && py >= 0 && py < height) {
-                    auto& rawPixels = const_cast<std::vector<uint8_t>&>(tex->GetPixels());
-                    size_t targetIdx = static_cast<size_t>(py * width + px) * 4;
-
-                    uint8_t targetR = rawPixels[targetIdx];
-                    uint8_t targetG = rawPixels[targetIdx + 1];
-                    uint8_t targetB = rawPixels[targetIdx + 2];
-                    uint8_t targetA = rawPixels[targetIdx + 3];
-
-                    if (targetA > 0) {
-                        PushUndoState(m_engine);
-
-                        if (m_isDeleteMode) {
-                            std::vector<bool> visited(static_cast<size_t>(width * height), false);
-                            std::queue<std::pair<int, int>> q;
-                            q.push({px, py});
-                            visited[py * width + px] = true;
-
-                            const int dx[4] = {1, -1, 0, 0};
-                            const int dy[4] = {0, 0, 1, -1};
-
-                            while (!q.empty()) {
-                                auto [cx, cy] = q.front();
-                                q.pop();
-
-                                size_t cIdx = static_cast<size_t>(cy * width + cx) * 4;
-                                rawPixels[cIdx] = 0;
-                                rawPixels[cIdx + 1] = 0;
-                                rawPixels[cIdx + 2] = 0;
-                                rawPixels[cIdx + 3] = 0;
-
-                                for (int d = 0; d < 4; ++d) {
-                                    int nx = cx + dx[d];
-                                    int ny = cy + dy[d];
-                                    if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-                                        size_t nPos = static_cast<size_t>(ny * width + nx);
-                                        if (!visited[nPos]) {
-                                            visited[nPos] = true;
-                                            size_t nIdx = nPos * 4;
-                                            if (rawPixels[nIdx + 3] > 0) {
-                                                int dr = std::abs(static_cast<int>(rawPixels[nIdx]) - targetR);
-                                                int dg = std::abs(static_cast<int>(rawPixels[nIdx + 1]) - targetG);
-                                                int db = std::abs(static_cast<int>(rawPixels[nIdx + 2]) - targetB);
-                                                if (dr <= 25 && dg <= 25 && db <= 25) {
-                                                    q.push({nx, ny});
-                                                }
-                                            }
-                                        }
-                                    }
+    // 3. Peel back the dilation margin on background pixels touching exterior
+    for (int pass = 0; pass < DILATE_RAD + 2; ++pass) {
+        std::vector<std::pair<int, int>> toAdd;
+        for (int y = 0; y < h; ++y) {
+            for (int x = 0; x < w; ++x) {
+                int pos = y * w + x;
+                if (!exterior[pos]) {
+                    size_t idx = static_cast<size_t>(pos) * 4;
+                    if (isBlueprintOrBgColor(oldPixels[idx], oldPixels[idx + 1], oldPixels[idx + 2], oldPixels[idx + 3])) {
+                        bool touchesExt = false;
+                        for (int d = 0; d < 4; ++d) {
+                            int nx = x + dx4[d];
+                            int ny = y + dy4[d];
+                            if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                                if (exterior[ny * w + nx]) {
+                                    touchesExt = true;
+                                    break;
                                 }
                             }
-                        } else if (m_isArtifactMode) {
-                            m_engine.RemoveArtifacts(px, py);
                         }
-
-                        m_viewport.RefreshTexture(m_engine);
-                        return;
+                        if (touchesExt) toAdd.push_back({ x, y });
                     }
                 }
             }
         }
-
-        if (m_isArtifactMode || m_isInfillMode || m_isDeleteMode) {
-            sf::Vector2i pixelPos(event.mouseButton.x, event.mouseButton.y);
-            sf::Vector2f worldPos = m_viewport.MapPixelToWorld(pixelPos, window);
-
-            m_artifactDragStart = worldPos;
-            m_artifactDragCurrent = worldPos;
-            m_dragStartPixel = pixelPos;
-            m_dragCurrentPixel = pixelPos;
-            m_isDraggingArtifact = true;
-            return;
+        if (toAdd.empty()) break;
+        for (const auto& [ax, ay] : toAdd) {
+            exterior[ay * w + ax] = 1;
         }
     }
 
-    if (event.type == sf::Event::MouseMoved) {
-        if (m_isDraggingArtifact) {
-            sf::Vector2i pixelPos(event.mouseMove.x, event.mouseMove.y);
-            m_artifactDragCurrent = m_viewport.MapPixelToWorld(pixelPos, window);
-            m_dragCurrentPixel = pixelPos;
-            return;
+    // 4. Erase all exterior space & exterior grid
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            int pos = y * w + x;
+            if (exterior[pos]) {
+                size_t idx = static_cast<size_t>(pos) * 4;
+                newPixels[idx] = 0;
+                newPixels[idx + 1] = 0;
+                newPixels[idx + 2] = 0;
+                newPixels[idx + 3] = 0;
+            }
         }
     }
 
-    if (event.type == sf::Event::MouseButtonReleased && event.mouseButton.button == sf::Mouse::Left) {
-        if (m_isDraggingArtifact) {
-            sf::Vector2i pixelPos(event.mouseButton.x, event.mouseButton.y);
-            sf::Vector2f dragEnd = m_viewport.MapPixelToWorld(pixelPos, window);
+    // 5. Internal Cavity Blueprint Purge:
+    // Clears trapped blueprint blue/grid patches inside watchtower legs, ladder rungs, and tool racks
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            int pos = y * w + x;
+            if (!exterior[pos]) {
+                size_t idx = static_cast<size_t>(pos) * 4;
+                if (newPixels[idx + 3] > 0) {
+                    uint8_t r = newPixels[idx];
+                    uint8_t g = newPixels[idx + 1];
+                    uint8_t b = newPixels[idx + 2];
 
-            float minX = std::min(m_artifactDragStart.x, dragEnd.x);
-            float maxX = std::max(m_artifactDragStart.x, dragEnd.x);
-            float minY = std::min(m_artifactDragStart.y, dragEnd.y);
-            float maxY = std::max(m_artifactDragStart.y, dragEnd.y);
+                    int ir = static_cast<int>(r);
+                    int ig = static_cast<int>(g);
+                    int ib = static_cast<int>(b);
 
-            PushUndoState(m_engine);
-
-            if (m_isInfillMode) {
-                m_engine.FillTransparencyArea(
-                    static_cast<int>(minX),
-                    static_cast<int>(minY),
-                    std::max(1, static_cast<int>(maxX - minX)),
-                    std::max(1, static_cast<int>(maxY - minY))
-                );
-            } else if (m_isDeleteMode) {
-                if (std::abs(maxX - minX) < 2.0f && std::abs(maxY - minY) < 2.0f) {
-                    m_engine.DeleteArea(static_cast<int>(minX), static_cast<int>(minY), 1, 1);
-                } else {
-                    m_engine.DeleteArea(
-                        static_cast<int>(minX),
-                        static_cast<int>(minY),
-                        static_cast<int>(maxX - minX),
-                        static_cast<int>(maxY - minY)
-                    );
-                }
-            } else {
-                if (std::abs(maxX - minX) < 2.0f && std::abs(maxY - minY) < 2.0f) {
-                    m_engine.RemoveArtifacts(static_cast<int>(minX), static_cast<int>(minY));
-                } else {
-                    m_engine.RemoveArtifactsArea(
-                        static_cast<int>(minX),
-                        static_cast<int>(minY),
-                        static_cast<int>(maxX - minX),
-                        static_cast<int>(maxY - minY)
-                    );
-                }
-            }
-
-            m_viewport.RefreshTexture(m_engine);
-            m_isDraggingArtifact = false;
-            return;
-        }
-    }
-
-    if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Right) {
-        sf::Vector2i pixelPos(event.mouseButton.x, event.mouseButton.y);
-        sf::Vector2f worldPos = m_viewport.MapPixelToWorld(pixelPos, window);
-        std::string targetSpriteId = "";
-        if (m_engine.IsProjectActive() && m_engine.GetCurrentProject()) {
-            auto sprites = m_engine.GetCurrentProject()->GetSprites();
-            for (auto it = sprites.rbegin(); it != sprites.rend(); ++it) {
-                auto sprite = *it;
-                if (!sprite) continue;
-                auto rect = sprite->GetSourceRect();
-                sf::FloatRect bounds(rect.x, rect.y, rect.width, rect.height);
-                if (bounds.contains(worldPos)) {
-                    targetSpriteId = sprite->GetId();
-                    break;
-                }
-            }
-        }
-        if (!targetSpriteId.empty()) {
-            auto selectedIds = m_viewport.GetSelectedSpriteIds();
-            std::vector<std::string> targetsToDelete;
-            if (std::find(selectedIds.begin(), selectedIds.end(), targetSpriteId) != selectedIds.end()) {
-                targetsToDelete = selectedIds;
-            } else {
-                targetsToDelete = { targetSpriteId };
-            }
-
-            std::string deleteLabel = targetsToDelete.size() > 1 
-                ? "Delete " + std::to_string(targetsToDelete.size()) + " Sprites" 
-                : "Delete Sprite";
-            std::string pivotLabel = targetsToDelete.size() > 1
-                ? "Reset Pivots (" + std::to_string(targetsToDelete.size()) + ")"
-                : "Reset Pivot";
-
-            std::vector<StudioUI::ContextMenuItem> items = {
-                {deleteLabel, [this, targetsToDelete]() {
-                    PushUndoState(m_engine);
-                    for (const auto& id : targetsToDelete) {
-                        m_engine.DeleteSpriteWithPixels(id);
-                    }
-                    m_viewport.ClearSelection();
-                    m_viewport.RefreshTexture(m_engine);
-                }},
-                {pivotLabel, [this, targetsToDelete]() {
-                    auto proj = m_engine.GetCurrentProject();
-                    if (!proj) return;
-                    PushUndoState(m_engine);
-                    for (const auto& id : targetsToDelete) {
-                        auto sprite = proj->GetSpriteById(id);
-                        if (sprite) {
-                            auto rect = sprite->GetSourceRect();
-                            sprite->SetPivot({rect.width / 2.0f, rect.height / 2.0f});
+                    // Strictly target blueprint blue hue trapped inside cavities
+                    if (ib >= 35 && (ib - ir >= 16) && (ib >= ig - 6)) {
+                        // Protect foliage (green dominant) and wood/straw shadows (red dominant or balanced darks)
+                        if (!(ig > ib + 18) && !(ir > 105 && ig > 90)) {
+                            newPixels[idx] = 0;
+                            newPixels[idx + 1] = 0;
+                            newPixels[idx + 2] = 0;
+                            newPixels[idx + 3] = 0;
                         }
                     }
-                    m_viewport.RefreshTexture(m_engine);
-                }}
-            };
-            m_workspace.ShowContextMenu({static_cast<float>(event.mouseButton.x), static_cast<float>(event.mouseButton.y)}, items);
-            return;
+                }
+            }
         }
     }
 
-    if (m_animationPanel) {
-        m_animationPanel->HandleEvent(event, window, m_engine, m_viewport);
+    // 6. Floating Title & Text Annotation Cleaner
+    // Removes AI text labels (e.g. "APE DYNASTY...", "New Village Hut", sub-captions)
+    std::vector<bool> cclVisited(w * h, false);
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            int pos = y * w + x;
+            size_t idx = static_cast<size_t>(pos) * 4;
+            if (newPixels[idx + 3] > 0 && !cclVisited[pos]) {
+                std::vector<std::pair<int, int>> comp;
+                std::queue<std::pair<int, int>> cq;
+                cq.push({ x, y });
+                cclVisited[pos] = true;
+
+                int minX = x, maxX = x, minY = y, maxY = y;
+
+                while (!cq.empty()) {
+                    auto [cx, cy] = cq.front();
+                    cq.pop();
+                    comp.push_back({ cx, cy });
+
+                    minX = std::min(minX, cx);
+                    maxX = std::max(maxX, cx);
+                    minY = std::min(minY, cy);
+                    maxY = std::max(maxY, cy);
+
+                    for (int d = 0; d < 4; ++d) {
+                        int nx = cx + dx4[d];
+                        int ny = cy + dy4[d];
+                        if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                            int nPos = ny * w + nx;
+                            if (!cclVisited[nPos] && newPixels[static_cast<size_t>(nPos) * 4 + 3] > 0) {
+                                cclVisited[nPos] = true;
+                                cq.push({ nx, ny });
+                            }
+                        }
+                    }
+                }
+
+                int compW = (maxX - minX) + 1;
+                int compH = (maxY - minY) + 1;
+
+                // Strip horizontal text lines or small floating noise clusters
+                if ((compH <= 24 && compW <= 400 && comp.size() < 1200) || (comp.size() <= 8)) {
+                    for (const auto& [px, py] : comp) {
+                        size_t pIdx = static_cast<size_t>(py * w + px) * 4;
+                        newPixels[pIdx] = 0;
+                        newPixels[pIdx + 1] = 0;
+                        newPixels[pIdx + 2] = 0;
+                        newPixels[pIdx + 3] = 0;
+                    }
+                }
+            }
+        }
     }
-    m_viewport.HandleEvent(event, window, m_engine);
+
+    auto cmd = std::make_unique<PixelRegionCommand>(texture, oldPixels, newPixels);
+    if (m_commandHistory) {
+        m_commandHistory->ExecuteCommand(std::move(cmd));
+    } else {
+        texture->SetPixels(newPixels);
+    }
 }
 
-void SpriteSheetStudioPanel::Update(float deltaTime, const sf::RenderWindow& window) {
-    if (!m_isActive) return;
+void StudioEngineFacade::RemoveArtifacts(int targetX, int targetY) {
+    auto project = GetCurrentProject();
+    if (!project) return;
+    auto constTexture = project->GetTexture();
+    if (!constTexture || !constTexture->IsValid()) return;
+    auto texture = std::const_pointer_cast<SourceTexture>(constTexture);
 
-    sf::FloatRect currentBounds(0.f, 0.f, static_cast<float>(window.getSize().x), static_cast<float>(window.getSize().y));
-    SetBounds(currentBounds);
+    int texWidth = texture->GetWidth();
+    int texHeight = texture->GetHeight();
+    if (targetX < 0 || targetX >= texWidth || targetY < 0 || targetY >= texHeight) return;
 
-    if (m_isExportMode) {
-        if (!m_exportPreview.IsActive()) {
-            m_isExportMode = false;
+    std::vector<uint8_t> oldPixels = texture->GetPixels();
+    std::vector<uint8_t> newPixels = oldPixels;
+
+    size_t targetIdx = (static_cast<size_t>(targetY) * texWidth + targetX) * 4;
+
+    const int dx[] = {1, -1, 0, 0};
+    const int dy[] = {0, 0, 1, -1};
+
+    if (newPixels[targetIdx + 3] == 0) {
+        std::vector<bool> holeVisited(texWidth * texHeight, false);
+        std::vector<int> holePixels;
+        std::queue<std::pair<int, int>> hq;
+
+        hq.push({targetX, targetY});
+        holeVisited[targetY * texWidth + targetX] = true;
+        holePixels.push_back(targetY * texWidth + targetX);
+
+        size_t maxHoleSize = 50000;
+
+        while (!hq.empty()) {
+            auto [hx, hy] = hq.front();
+            hq.pop();
+
+            if (holePixels.size() > maxHoleSize) break;
+
+            for (int i = 0; i < 4; ++i) {
+                int nx = hx + dx[i];
+                int ny = hy + dy[i];
+                if (nx >= 0 && nx < texWidth && ny >= 0 && ny < texHeight) {
+                    int nPos = ny * texWidth + nx;
+                    if (!holeVisited[nPos] && newPixels[nPos * 4 + 3] == 0) {
+                        holeVisited[nPos] = true;
+                        hq.push({nx, ny});
+                        holePixels.push_back(nPos);
+                    }
+                }
+            }
         }
+
+        if (holePixels.size() > maxHoleSize) return;
+
+        struct ColorSource {
+            int x, y;
+            uint8_t r, g, b;
+        };
+
+        std::queue<ColorSource> propQueue;
+        std::vector<bool> propVisited(texWidth * texHeight, false);
+
+        for (int hPos : holePixels) {
+            int hx = hPos % texWidth;
+            int hy = hPos / texWidth;
+
+            for (int i = 0; i < 4; ++i) {
+                int nx = hx + dx[i];
+                int ny = hy + dy[i];
+                if (nx >= 0 && nx < texWidth && ny >= 0 && ny < texHeight) {
+                    int nPos = ny * texWidth + nx;
+                    if (newPixels[nPos * 4 + 3] > 0 && !propVisited[nPos]) {
+                        propVisited[nPos] = true;
+                        propQueue.push({nx, ny, newPixels[nPos * 4], newPixels[nPos * 4 + 1], newPixels[nPos * 4 + 2]});
+                    }
+                }
+            }
+        }
+
+        if (propQueue.empty()) return;
+
+        while (!propQueue.empty()) {
+            auto src = propQueue.front();
+            propQueue.pop();
+
+            for (int i = 0; i < 4; ++i) {
+                int nx = src.x + dx[i];
+                int ny = src.y + dy[i];
+                if (nx >= 0 && nx < texWidth && ny >= 0 && ny < texHeight) {
+                    int nPos = ny * texWidth + nx;
+                    if (holeVisited[nPos] && newPixels[nPos * 4 + 3] == 0) {
+                        size_t idx = static_cast<size_t>(nPos) * 4;
+                        newPixels[idx] = src.r;
+                        newPixels[idx + 1] = src.g;
+                        newPixels[idx + 2] = src.b;
+                        newPixels[idx + 3] = 255;
+                        propQueue.push({nx, ny, src.r, src.g, src.b});
+                    }
+                }
+            }
+        }
+    } else {
+        uint8_t targetR = newPixels[targetIdx];
+        uint8_t targetG = newPixels[targetIdx + 1];
+        uint8_t targetB = newPixels[targetIdx + 2];
+
+        float tolerance = 25.0f;
+        std::vector<bool> visited(texWidth * texHeight, false);
+        std::queue<std::pair<int, int>> q;
+
+        q.push({targetX, targetY});
+        visited[targetY * texWidth + targetX] = true;
+
+        while (!q.empty()) {
+            auto [cx, cy] = q.front();
+            q.pop();
+
+            size_t idx = (static_cast<size_t>(cy) * texWidth + cx) * 4;
+            newPixels[idx] = 0;
+            newPixels[idx + 1] = 0;
+            newPixels[idx + 2] = 0;
+            newPixels[idx + 3] = 0;
+
+            for (int i = 0; i < 4; ++i) {
+                int nx = cx + dx[i];
+                int ny = cy + dy[i];
+
+                if (nx >= 0 && nx < texWidth && ny >= 0 && ny < texHeight) {
+                    int nPos = ny * texWidth + nx;
+                    if (!visited[nPos]) {
+                        visited[nPos] = true;
+                        size_t nIdx = static_cast<size_t>(nPos) * 4;
+                        if (newPixels[nIdx + 3] > 0) {
+                            float dr = static_cast<float>(newPixels[nIdx]) - targetR;
+                            float dg = static_cast<float>(newPixels[nIdx + 1]) - targetG;
+                            float db = static_cast<float>(newPixels[nIdx + 2]) - targetB;
+                            if (std::sqrt(dr * dr + dg * dg + db * db) <= tolerance) {
+                                q.push({nx, ny});
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    auto cmd = std::make_unique<PixelRegionCommand>(texture, oldPixels, newPixels);
+    if (m_commandHistory) {
+        m_commandHistory->ExecuteCommand(std::move(cmd));
+    } else {
+        texture->SetPixels(newPixels);
+    }
+}
+
+void StudioEngineFacade::RemoveArtifactsArea(int x, int y, int width, int height) {
+    auto project = GetCurrentProject();
+    if (!project) return;
+    auto constTexture = project->GetTexture();
+    if (!constTexture || !constTexture->IsValid()) return;
+    auto texture = std::const_pointer_cast<SourceTexture>(constTexture);
+
+    int texWidth = texture->GetWidth();
+    int texHeight = texture->GetHeight();
+
+    int startX = std::max(0, x);
+    int startY = std::max(0, y);
+    int endX = std::min(texWidth, x + width);
+    int endY = std::min(texHeight, y + height);
+
+    if (startX >= endX || startY >= endY) return;
+
+    std::vector<uint8_t> oldPixels = texture->GetPixels();
+    std::vector<uint8_t> newPixels = oldPixels;
+
+    size_t sampleIdx = (static_cast<size_t>(startY) * texWidth + startX) * 4;
+    uint8_t sampleR = oldPixels[sampleIdx];
+    uint8_t sampleG = oldPixels[sampleIdx + 1];
+    uint8_t sampleB = oldPixels[sampleIdx + 2];
+    uint8_t sampleA = oldPixels[sampleIdx + 3];
+
+    const int dx[] = {1, -1, 0, 0};
+    const int dy[] = {0, 0, 1, -1};
+
+    if (sampleA > 0) {
+        float tolerance = 25.0f;
+        std::vector<bool> visited(texWidth * texHeight, false);
+        std::queue<std::pair<int, int>> q;
+
+        q.push({startX, startY});
+        visited[startY * texWidth + startX] = true;
+
+        while (!q.empty()) {
+            auto [cx, cy] = q.front();
+            q.pop();
+
+            size_t idx = (static_cast<size_t>(cy) * texWidth + cx) * 4;
+            newPixels[idx] = 0;
+            newPixels[idx + 1] = 0;
+            newPixels[idx + 2] = 0;
+            newPixels[idx + 3] = 0;
+
+            for (int i = 0; i < 4; ++i) {
+                int nx = cx + dx[i];
+                int ny = cy + dy[i];
+
+                if (nx >= startX && nx < endX && ny >= startY && ny < endY) {
+                    int nPos = ny * texWidth + nx;
+                    if (!visited[nPos]) {
+                        visited[nPos] = true;
+                        size_t nIdx = static_cast<size_t>(nPos) * 4;
+                        if (newPixels[nIdx + 3] > 0) {
+                            float dr = static_cast<float>(newPixels[nIdx]) - sampleR;
+                            float dg = static_cast<float>(newPixels[nIdx + 1]) - sampleG;
+                            float db = static_cast<float>(newPixels[nIdx + 2]) - sampleB;
+                            if (std::sqrt(dr * dr + dg * dg + db * db) <= tolerance) {
+                                q.push({nx, ny});
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        struct ColorSource {
+            int x, y;
+            uint8_t r, g, b;
+        };
+
+        std::queue<ColorSource> propQueue;
+        std::vector<bool> propVisited(texWidth * texHeight, false);
+
+        for (int py = startY; py < endY; ++py) {
+            for (int px = startX; px < endX; ++px) {
+                size_t idx = (static_cast<size_t>(py) * texWidth + px) * 4;
+                if (newPixels[idx + 3] == 0) {
+                    for (int i = 0; i < 4; ++i) {
+                        int nx = px + dx[i];
+                        int ny = py + dy[i];
+                        if (nx >= 0 && nx < texWidth && ny >= 0 && ny < texHeight) {
+                            int nPos = ny * texWidth + nx;
+                            if (newPixels[nPos * 4 + 3] > 0 && !propVisited[nPos]) {
+                                propVisited[nPos] = true;
+                                propQueue.push({nx, ny, newPixels[nPos * 4], newPixels[nPos * 4 + 1], newPixels[nPos * 4 + 2]});
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        while (!propQueue.empty()) {
+            auto src = propQueue.front();
+            propQueue.pop();
+
+            for (int i = 0; i < 4; ++i) {
+                int nx = src.x + dx[i];
+                int ny = src.y + dy[i];
+                if (nx >= startX && nx < endX && ny >= startY && ny < endY) {
+                    size_t idx = (static_cast<size_t>(ny) * texWidth + nx) * 4;
+                    if (newPixels[idx + 3] == 0) {
+                        newPixels[idx] = src.r;
+                        newPixels[idx + 1] = src.g;
+                        newPixels[idx + 2] = src.b;
+                        newPixels[idx + 3] = 255;
+                        propQueue.push({nx, ny, src.r, src.g, src.b});
+                    }
+                }
+            }
+        }
+    }
+
+    auto cmd = std::make_unique<PixelRegionCommand>(texture, oldPixels, newPixels);
+    if (m_commandHistory) {
+        m_commandHistory->ExecuteCommand(std::move(cmd));
+    } else {
+        texture->SetPixels(newPixels);
+    }
+}
+
+void StudioEngineFacade::RemoveColorGlobal(int targetX, int targetY, float tolerance) {
+    auto project = GetCurrentProject();
+    if (!project) return;
+    auto constTexture = project->GetTexture();
+    if (!constTexture || !constTexture->IsValid()) return;
+    auto texture = std::const_pointer_cast<SourceTexture>(constTexture);
+
+    int texWidth = texture->GetWidth();
+    int texHeight = texture->GetHeight();
+    if (targetX < 0 || targetX >= texWidth || targetY < 0 || targetY >= texHeight) return;
+
+    std::vector<uint8_t> oldPixels = texture->GetPixels();
+    std::vector<uint8_t> newPixels = oldPixels;
+
+    size_t targetIdx = (static_cast<size_t>(targetY) * texWidth + targetX) * 4;
+    uint8_t tr = newPixels[targetIdx];
+    uint8_t tg = newPixels[targetIdx + 1];
+    uint8_t tb = newPixels[targetIdx + 2];
+    uint8_t ta = newPixels[targetIdx + 3];
+
+    if (ta == 0) return;
+
+    std::vector<bool> visited(texWidth * texHeight, false);
+    std::queue<std::pair<int, int>> q;
+
+    const int dx[] = {1, -1, 0, 0};
+    const int dy[] = {0, 0, 1, -1};
+
+    auto pushIfBorderMatch = [&](int x, int y) {
+        int pos = y * texWidth + x;
+        if (!visited[pos]) {
+            size_t idx = static_cast<size_t>(pos) * 4;
+            if (newPixels[idx + 3] > 0) {
+                float dr = static_cast<float>(newPixels[idx]) - tr;
+                float dg = static_cast<float>(newPixels[idx + 1]) - tg;
+                float db = static_cast<float>(newPixels[idx + 2]) - tb;
+                if (std::sqrt(dr * dr + dg * dg + db * db) <= tolerance) {
+                    visited[pos] = true;
+                    q.push({x, y});
+                }
+            }
+        }
+    };
+
+    for (int x = 0; x < texWidth; ++x) {
+        pushIfBorderMatch(x, 0);
+        pushIfBorderMatch(x, texHeight - 1);
+    }
+    for (int y = 0; y < texHeight; ++y) {
+        pushIfBorderMatch(0, y);
+        pushIfBorderMatch(texWidth - 1, y);
+    }
+
+    if (q.empty()) {
+        pushIfBorderMatch(targetX, targetY);
+    }
+
+    while (!q.empty()) {
+        auto [cx, cy] = q.front();
+        q.pop();
+
+        size_t idx = (static_cast<size_t>(cy) * texWidth + cx) * 4;
+        newPixels[idx] = 0;
+        newPixels[idx + 1] = 0;
+        newPixels[idx + 2] = 0;
+        newPixels[idx + 3] = 0;
+
+        for (int i = 0; i < 4; ++i) {
+            int nx = cx + dx[i];
+            int ny = cy + dy[i];
+            if (nx >= 0 && nx < texWidth && ny >= 0 && ny < texHeight) {
+                int nPos = ny * texWidth + nx;
+                if (!visited[nPos]) {
+                    visited[nPos] = true;
+                    size_t nIdx = static_cast<size_t>(nPos) * 4;
+                    if (newPixels[nIdx + 3] > 0) {
+                        float dr = static_cast<float>(newPixels[nIdx]) - tr;
+                        float dg = static_cast<float>(newPixels[nIdx + 1]) - tg;
+                        float db = static_cast<float>(newPixels[nIdx + 2]) - tb;
+                        if (std::sqrt(dr * dr + dg * dg + db * db) <= tolerance) {
+                            q.push({nx, ny});
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    auto cmd = std::make_unique<PixelRegionCommand>(texture, oldPixels, newPixels);
+    if (m_commandHistory) {
+        m_commandHistory->ExecuteCommand(std::move(cmd));
+    } else {
+        texture->SetPixels(newPixels);
+    }
+}
+
+void StudioEngineFacade::DeleteArea(int x, int y, int width, int height) {
+    auto project = GetCurrentProject();
+    if (!project) return;
+    auto constTexture = project->GetTexture();
+    if (!constTexture || !constTexture->IsValid()) return;
+    auto texture = std::const_pointer_cast<SourceTexture>(constTexture);
+
+    int texWidth = texture->GetWidth();
+    int texHeight = texture->GetHeight();
+
+    int startX = std::max(0, x);
+    int startY = std::max(0, y);
+    int endX = std::min(texWidth, x + width);
+    int endY = std::min(texHeight, y + height);
+
+    if (startX >= endX || startY >= endY) return;
+
+    std::vector<uint8_t> oldPixels = texture->GetPixels();
+    std::vector<uint8_t> newPixels = oldPixels;
+
+    for (int py = startY; py < endY; ++py) {
+        for (int px = startX; px < endX; ++px) {
+            size_t idx = (static_cast<size_t>(py) * texWidth + px) * 4;
+            newPixels[idx] = 0;
+            newPixels[idx + 1] = 0;
+            newPixels[idx + 2] = 0;
+            newPixels[idx + 3] = 0;
+        }
+    }
+
+    auto cmd = std::make_unique<PixelRegionCommand>(texture, oldPixels, newPixels);
+    if (m_commandHistory) {
+        m_commandHistory->ExecuteCommand(std::move(cmd));
+    } else {
+        texture->SetPixels(newPixels);
+    }
+}
+
+void StudioEngineFacade::FillInternalHoles(int targetX, int targetY) {
+    auto project = GetCurrentProject();
+    if (!project) return;
+    auto constTexture = project->GetTexture();
+    if (!constTexture || !constTexture->IsValid()) return;
+    auto texture = std::const_pointer_cast<SourceTexture>(constTexture);
+
+    int texWidth = texture->GetWidth();
+    int texHeight = texture->GetHeight();
+    if (targetX < 0 || targetX >= texWidth || targetY < 0 || targetY >= texHeight) return;
+
+    std::vector<uint8_t> oldPixels = texture->GetPixels();
+    std::vector<uint8_t> newPixels = oldPixels;
+
+    const int dx[] = {1, -1, 0, 0};
+    const int dy[] = {0, 0, 1, -1};
+
+    size_t clickIdx = (static_cast<size_t>(targetY) * texWidth + targetX) * 4;
+    bool clickedOnTransparent = (newPixels[clickIdx + 3] == 0);
+
+    std::vector<bool> isExterior(texWidth * texHeight, false);
+    std::queue<std::pair<int, int>> eq;
+
+    auto pushExterior = [&](int x, int y) {
+        int pos = y * texWidth + x;
+        if (!isExterior[pos] && newPixels[pos * 4 + 3] == 0) {
+            isExterior[pos] = true;
+            eq.push({x, y});
+        }
+    };
+
+    for (int x = 0; x < texWidth; ++x) {
+        pushExterior(x, 0);
+        pushExterior(x, texHeight - 1);
+    }
+    for (int y = 0; y < texHeight; ++y) {
+        pushExterior(0, y);
+        pushExterior(texWidth - 1, y);
+    }
+
+    while (!eq.empty()) {
+        auto [cx, cy] = eq.front();
+        eq.pop();
+
+        for (int i = 0; i < 4; ++i) {
+            int nx = cx + dx[i];
+            int ny = cy + dy[i];
+            if (nx >= 0 && nx < texWidth && ny >= 0 && ny < texHeight) {
+                int nPos = ny * texWidth + nx;
+                if (!isExterior[nPos] && newPixels[nPos * 4 + 3] == 0) {
+                    isExterior[nPos] = true;
+                    eq.push({nx, ny});
+                }
+            }
+        }
+    }
+
+    int clickPos = targetY * texWidth + targetX;
+    if (clickedOnTransparent && isExterior[clickPos]) {
         return;
     }
-    if (!m_isWizardMode) {
-        m_engine.Update(deltaTime);
-        m_viewport.Update(deltaTime);
-        sf::Vector2i pixelPos = sf::Mouse::getPosition(window);
-        sf::Vector2f worldPos = window.mapPixelToCoords(pixelPos);
-        int totalSprites = (m_engine.IsProjectActive() && m_engine.GetCurrentProject())
-                            ? static_cast<int>(m_engine.GetCurrentProject()->GetSprites().size()) : 0;
-        int selectedCount = static_cast<int>(m_viewport.GetSelectedSpriteIds().size());
-        m_workspace.UpdateStatusBar(m_viewport.GetZoom(), worldPos, totalSprites, selectedCount, "Ready");
-    }
-}
 
-void SpriteSheetStudioPanel::SetBounds(const sf::FloatRect& bounds) {
-    m_bounds = bounds;
-    m_toolbar.SetBounds(bounds);
-    m_viewport.SetBounds(bounds);
-    m_workspace.SetBounds(bounds);
-    
-    if (m_animationPanel) {
-        m_animationPanel->SetBounds(bounds);
-    }
-}
+    std::vector<int> holesToFill;
+    std::vector<bool> targetHoleMask(texWidth * texHeight, false);
 
-void SpriteSheetStudioPanel::Render(sf::RenderWindow& window) {
-    if (!m_isActive) return;
+    if (clickedOnTransparent) {
+        std::queue<std::pair<int, int>> hq;
+        hq.push({targetX, targetY});
+        targetHoleMask[clickPos] = true;
+        holesToFill.push_back(clickPos);
 
-    sf::FloatRect currentBounds(0.f, 0.f, static_cast<float>(window.getSize().x), static_cast<float>(window.getSize().y));
-    SetBounds(currentBounds);
+        while (!hq.empty()) {
+            auto [cx, cy] = hq.front();
+            hq.pop();
 
-    sf::View uiView(currentBounds);
-    window.setView(uiView);
-
-    if (m_isExportMode && m_exportPreview.IsActive()) {
-        m_exportPreview.Render(window);
-    } else {
-        m_isExportMode = false;
-        m_viewport.Render(window, m_engine);
-        
-        window.setView(uiView); 
-
-        if (m_isDraggingArtifact) {
-            float minX = std::min(m_dragStartPixel.x, m_dragCurrentPixel.x);
-            float minY = std::min(m_dragStartPixel.y, m_dragCurrentPixel.y);
-            float width = std::abs(m_dragCurrentPixel.x - m_dragStartPixel.x);
-            float height = std::abs(m_dragCurrentPixel.y - m_dragStartPixel.y);
-
-            sf::RectangleShape selectionRect(sf::Vector2f(width, height));
-            selectionRect.setPosition(minX, minY);
-            if (m_isInfillMode) {
-                selectionRect.setFillColor(sf::Color(80, 220, 120, 80));
-                selectionRect.setOutlineColor(sf::Color(100, 255, 150));
-            } else if (m_isDeleteMode) {
-                selectionRect.setFillColor(sf::Color(255, 50, 50, 80));
-                selectionRect.setOutlineColor(sf::Color(255, 80, 80));
-            } else {
-                selectionRect.setFillColor(sf::Color(50, 150, 255, 80));
-                selectionRect.setOutlineColor(sf::Color(80, 180, 255));
+            for (int i = 0; i < 4; ++i) {
+                int nx = cx + dx[i];
+                int ny = cy + dy[i];
+                if (nx >= 0 && nx < texWidth && ny >= 0 && ny < texHeight) {
+                    int nPos = ny * texWidth + nx;
+                    if (!targetHoleMask[nPos] && !isExterior[nPos] && newPixels[nPos * 4 + 3] == 0) {
+                        targetHoleMask[nPos] = true;
+                        hq.push({nx, ny});
+                        holesToFill.push_back(nPos);
+                    }
+                }
             }
-            selectionRect.setOutlineThickness(1.0f);
-            
-            window.draw(selectionRect);
+        }
+    } else {
+        std::vector<bool> spriteVisited(texWidth * texHeight, false);
+        std::queue<std::pair<int, int>> sq;
+        sq.push({targetX, targetY});
+        spriteVisited[clickPos] = true;
+
+        int minX = targetX, maxX = targetX, minY = targetY, maxY = targetY;
+
+        while (!sq.empty()) {
+            auto [cx, cy] = sq.front();
+            sq.pop();
+
+            minX = std::min(minX, cx);
+            maxX = std::max(maxX, cx);
+            minY = std::min(minY, cy);
+            maxY = std::max(maxY, cy);
+
+            for (int i = 0; i < 4; ++i) {
+                int nx = cx + dx[i];
+                int ny = cy + dy[i];
+                if (nx >= 0 && nx < texWidth && ny >= 0 && ny < texHeight) {
+                    int nPos = ny * texWidth + nx;
+                    if (!spriteVisited[nPos] && newPixels[nPos * 4 + 3] > 0) {
+                        spriteVisited[nPos] = true;
+                        sq.push({nx, ny});
+                    }
+                }
+            }
         }
 
-        if (!m_isUIHidden && m_animationPanel) {
-            m_animationPanel->Render(window, m_engine);
+        for (int y = minY; y <= maxY; ++y) {
+            for (int x = minX; x <= maxX; ++x) {
+                int pos = y * texWidth + x;
+                if (newPixels[pos * 4 + 3] == 0 && !isExterior[pos] && !targetHoleMask[pos]) {
+                    targetHoleMask[pos] = true;
+                    holesToFill.push_back(pos);
+                }
+            }
         }
-        m_toolbar.Render(window);
-        if (m_isWizardMode) {
-            m_animBuilderPanel.Render(window);
-        }
-        m_workspace.Render(window);
     }
+
+    if (holesToFill.empty()) return;
+
+    struct ColorSource {
+        int x, y;
+        uint8_t r, g, b;
+    };
+
+    std::queue<ColorSource> propQueue;
+    std::vector<bool> propVisited(texWidth * texHeight, false);
+
+    for (int hPos : holesToFill) {
+        int hx = hPos % texWidth;
+        int hy = hPos / texWidth;
+
+        for (int i = 0; i < 4; ++i) {
+            int nx = hx + dx[i];
+            int ny = hy + dy[i];
+            if (nx >= 0 && nx < texWidth && ny >= 0 && ny < texHeight) {
+                int nPos = ny * texWidth + nx;
+                if (newPixels[nPos * 4 + 3] > 0 && !propVisited[nPos]) {
+                    propVisited[nPos] = true;
+                    propQueue.push({nx, ny, newPixels[nPos * 4], newPixels[nPos * 4 + 1], newPixels[nPos * 4 + 2]});
+                }
+            }
+        }
+    }
+
+    if (propQueue.empty()) return;
+
+    while (!propQueue.empty()) {
+        auto src = propQueue.front();
+        propQueue.pop();
+
+        for (int i = 0; i < 4; ++i) {
+            int nx = src.x + dx[i];
+            int ny = src.y + dy[i];
+            if (nx >= 0 && nx < texWidth && ny >= 0 && ny < texHeight) {
+                int nPos = ny * texWidth + nx;
+                if (targetHoleMask[nPos] && newPixels[nPos * 4 + 3] == 0) {
+                    size_t idx = static_cast<size_t>(nPos) * 4;
+                    newPixels[idx] = src.r;
+                    newPixels[idx + 1] = src.g;
+                    newPixels[idx + 2] = src.b;
+                    newPixels[idx + 3] = 255;
+                    propQueue.push({nx, ny, src.r, src.g, src.b});
+                }
+            }
+        }
+    }
+
+    auto cmd = std::make_unique<PixelRegionCommand>(texture, oldPixels, newPixels);
+    if (m_commandHistory) {
+        m_commandHistory->ExecuteCommand(std::move(cmd));
+    } else {
+        texture->SetPixels(newPixels);
+    }
+}
+
+void StudioEngineFacade::FillTransparencyArea(int x, int y, int width, int height) {
+    auto project = GetCurrentProject();
+    if (!project) return;
+    auto constTexture = project->GetTexture();
+    if (!constTexture || !constTexture->IsValid()) return;
+    auto texture = std::const_pointer_cast<SourceTexture>(constTexture);
+
+    int texWidth = texture->GetWidth();
+    int texHeight = texture->GetHeight();
+
+    int startX = std::max(0, x);
+    int startY = std::max(0, y);
+    int endX = std::min(texWidth, x + width);
+    int endY = std::min(texHeight, y + height);
+
+    if (startX >= endX || startY >= endY) return;
+
+    std::vector<uint8_t> oldPixels = texture->GetPixels();
+    std::vector<uint8_t> newPixels = oldPixels;
+
+    const int dx[] = {1, -1, 0, 0};
+    const int dy[] = {0, 0, 1, -1};
+
+    std::vector<bool> isExterior(texWidth * texHeight, false);
+    std::queue<std::pair<int, int>> eq;
+
+    auto pushExterior = [&](int px, int py) {
+        int pos = py * texWidth + px;
+        if (!isExterior[pos] && newPixels[pos * 4 + 3] == 0) {
+            isExterior[pos] = true;
+            eq.push({px, py});
+        }
+    };
+
+    for (int px = 0; px < texWidth; ++px) {
+        pushExterior(px, 0);
+        pushExterior(px, texHeight - 1);
+    }
+    for (int py = 0; py < texHeight; ++py) {
+        pushExterior(0, py);
+        pushExterior(texWidth - 1, py);
+    }
+
+    while (!eq.empty()) {
+        auto [cx, cy] = eq.front();
+        eq.pop();
+
+        for (int i = 0; i < 4; ++i) {
+            int nx = cx + dx[i];
+            int ny = cy + dy[i];
+            if (nx >= 0 && nx < texWidth && ny >= 0 && ny < texHeight) {
+                int nPos = ny * texWidth + nx;
+                if (!isExterior[nPos] && newPixels[nPos * 4 + 3] == 0) {
+                    isExterior[nPos] = true;
+                    eq.push({nx, ny});
+                }
+            }
+        }
+    }
+
+    struct ColorSource {
+        int x, y;
+        uint8_t r, g, b;
+    };
+
+    std::queue<ColorSource> propQueue;
+    std::vector<bool> visited(texWidth * texHeight, false);
+    bool hasInternalHoles = false;
+
+    for (int py = startY; py < endY; ++py) {
+        for (int px = startX; px < endX; ++px) {
+            int pos = py * texWidth + px;
+            size_t idx = static_cast<size_t>(pos) * 4;
+            if (newPixels[idx + 3] == 0 && !isExterior[pos]) {
+                hasInternalHoles = true;
+                for (int i = 0; i < 4; ++i) {
+                    int nx = px + dx[i];
+                    int ny = py + dy[i];
+                    if (nx >= 0 && nx < texWidth && ny >= 0 && ny < texHeight) {
+                        int nPos = ny * texWidth + nx;
+                        size_t nIdx = static_cast<size_t>(nPos) * 4;
+                        if (newPixels[nIdx + 3] > 0 && !visited[nPos]) {
+                            visited[nPos] = true;
+                            propQueue.push({nx, ny, newPixels[nIdx], newPixels[nIdx + 1], newPixels[nIdx + 2]});
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (!hasInternalHoles || propQueue.empty()) return;
+
+    while (!propQueue.empty()) {
+        auto src = propQueue.front();
+        propQueue.pop();
+
+        for (int i = 0; i < 4; ++i) {
+            int nx = src.x + dx[i];
+            int ny = src.y + dy[i];
+            if (nx >= startX && nx < endX && ny >= startY && ny < endY) {
+                int nPos = ny * texWidth + nx;
+                size_t idx = static_cast<size_t>(nPos) * 4;
+                if (newPixels[idx + 3] == 0 && !isExterior[nPos]) {
+                    newPixels[idx] = src.r;
+                    newPixels[idx + 1] = src.g;
+                    newPixels[idx + 2] = src.b;
+                    newPixels[idx + 3] = 255;
+                    propQueue.push({nx, ny, src.r, src.g, src.b});
+                }
+            }
+        }
+    }
+
+    auto cmd = std::make_unique<PixelRegionCommand>(texture, oldPixels, newPixels);
+    if (m_commandHistory) {
+        m_commandHistory->ExecuteCommand(std::move(cmd));
+    } else {
+        texture->SetPixels(newPixels);
+    }
+}
+
+bool StudioEngineFacade::ExportIndividualSprites(const std::string& outputFolder, const std::string& baseName) const {
+    if (!IsProjectActive()) return false;
+    auto project = GetCurrentProject();
+    if (!project) return false;
+
+    auto tex = GetCurrentTexture();
+    if (!tex || !tex->IsValid()) return false;
+
+    int texW = tex->GetWidth();
+    int texH = tex->GetHeight();
+    const auto& pixels = tex->GetPixels();
+
+    namespace fs = std::filesystem;
+    fs::path outDir(outputFolder);
+    if (!fs::exists(outDir)) {
+        fs::create_directories(outDir);
+    }
+
+    const auto& sprites = project->GetSprites();
+    if (sprites.empty()) return false;
+
+    int index = 1;
+    for (const auto& sprite : sprites) {
+        if (!sprite) continue;
+        auto rect = sprite->GetSourceRect();
+        int rx = static_cast<int>(rect.x);
+        int ry = static_cast<int>(rect.y);
+        int rw = static_cast<int>(rect.width);
+        int rh = static_cast<int>(rect.height);
+
+        if (rw <= 0 || rh <= 0) continue;
+
+        sf::Image frameImg;
+        frameImg.create(rw, rh);
+
+        for (int y = 0; y < rh; ++y) {
+            for (int x = 0; x < rw; ++x) {
+                int srcX = rx + x;
+                int srcY = ry + y;
+
+                if (srcX >= 0 && srcX < texW && srcY >= 0 && srcY < texH) {
+                    size_t idx = (static_cast<size_t>(srcY) * texW + srcX) * 4;
+                    frameImg.setPixel(x, y, sf::Color(
+                        pixels[idx],
+                        pixels[idx + 1],
+                        pixels[idx + 2],
+                        pixels[idx + 3]
+                    ));
+                } else {
+                    frameImg.setPixel(x, y, sf::Color::Transparent);
+                }
+            }
+        }
+
+        std::string fileName = baseName + "_" + std::to_string(index++) + ".png";
+        fs::path filePath = outDir / fileName;
+        frameImg.saveToFile(filePath.string());
+    }
+
+    return true;
 }
 
 }
