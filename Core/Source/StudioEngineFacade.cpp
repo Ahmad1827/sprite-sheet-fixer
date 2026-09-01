@@ -469,51 +469,61 @@ void StudioEngineFacade::CleanCurrentTexture() {
     };
     std::vector<ColorRGB> bgPalette;
 
-    auto addBorderSample = [&](int x, int y) {
-        size_t idx = static_cast<size_t>(y * w + x) * 4;
-        if (oldPixels[idx + 3] > 0) {
-            uint8_t r = oldPixels[idx];
-            uint8_t g = oldPixels[idx + 1];
-            uint8_t b = oldPixels[idx + 2];
-            bool exists = false;
-            for (const auto& c : bgPalette) {
-                float dr = static_cast<float>(r) - c.r;
-                float dg = static_cast<float>(g) - c.g;
-                float db = static_cast<float>(b) - c.b;
-                if (std::sqrt(dr * dr + dg * dg + db * db) < 18.0f) {
-                    exists = true;
-                    break;
-                }
-            }
-            if (!exists) {
-                bgPalette.push_back({ r, g, b });
-            }
-        }
-    };
-
-    for (int x = 0; x < w; ++x) {
-        addBorderSample(x, 0);
-        addBorderSample(x, 1);
-        addBorderSample(x, h - 2);
-        addBorderSample(x, h - 1);
-    }
-    for (int y = 0; y < h; ++y) {
-        addBorderSample(0, y);
-        addBorderSample(1, y);
-        addBorderSample(w - 2, y);
-        addBorderSample(w - 1, y);
-    }
-
-    auto isBgColor = [&](uint8_t r, uint8_t g, uint8_t b, uint8_t a, float tolerance = 28.0f) -> bool {
-        if (a == 0) return true;
+    auto addSample = [&](uint8_t r, uint8_t g, uint8_t b) {
         for (const auto& c : bgPalette) {
             float dr = static_cast<float>(r) - c.r;
             float dg = static_cast<float>(g) - c.g;
             float db = static_cast<float>(b) - c.b;
-            if (std::sqrt(dr * dr + dg * dg + db * db) <= tolerance) {
+            if (std::sqrt(dr * dr + dg * dg + db * db) < 15.0f) {
+                return;
+            }
+        }
+        bgPalette.push_back({ r, g, b });
+    };
+
+    for (int x = 0; x < w; ++x) {
+        size_t iTop = static_cast<size_t>(x) * 4;
+        size_t iBot = static_cast<size_t>((h - 1) * w + x) * 4;
+        if (oldPixels[iTop + 3] > 0) addSample(oldPixels[iTop], oldPixels[iTop + 1], oldPixels[iTop + 2]);
+        if (oldPixels[iBot + 3] > 0) addSample(oldPixels[iBot], oldPixels[iBot + 1], oldPixels[iBot + 2]);
+    }
+    for (int y = 0; y < h; ++y) {
+        size_t iLeft = static_cast<size_t>(y * w) * 4;
+        size_t iRight = static_cast<size_t>(y * w + (w - 1)) * 4;
+        if (oldPixels[iLeft + 3] > 0) addSample(oldPixels[iLeft], oldPixels[iLeft + 1], oldPixels[iLeft + 2]);
+        if (oldPixels[iRight + 3] > 0) addSample(oldPixels[iRight], oldPixels[iRight + 1], oldPixels[iRight + 2]);
+    }
+
+    auto isBackgroundPixel = [&](uint8_t r, uint8_t g, uint8_t b, uint8_t a) -> bool {
+        if (a == 0) return true;
+
+        for (const auto& c : bgPalette) {
+            float dr = static_cast<float>(r) - c.r;
+            float dg = static_cast<float>(g) - c.g;
+            float db = static_cast<float>(b) - c.b;
+            if (std::sqrt(dr * dr + dg * dg + db * db) <= 24.0f) {
                 return true;
             }
         }
+
+        // Blueprint Grid & Blueprint Line Detection
+        // Characteristic: Blue channel dominates over Red by at least 15 units, with dark/medium saturation
+        int ir = static_cast<int>(r);
+        int ig = static_cast<int>(g);
+        int ib = static_cast<int>(b);
+
+        if (ib >= 35 && (ib - ir >= 16) && (ib >= ig - 4)) {
+            // Protect green foliage (where G >> B) and straw roofs (where R >> B)
+            if (!(ig > ib + 20) && !(ir > 110 && ig > 100)) {
+                return true;
+            }
+        }
+
+        // Stray white/cyan text labels (e.g. font characters)
+        if (ir > 180 && ig > 180 && ib > 180) {
+            return false; // Let connectivity & component size handle text isolation
+        }
+
         return false;
     };
 
@@ -521,12 +531,13 @@ void StudioEngineFacade::CleanCurrentTexture() {
     for (int y = 0; y < h; ++y) {
         for (int x = 0; x < w; ++x) {
             size_t idx = static_cast<size_t>(y * w + x) * 4;
-            if (!isBgColor(oldPixels[idx], oldPixels[idx + 1], oldPixels[idx + 2], oldPixels[idx + 3], 26.0f)) {
+            if (!isBackgroundPixel(oldPixels[idx], oldPixels[idx + 1], oldPixels[idx + 2], oldPixels[idx + 3])) {
                 isForeground[y * w + x] = 1;
             }
         }
     }
 
+    // Morphological Closing (Dilate by 2px) to seal micro-gaps around roof eaves, fences & windows
     std::vector<uint8_t> sealedForeground = isForeground;
     const int DILATE_RAD = 2;
     for (int y = 0; y < h; ++y) {
@@ -545,10 +556,11 @@ void StudioEngineFacade::CleanCurrentTexture() {
         }
     }
 
+    // Flood fill from all 4 boundaries to find all exterior reachable empty space
     std::vector<uint8_t> exterior(w * h, 0);
     std::queue<std::pair<int, int>> q;
 
-    auto pushBorderNode = [&](int x, int y) {
+    auto pushNode = [&](int x, int y) {
         int pos = y * w + x;
         if (!sealedForeground[pos] && !exterior[pos]) {
             exterior[pos] = 1;
@@ -557,12 +569,12 @@ void StudioEngineFacade::CleanCurrentTexture() {
     };
 
     for (int x = 0; x < w; ++x) {
-        pushBorderNode(x, 0);
-        pushBorderNode(x, h - 1);
+        pushNode(x, 0);
+        pushNode(x, h - 1);
     }
     for (int y = 0; y < h; ++y) {
-        pushBorderNode(0, y);
-        pushBorderNode(w - 1, y);
+        pushNode(0, y);
+        pushNode(w - 1, y);
     }
 
     const int dx4[4] = { 1, -1, 0, 0 };
@@ -585,6 +597,7 @@ void StudioEngineFacade::CleanCurrentTexture() {
         }
     }
 
+    // Peel back the dilation margin on background pixels touching the exterior
     for (int pass = 0; pass < DILATE_RAD + 2; ++pass) {
         std::vector<std::pair<int, int>> toAdd;
         for (int y = 0; y < h; ++y) {
@@ -592,21 +605,19 @@ void StudioEngineFacade::CleanCurrentTexture() {
                 int pos = y * w + x;
                 if (!exterior[pos]) {
                     size_t idx = static_cast<size_t>(pos) * 4;
-                    if (isBgColor(oldPixels[idx], oldPixels[idx + 1], oldPixels[idx + 2], oldPixels[idx + 3], 26.0f)) {
-                        bool touchesExterior = false;
+                    if (isBackgroundPixel(oldPixels[idx], oldPixels[idx + 1], oldPixels[idx + 2], oldPixels[idx + 3])) {
+                        bool touchesExt = false;
                         for (int d = 0; d < 4; ++d) {
                             int nx = x + dx4[d];
                             int ny = y + dy4[d];
                             if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
                                 if (exterior[ny * w + nx]) {
-                                    touchesExterior = true;
+                                    touchesExt = true;
                                     break;
                                 }
                             }
                         }
-                        if (touchesExterior) {
-                            toAdd.push_back({ x, y });
-                        }
+                        if (touchesExt) toAdd.push_back({ x, y });
                     }
                 }
             }
@@ -617,6 +628,7 @@ void StudioEngineFacade::CleanCurrentTexture() {
         }
     }
 
+    // Erase all exterior space & blue grid lines
     for (int y = 0; y < h; ++y) {
         for (int x = 0; x < w; ++x) {
             int pos = y * w + x;
@@ -626,6 +638,59 @@ void StudioEngineFacade::CleanCurrentTexture() {
                 newPixels[idx + 1] = 0;
                 newPixels[idx + 2] = 0;
                 newPixels[idx + 3] = 0;
+            }
+        }
+    }
+
+    // Sweep isolated small text fragments floating in the exterior (e.g., text labels)
+    std::vector<bool> cclVisited(w * h, false);
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            int pos = y * w + x;
+            size_t idx = static_cast<size_t>(pos) * 4;
+            if (newPixels[idx + 3] > 0 && !cclVisited[pos]) {
+                std::vector<std::pair<int, int>> comp;
+                std::queue<std::pair<int, int>> cq;
+                cq.push({ x, y });
+                cclVisited[pos] = true;
+
+                int minX = x, maxX = x, minY = y, maxY = y;
+
+                while (!cq.empty()) {
+                    auto [cx, cy] = cq.front();
+                    cq.pop();
+                    comp.push_back({ cx, cy });
+
+                    minX = std::min(minX, cx);
+                    maxX = std::max(maxX, cx);
+                    minY = std::min(minY, cy);
+                    maxY = std::max(maxY, cy);
+
+                    for (int d = 0; d < 4; ++d) {
+                        int nx = cx + dx4[d];
+                        int ny = cy + dy4[d];
+                        if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                            int nPos = ny * w + nx;
+                            if (!cclVisited[nPos] && newPixels[static_cast<size_t>(nPos) * 4 + 3] > 0) {
+                                cclVisited[nPos] = true;
+                                cq.push({ nx, ny });
+                            }
+                        }
+                    }
+                }
+
+                // If isolated text fragment / tiny floating speckle (height <= 18px and width <= 250px with low pixel density)
+                int compW = (maxX - minX) + 1;
+                int compH = (maxY - minY) + 1;
+                if ((compH <= 16 && compW <= 300) || (comp.size() <= 8)) {
+                    for (const auto& [px, py] : comp) {
+                        size_t pIdx = static_cast<size_t>(py * w + px) * 4;
+                        newPixels[pIdx] = 0;
+                        newPixels[pIdx + 1] = 0;
+                        newPixels[pIdx + 2] = 0;
+                        newPixels[pIdx + 3] = 0;
+                    }
+                }
             }
         }
     }
@@ -1419,4 +1484,5 @@ bool StudioEngineFacade::ExportIndividualSprites(const std::string& outputFolder
 
     return true;
 }
+
 }
