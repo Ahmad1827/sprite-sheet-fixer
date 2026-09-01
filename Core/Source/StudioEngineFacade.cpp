@@ -474,7 +474,7 @@ void StudioEngineFacade::CleanCurrentTexture() {
             float dr = static_cast<float>(r) - c.r;
             float dg = static_cast<float>(g) - c.g;
             float db = static_cast<float>(b) - c.b;
-            if (std::sqrt(dr * dr + dg * dg + db * db) < 15.0f) {
+            if (std::sqrt(dr * dr + dg * dg + db * db) < 14.0f) {
                 return;
             }
         }
@@ -494,7 +494,7 @@ void StudioEngineFacade::CleanCurrentTexture() {
         if (oldPixels[iRight + 3] > 0) addSample(oldPixels[iRight], oldPixels[iRight + 1], oldPixels[iRight + 2]);
     }
 
-    auto isBackgroundPixel = [&](uint8_t r, uint8_t g, uint8_t b, uint8_t a) -> bool {
+    auto isBlueprintOrBgColor = [&](uint8_t r, uint8_t g, uint8_t b, uint8_t a) -> bool {
         if (a == 0) return true;
 
         for (const auto& c : bgPalette) {
@@ -506,22 +506,18 @@ void StudioEngineFacade::CleanCurrentTexture() {
             }
         }
 
-        // Blueprint Grid & Blueprint Line Detection
-        // Characteristic: Blue channel dominates over Red by at least 15 units, with dark/medium saturation
         int ir = static_cast<int>(r);
         int ig = static_cast<int>(g);
         int ib = static_cast<int>(b);
 
-        if (ib >= 35 && (ib - ir >= 16) && (ib >= ig - 4)) {
-            // Protect green foliage (where G >> B) and straw roofs (where R >> B)
-            if (!(ig > ib + 20) && !(ir > 110 && ig > 100)) {
-                return true;
-            }
-        }
-
-        // Stray white/cyan text labels (e.g. font characters)
-        if (ir > 180 && ig > 180 && ib > 180) {
-            return false; // Let connectivity & component size handle text isolation
+        // Blueprint Grid Blue Detection:
+        // Characteristic: Blue strongly exceeds Red (ib - ir >= 14), with blue-cyan dominance
+        if (ib >= 32 && (ib - ir >= 14) && (ib >= ig - 8)) {
+            // Protect green foliage/bamboo: ig >> ib
+            if (ig > ib + 20) return false;
+            // Protect warm straw/wood/stone highlights: ir > 110 & ig > 95
+            if (ir > 110 && ig > 95 && ir >= ib) return false;
+            return true;
         }
 
         return false;
@@ -531,13 +527,13 @@ void StudioEngineFacade::CleanCurrentTexture() {
     for (int y = 0; y < h; ++y) {
         for (int x = 0; x < w; ++x) {
             size_t idx = static_cast<size_t>(y * w + x) * 4;
-            if (!isBackgroundPixel(oldPixels[idx], oldPixels[idx + 1], oldPixels[idx + 2], oldPixels[idx + 3])) {
+            if (!isBlueprintOrBgColor(oldPixels[idx], oldPixels[idx + 1], oldPixels[idx + 2], oldPixels[idx + 3])) {
                 isForeground[y * w + x] = 1;
             }
         }
     }
 
-    // Morphological Closing (Dilate by 2px) to seal micro-gaps around roof eaves, fences & windows
+    // 1. Morphological Closing (Dilate by 2px) to seal micro-cracks
     std::vector<uint8_t> sealedForeground = isForeground;
     const int DILATE_RAD = 2;
     for (int y = 0; y < h; ++y) {
@@ -556,11 +552,11 @@ void StudioEngineFacade::CleanCurrentTexture() {
         }
     }
 
-    // Flood fill from all 4 boundaries to find all exterior reachable empty space
+    // 2. Exterior Reachability Flood-Fill
     std::vector<uint8_t> exterior(w * h, 0);
     std::queue<std::pair<int, int>> q;
 
-    auto pushNode = [&](int x, int y) {
+    auto pushBorderNode = [&](int x, int y) {
         int pos = y * w + x;
         if (!sealedForeground[pos] && !exterior[pos]) {
             exterior[pos] = 1;
@@ -569,12 +565,12 @@ void StudioEngineFacade::CleanCurrentTexture() {
     };
 
     for (int x = 0; x < w; ++x) {
-        pushNode(x, 0);
-        pushNode(x, h - 1);
+        pushBorderNode(x, 0);
+        pushBorderNode(x, h - 1);
     }
     for (int y = 0; y < h; ++y) {
-        pushNode(0, y);
-        pushNode(w - 1, y);
+        pushBorderNode(0, y);
+        pushBorderNode(w - 1, y);
     }
 
     const int dx4[4] = { 1, -1, 0, 0 };
@@ -597,7 +593,7 @@ void StudioEngineFacade::CleanCurrentTexture() {
         }
     }
 
-    // Peel back the dilation margin on background pixels touching the exterior
+    // 3. Peel back the dilation margin on background pixels touching exterior
     for (int pass = 0; pass < DILATE_RAD + 2; ++pass) {
         std::vector<std::pair<int, int>> toAdd;
         for (int y = 0; y < h; ++y) {
@@ -605,7 +601,7 @@ void StudioEngineFacade::CleanCurrentTexture() {
                 int pos = y * w + x;
                 if (!exterior[pos]) {
                     size_t idx = static_cast<size_t>(pos) * 4;
-                    if (isBackgroundPixel(oldPixels[idx], oldPixels[idx + 1], oldPixels[idx + 2], oldPixels[idx + 3])) {
+                    if (isBlueprintOrBgColor(oldPixels[idx], oldPixels[idx + 1], oldPixels[idx + 2], oldPixels[idx + 3])) {
                         bool touchesExt = false;
                         for (int d = 0; d < 4; ++d) {
                             int nx = x + dx4[d];
@@ -628,7 +624,7 @@ void StudioEngineFacade::CleanCurrentTexture() {
         }
     }
 
-    // Erase all exterior space & blue grid lines
+    // 4. Erase all exterior space & exterior grid
     for (int y = 0; y < h; ++y) {
         for (int x = 0; x < w; ++x) {
             int pos = y * w + x;
@@ -642,7 +638,39 @@ void StudioEngineFacade::CleanCurrentTexture() {
         }
     }
 
-    // Sweep isolated small text fragments floating in the exterior (e.g., text labels)
+    // 5. Internal Cavity Blueprint Purge:
+    // Clears trapped blueprint blue/grid patches inside watchtower legs, ladder rungs, and tool racks
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            int pos = y * w + x;
+            if (!exterior[pos]) {
+                size_t idx = static_cast<size_t>(pos) * 4;
+                if (newPixels[idx + 3] > 0) {
+                    uint8_t r = newPixels[idx];
+                    uint8_t g = newPixels[idx + 1];
+                    uint8_t b = newPixels[idx + 2];
+
+                    int ir = static_cast<int>(r);
+                    int ig = static_cast<int>(g);
+                    int ib = static_cast<int>(b);
+
+                    // Strictly target blueprint blue hue trapped inside cavities
+                    if (ib >= 35 && (ib - ir >= 16) && (ib >= ig - 6)) {
+                        // Protect foliage (green dominant) and wood/straw shadows (red dominant or balanced darks)
+                        if (!(ig > ib + 18) && !(ir > 105 && ig > 90)) {
+                            newPixels[idx] = 0;
+                            newPixels[idx + 1] = 0;
+                            newPixels[idx + 2] = 0;
+                            newPixels[idx + 3] = 0;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 6. Floating Title & Text Annotation Cleaner
+    // Removes AI text labels (e.g. "APE DYNASTY...", "New Village Hut", sub-captions)
     std::vector<bool> cclVisited(w * h, false);
     for (int y = 0; y < h; ++y) {
         for (int x = 0; x < w; ++x) {
@@ -679,10 +707,11 @@ void StudioEngineFacade::CleanCurrentTexture() {
                     }
                 }
 
-                // If isolated text fragment / tiny floating speckle (height <= 18px and width <= 250px with low pixel density)
                 int compW = (maxX - minX) + 1;
                 int compH = (maxY - minY) + 1;
-                if ((compH <= 16 && compW <= 300) || (comp.size() <= 8)) {
+
+                // Strip horizontal text lines or small floating noise clusters
+                if ((compH <= 24 && compW <= 400 && comp.size() < 1200) || (comp.size() <= 8)) {
                     for (const auto& [px, py] : comp) {
                         size_t pIdx = static_cast<size_t>(py * w + px) * 4;
                         newPixels[pIdx] = 0;
