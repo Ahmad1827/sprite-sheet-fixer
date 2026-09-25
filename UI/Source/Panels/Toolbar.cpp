@@ -17,6 +17,7 @@ void Toolbar::Initialize(const std::string& fontPath,
                          std::function<void()> onDetect,
                          std::function<void()> onMerge,
                          std::function<void()> onCleanBg,
+                         std::function<void()> onWand,
                          std::function<void()> onArtifact,
                          std::function<void()> onInfill,
                          std::function<void()> onDelete,
@@ -40,6 +41,7 @@ void Toolbar::Initialize(const std::string& fontPath,
     m_buttons.push_back({"redo", u8"Redo", {}, [](StudioCore::StudioEngineFacade& engine){ engine.Redo(); }});
     
     m_buttons.push_back({"clean_bg", u8"Clean", {}, [onCleanBg](StudioCore::StudioEngineFacade&){ onCleanBg(); }});
+    m_buttons.push_back({"wand", u8"Wand", {}, [onWand](StudioCore::StudioEngineFacade&){ onWand(); }});
     m_buttons.push_back({"detect", u8"Detect", {}, [onDetect](StudioCore::StudioEngineFacade&){ onDetect(); }});
     m_buttons.push_back({"merge", u8"Merge", {}, [onMerge](StudioCore::StudioEngineFacade&){ onMerge(); }});
     m_buttons.push_back({"artifact", u8"Artifact", {}, [onArtifact](StudioCore::StudioEngineFacade&){ onArtifact(); }}); 

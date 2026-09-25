@@ -18,6 +18,7 @@ namespace StudioCore {
 
 class PreviewViewport {
 public:
+    const sf::View& GetView() const { return m_view; }
     PreviewViewport();
     void Initialize();
     const std::vector<std::string>& GetSelectedSpriteIds() const { return m_selectedSpriteIds; }

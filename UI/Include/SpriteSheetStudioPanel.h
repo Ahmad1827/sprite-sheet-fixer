@@ -40,7 +40,29 @@ private:
     bool m_isWizardMode = false;
     bool m_isExportMode = false;
 
-    bool m_isArtifactMode = false;
+    bool m_isWandMode{ false };
+    bool m_wandContiguous{ true };
+    bool m_isWandEyedropper{ false };
+    float m_wandTolerance{ 32.0f };
+    bool m_wandActionDelete{ true };
+    float m_wandHue{ 0.0f };
+    float m_wandSat{ 0.85f };
+    float m_wandVal{ 0.90f };
+    sf::Color m_wandSelectedColor{ 230, 35, 35 };
+
+    bool m_isDraggingWandTol{ false };
+    bool m_isDraggingWandHue{ false };
+    bool m_isDraggingWandSatVal{ false };
+
+    std::vector<sf::Vector2i> m_wandSelectionPixels;
+    float m_wandAntsOffset{ 0.0f };
+    sf::Font m_wandFont;
+
+    void ApplyWandAction();
+    void UpdateWandColorFromHsv();
+    void DrawDashedBox(sf::RenderWindow& window, sf::FloatRect rect, float offset, float zoom);
+
+    bool m_isArtifactMode{ false };
     bool m_isInfillMode = false;
     bool m_isDeleteMode = false;
     bool m_isDraggingArtifact = false;

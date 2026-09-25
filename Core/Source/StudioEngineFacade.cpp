@@ -474,13 +474,14 @@ void StudioEngineFacade::CleanCurrentTexture() {
             float dr = static_cast<float>(r) - c.r;
             float dg = static_cast<float>(g) - c.g;
             float db = static_cast<float>(b) - c.b;
-            if (std::sqrt(dr * dr + dg * dg + db * db) < 14.0f) {
+            if (std::sqrt(dr * dr + dg * dg + db * db) < 18.0f) {
                 return;
             }
         }
         bgPalette.push_back({ r, g, b });
     };
 
+    // Sample perimeter borders
     for (int x = 0; x < w; ++x) {
         size_t iTop = static_cast<size_t>(x) * 4;
         size_t iBot = static_cast<size_t>((h - 1) * w + x) * 4;
@@ -494,83 +495,59 @@ void StudioEngineFacade::CleanCurrentTexture() {
         if (oldPixels[iRight + 3] > 0) addSample(oldPixels[iRight], oldPixels[iRight + 1], oldPixels[iRight + 2]);
     }
 
-    auto isBlueprintOrBgColor = [&](uint8_t r, uint8_t g, uint8_t b, uint8_t a) -> bool {
+    auto isBgColor = [&](uint8_t r, uint8_t g, uint8_t b, uint8_t a) -> bool {
         if (a == 0) return true;
 
+        // 1. Matches border palette
         for (const auto& c : bgPalette) {
             float dr = static_cast<float>(r) - c.r;
             float dg = static_cast<float>(g) - c.g;
             float db = static_cast<float>(b) - c.b;
-            if (std::sqrt(dr * dr + dg * dg + db * db) <= 24.0f) {
+            if (std::sqrt(dr * dr + dg * dg + db * db) <= 38.0f) {
                 return true;
             }
         }
 
-        int ir = static_cast<int>(r);
-        int ig = static_cast<int>(g);
-        int ib = static_cast<int>(b);
-
-        // Blueprint Grid Blue Detection:
-        // Characteristic: Blue strongly exceeds Red (ib - ir >= 14), with blue-cyan dominance
-        if (ib >= 32 && (ib - ir >= 14) && (ib >= ig - 8)) {
-            // Protect green foliage/bamboo: ig >> ib
-            if (ig > ib + 20) return false;
-            // Protect warm straw/wood/stone highlights: ir > 110 & ig > 95
-            if (ir > 110 && ig > 95 && ir >= ib) return false;
+        // 2. Matches AI fake-checkerboard range (neutral white & light-gray)
+        int maxC = std::max({ r, g, b });
+        int minC = std::min({ r, g, b });
+        if (minC >= 170 && (maxC - minC) <= 28) {
             return true;
         }
 
         return false;
     };
 
-    std::vector<uint8_t> isForeground(w * h, 0);
+    // 1. Mark background nodes
+    std::vector<uint8_t> isBackground(w * h, 0);
     for (int y = 0; y < h; ++y) {
         for (int x = 0; x < w; ++x) {
             size_t idx = static_cast<size_t>(y * w + x) * 4;
-            if (!isBlueprintOrBgColor(oldPixels[idx], oldPixels[idx + 1], oldPixels[idx + 2], oldPixels[idx + 3])) {
-                isForeground[y * w + x] = 1;
+            if (isBgColor(oldPixels[idx], oldPixels[idx + 1], oldPixels[idx + 2], oldPixels[idx + 3])) {
+                isBackground[y * w + x] = 1;
             }
         }
     }
 
-    // 1. Morphological Closing (Dilate by 2px) to seal micro-cracks
-    std::vector<uint8_t> sealedForeground = isForeground;
-    const int DILATE_RAD = 2;
-    for (int y = 0; y < h; ++y) {
-        for (int x = 0; x < w; ++x) {
-            if (isForeground[y * w + x]) {
-                for (int dy = -DILATE_RAD; dy <= DILATE_RAD; ++dy) {
-                    for (int dx = -DILATE_RAD; dx <= DILATE_RAD; ++dx) {
-                        int nx = x + dx;
-                        int ny = y + dy;
-                        if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
-                            sealedForeground[ny * w + nx] = 1;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // 2. Exterior Reachability Flood-Fill
+    // 2. 4-way Exterior Flood Fill (naturally blocks diagonal leaks without expanding borders)
     std::vector<uint8_t> exterior(w * h, 0);
     std::queue<std::pair<int, int>> q;
 
-    auto pushBorderNode = [&](int x, int y) {
+    auto pushBorder = [&](int x, int y) {
         int pos = y * w + x;
-        if (!sealedForeground[pos] && !exterior[pos]) {
+        if (isBackground[pos] && !exterior[pos]) {
             exterior[pos] = 1;
             q.push({ x, y });
         }
     };
 
     for (int x = 0; x < w; ++x) {
-        pushBorderNode(x, 0);
-        pushBorderNode(x, h - 1);
+        pushBorder(x, 0);
+        pushBorder(x, h - 1);
     }
     for (int y = 0; y < h; ++y) {
-        pushBorderNode(0, y);
-        pushBorderNode(w - 1, y);
+        pushBorder(0, y);
+        pushBorder(w - 1, y);
     }
 
     const int dx4[4] = { 1, -1, 0, 0 };
@@ -585,7 +562,7 @@ void StudioEngineFacade::CleanCurrentTexture() {
             int ny = cy + dy4[d];
             if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
                 int nPos = ny * w + nx;
-                if (!sealedForeground[nPos] && !exterior[nPos]) {
+                if (isBackground[nPos] && !exterior[nPos]) {
                     exterior[nPos] = 1;
                     q.push({ nx, ny });
                 }
@@ -593,38 +570,7 @@ void StudioEngineFacade::CleanCurrentTexture() {
         }
     }
 
-    // 3. Peel back the dilation margin on background pixels touching exterior
-    for (int pass = 0; pass < DILATE_RAD + 2; ++pass) {
-        std::vector<std::pair<int, int>> toAdd;
-        for (int y = 0; y < h; ++y) {
-            for (int x = 0; x < w; ++x) {
-                int pos = y * w + x;
-                if (!exterior[pos]) {
-                    size_t idx = static_cast<size_t>(pos) * 4;
-                    if (isBlueprintOrBgColor(oldPixels[idx], oldPixels[idx + 1], oldPixels[idx + 2], oldPixels[idx + 3])) {
-                        bool touchesExt = false;
-                        for (int d = 0; d < 4; ++d) {
-                            int nx = x + dx4[d];
-                            int ny = y + dy4[d];
-                            if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
-                                if (exterior[ny * w + nx]) {
-                                    touchesExt = true;
-                                    break;
-                                }
-                            }
-                        }
-                        if (touchesExt) toAdd.push_back({ x, y });
-                    }
-                }
-            }
-        }
-        if (toAdd.empty()) break;
-        for (const auto& [ax, ay] : toAdd) {
-            exterior[ay * w + ax] = 1;
-        }
-    }
-
-    // 4. Erase all exterior space & exterior grid
+    // 3. Clear all exterior background pixels
     for (int y = 0; y < h; ++y) {
         for (int x = 0; x < w; ++x) {
             int pos = y * w + x;
@@ -638,8 +584,51 @@ void StudioEngineFacade::CleanCurrentTexture() {
         }
     }
 
-    // 5. Internal Cavity Blueprint Purge:
-    // Clears trapped blueprint blue/grid patches inside watchtower legs, ladder rungs, and tool racks
+    // 4. Defringe pass: remove lingering white/checkerboard fringe touching transparency
+    for (int pass = 0; pass < 2; ++pass) {
+        std::vector<int> fringeList;
+        for (int y = 0; y < h; ++y) {
+            for (int x = 0; x < w; ++x) {
+                int pos = y * w + x;
+                size_t idx = static_cast<size_t>(pos) * 4;
+                if (newPixels[idx + 3] > 0) {
+                    bool touchesAlpha = false;
+                    for (int d = 0; d < 4; ++d) {
+                        int nx = x + dx4[d];
+                        int ny = y + dy4[d];
+                        if (nx < 0 || nx >= w || ny < 0 || ny >= h || newPixels[static_cast<size_t>(ny * w + nx) * 4 + 3] == 0) {
+                            touchesAlpha = true;
+                            break;
+                        }
+                    }
+
+                    if (touchesAlpha) {
+                        uint8_t r = newPixels[idx];
+                        uint8_t g = newPixels[idx + 1];
+                        uint8_t b = newPixels[idx + 2];
+                        int maxC = std::max({ r, g, b });
+                        int minC = std::min({ r, g, b });
+
+                        // Check if it's a residual checkerboard square or fringe blend
+                        if (minC >= 160 && (maxC - minC) <= 35) {
+                            fringeList.push_back(pos);
+                        }
+                    }
+                }
+            }
+        }
+
+        if (fringeList.empty()) break;
+        for (int p : fringeList) {
+            size_t idx = static_cast<size_t>(p) * 4;
+            newPixels[idx] = 0;
+            newPixels[idx + 1] = 0;
+            newPixels[idx + 2] = 0;
+            newPixels[idx + 3] = 0;
+        }
+    }
+
+    // 5. Cavity cleanup: remove trapped checkerboard tiles in interior gaps (e.g., between feet)
     for (int y = 0; y < h; ++y) {
         for (int x = 0; x < w; ++x) {
             int pos = y * w + x;
@@ -649,75 +638,14 @@ void StudioEngineFacade::CleanCurrentTexture() {
                     uint8_t r = newPixels[idx];
                     uint8_t g = newPixels[idx + 1];
                     uint8_t b = newPixels[idx + 2];
+                    int maxC = std::max({ r, g, b });
+                    int minC = std::min({ r, g, b });
 
-                    int ir = static_cast<int>(r);
-                    int ig = static_cast<int>(g);
-                    int ib = static_cast<int>(b);
-
-                    // Strictly target blueprint blue hue trapped inside cavities
-                    if (ib >= 35 && (ib - ir >= 16) && (ib >= ig - 6)) {
-                        // Protect foliage (green dominant) and wood/straw shadows (red dominant or balanced darks)
-                        if (!(ig > ib + 18) && !(ir > 105 && ig > 90)) {
-                            newPixels[idx] = 0;
-                            newPixels[idx + 1] = 0;
-                            newPixels[idx + 2] = 0;
-                            newPixels[idx + 3] = 0;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // 6. Floating Title & Text Annotation Cleaner
-    // Removes AI text labels (e.g. "APE DYNASTY...", "New Village Hut", sub-captions)
-    std::vector<bool> cclVisited(w * h, false);
-    for (int y = 0; y < h; ++y) {
-        for (int x = 0; x < w; ++x) {
-            int pos = y * w + x;
-            size_t idx = static_cast<size_t>(pos) * 4;
-            if (newPixels[idx + 3] > 0 && !cclVisited[pos]) {
-                std::vector<std::pair<int, int>> comp;
-                std::queue<std::pair<int, int>> cq;
-                cq.push({ x, y });
-                cclVisited[pos] = true;
-
-                int minX = x, maxX = x, minY = y, maxY = y;
-
-                while (!cq.empty()) {
-                    auto [cx, cy] = cq.front();
-                    cq.pop();
-                    comp.push_back({ cx, cy });
-
-                    minX = std::min(minX, cx);
-                    maxX = std::max(maxX, cx);
-                    minY = std::min(minY, cy);
-                    maxY = std::max(maxY, cy);
-
-                    for (int d = 0; d < 4; ++d) {
-                        int nx = cx + dx4[d];
-                        int ny = cy + dy4[d];
-                        if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
-                            int nPos = ny * w + nx;
-                            if (!cclVisited[nPos] && newPixels[static_cast<size_t>(nPos) * 4 + 3] > 0) {
-                                cclVisited[nPos] = true;
-                                cq.push({ nx, ny });
-                            }
-                        }
-                    }
-                }
-
-                int compW = (maxX - minX) + 1;
-                int compH = (maxY - minY) + 1;
-
-                // Strip horizontal text lines or small floating noise clusters
-                if ((compH <= 24 && compW <= 400 && comp.size() < 1200) || (comp.size() <= 8)) {
-                    for (const auto& [px, py] : comp) {
-                        size_t pIdx = static_cast<size_t>(py * w + px) * 4;
-                        newPixels[pIdx] = 0;
-                        newPixels[pIdx + 1] = 0;
-                        newPixels[pIdx + 2] = 0;
-                        newPixels[pIdx + 3] = 0;
+                    if (minC >= 170 && (maxC - minC) <= 25) {
+                        newPixels[idx] = 0;
+                        newPixels[idx + 1] = 0;
+                        newPixels[idx + 2] = 0;
+                        newPixels[idx + 3] = 0;
                     }
                 }
             }
@@ -731,7 +659,6 @@ void StudioEngineFacade::CleanCurrentTexture() {
         texture->SetPixels(newPixels);
     }
 }
-
 void StudioEngineFacade::RemoveArtifacts(int targetX, int targetY) {
     auto project = GetCurrentProject();
     if (!project) return;
