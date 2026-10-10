@@ -11,6 +11,7 @@
 #include "DataModels/Project.h"
 #include "Commands/BatchCommands.h"
 #include "Commands/PixelCommands.h"
+#include "Commands/ReplaceSpritesCommand.h"
 #include "DataModels/SpriteDefinition.h"
 #include "DataModels/SourceTexture.h"
 #include <iostream>
@@ -69,6 +70,7 @@ bool StudioEngineFacade::ImportImage(const std::string& filePath, std::string& o
     if (!texture) return false;
     m_workspace->GetActiveProject()->SetTexture(std::move(texture));
     m_workspace->GetActiveProject()->SetImagePath(filePath);
+    if (m_commandHistory) m_commandHistory->Clear();
     return true;
 }
 
@@ -144,6 +146,14 @@ void StudioEngineFacade::Redo() {
     if (m_commandHistory) {
         m_commandHistory->Redo();
     }
+}
+
+void StudioEngineFacade::BeginUndoGroup() {
+    if (m_commandHistory) m_commandHistory->BeginGroup();
+}
+
+void StudioEngineFacade::EndUndoGroup() {
+    if (m_commandHistory) m_commandHistory->EndGroup();
 }
 
 void StudioEngineFacade::EditPivot(const std::vector<std::string>& spriteIds, Point newPivot) {
@@ -351,14 +361,17 @@ void StudioEngineFacade::DeleteSpriteWithPixels(const std::string& spriteId) {
     std::vector<uint8_t> oldPixels = texture->GetPixels();
     std::vector<uint8_t> newPixels(erasedCanvas.getPixelsPtr(), erasedCanvas.getPixelsPtr() + (imgWidth * imgHeight * 4));
 
-    auto pixelCmd = std::make_unique<PixelRegionCommand>(texture, oldPixels, newPixels);
-    pixelCmd->Execute();
-
-    proj->RemoveSprite(spriteId);
-
-    if (m_commandHistory) {
-        m_commandHistory->ExecuteCommand(std::move(pixelCmd));
+    std::vector<std::shared_ptr<SpriteDefinition>> oldSprites = proj->GetSprites();
+    std::vector<std::shared_ptr<SpriteDefinition>> remaining;
+    for (const auto& s : oldSprites) {
+        if (s && s->GetId() == spriteId) continue;
+        remaining.push_back(s);
     }
+
+    m_commandHistory->BeginGroup();
+    m_commandHistory->ExecuteCommand(std::make_unique<PixelRegionCommand>(texture, oldPixels, newPixels));
+    m_commandHistory->ExecuteCommand(std::make_unique<ReplaceSpritesCommand>(proj, oldSprites, remaining));
+    m_commandHistory->EndGroup();
 }
 
 void StudioEngineFacade::RepackFrames() {
@@ -447,7 +460,13 @@ void StudioEngineFacade::MergeSelectedSprites(const std::vector<std::string>& se
         return a->GetSourceRect().x < b->GetSourceRect().x;
     });
 
-    project->SetSprites(remaining);
+    m_commandHistory->ExecuteCommand(std::make_unique<ReplaceSpritesCommand>(project, allSprites, remaining));
+}
+
+void StudioEngineFacade::ReplaceSprites(const std::vector<std::shared_ptr<SpriteDefinition>>& newSprites) {
+    auto project = GetCurrentProject();
+    if (!IsProjectActive() || !project) return;
+    m_commandHistory->ExecuteCommand(std::make_unique<ReplaceSpritesCommand>(project, project->GetSprites(), newSprites));
 }
 
 void StudioEngineFacade::CleanCurrentTexture() {
@@ -1068,6 +1087,170 @@ void StudioEngineFacade::DeleteArea(int x, int y, int width, int height) {
     } else {
         texture->SetPixels(newPixels);
     }
+}
+
+void StudioEngineFacade::DeleteColorRegion(int targetX, int targetY, int tolerance) {
+    auto project = GetCurrentProject();
+    if (!project) return;
+    auto constTexture = project->GetTexture();
+    if (!constTexture || !constTexture->IsValid()) return;
+    auto texture = std::const_pointer_cast<SourceTexture>(constTexture);
+
+    int texWidth = texture->GetWidth();
+    int texHeight = texture->GetHeight();
+    if (targetX < 0 || targetX >= texWidth || targetY < 0 || targetY >= texHeight) return;
+
+    std::vector<uint8_t> oldPixels = texture->GetPixels();
+    std::vector<uint8_t> newPixels = oldPixels;
+
+    size_t targetIdx = (static_cast<size_t>(targetY) * texWidth + targetX) * 4;
+    uint8_t tr = oldPixels[targetIdx];
+    uint8_t tg = oldPixels[targetIdx + 1];
+    uint8_t tb = oldPixels[targetIdx + 2];
+    uint8_t ta = oldPixels[targetIdx + 3];
+
+    if (ta == 0) return;
+
+    std::vector<bool> visited(static_cast<size_t>(texWidth) * texHeight, false);
+    std::queue<std::pair<int, int>> q;
+    q.push({targetX, targetY});
+    visited[static_cast<size_t>(targetY) * texWidth + targetX] = true;
+
+    const int dx[4] = {1, -1, 0, 0};
+    const int dy[4] = {0, 0, 1, -1};
+
+    while (!q.empty()) {
+        auto [cx, cy] = q.front();
+        q.pop();
+
+        size_t cIdx = (static_cast<size_t>(cy) * texWidth + cx) * 4;
+        newPixels[cIdx] = 0;
+        newPixels[cIdx + 1] = 0;
+        newPixels[cIdx + 2] = 0;
+        newPixels[cIdx + 3] = 0;
+
+        for (int d = 0; d < 4; ++d) {
+            int nx = cx + dx[d];
+            int ny = cy + dy[d];
+            if (nx < 0 || nx >= texWidth || ny < 0 || ny >= texHeight) continue;
+            size_t nPos = static_cast<size_t>(ny) * texWidth + nx;
+            if (visited[nPos]) continue;
+            visited[nPos] = true;
+            size_t nIdx = nPos * 4;
+            if (oldPixels[nIdx + 3] == 0) continue;
+            int dr = std::abs(static_cast<int>(oldPixels[nIdx]) - tr);
+            int dg = std::abs(static_cast<int>(oldPixels[nIdx + 1]) - tg);
+            int db = std::abs(static_cast<int>(oldPixels[nIdx + 2]) - tb);
+            if (dr <= tolerance && dg <= tolerance && db <= tolerance) {
+                q.push({nx, ny});
+            }
+        }
+    }
+
+    m_commandHistory->ExecuteCommand(std::make_unique<PixelRegionCommand>(texture, oldPixels, newPixels));
+}
+
+std::vector<sf::Vector2i> StudioEngineFacade::SelectPixelsByColor(int targetX, int targetY, float tolerance, bool contiguous) const {
+    std::vector<sf::Vector2i> selection;
+
+    auto texture = GetCurrentTexture();
+    if (!texture || !texture->IsValid()) return selection;
+
+    int texWidth = texture->GetWidth();
+    int texHeight = texture->GetHeight();
+    if (targetX < 0 || targetX >= texWidth || targetY < 0 || targetY >= texHeight) return selection;
+
+    const auto& pixels = texture->GetPixels();
+    size_t targetIdx = (static_cast<size_t>(targetY) * texWidth + targetX) * 4;
+    uint8_t tr = pixels[targetIdx];
+    uint8_t tg = pixels[targetIdx + 1];
+    uint8_t tb = pixels[targetIdx + 2];
+    uint8_t ta = pixels[targetIdx + 3];
+
+    if (ta == 0) return selection;
+
+    const float tolSq = tolerance * tolerance;
+    auto matches = [&](size_t idx) {
+        if (pixels[idx + 3] == 0) return false;
+        float dr = static_cast<float>(pixels[idx]) - tr;
+        float dg = static_cast<float>(pixels[idx + 1]) - tg;
+        float db = static_cast<float>(pixels[idx + 2]) - tb;
+        return dr * dr + dg * dg + db * db <= tolSq;
+    };
+
+    if (!contiguous) {
+        for (int y = 0; y < texHeight; ++y) {
+            for (int x = 0; x < texWidth; ++x) {
+                if (matches((static_cast<size_t>(y) * texWidth + x) * 4)) {
+                    selection.push_back({x, y});
+                }
+            }
+        }
+        return selection;
+    }
+
+    std::vector<bool> visited(static_cast<size_t>(texWidth) * texHeight, false);
+    std::queue<std::pair<int, int>> q;
+    q.push({targetX, targetY});
+    visited[static_cast<size_t>(targetY) * texWidth + targetX] = true;
+
+    const int dx[4] = {1, -1, 0, 0};
+    const int dy[4] = {0, 0, 1, -1};
+
+    while (!q.empty()) {
+        auto [cx, cy] = q.front();
+        q.pop();
+
+        selection.push_back({cx, cy});
+
+        for (int d = 0; d < 4; ++d) {
+            int nx = cx + dx[d];
+            int ny = cy + dy[d];
+            if (nx < 0 || nx >= texWidth || ny < 0 || ny >= texHeight) continue;
+            size_t nPos = static_cast<size_t>(ny) * texWidth + nx;
+            if (visited[nPos]) continue;
+            visited[nPos] = true;
+            if (matches(nPos * 4)) {
+                q.push({nx, ny});
+            }
+        }
+    }
+
+    return selection;
+}
+
+void StudioEngineFacade::ErasePixels(const std::vector<sf::Vector2i>& pixels) {
+    PaintPixels(pixels, sf::Color(0, 0, 0, 0));
+}
+
+void StudioEngineFacade::RecolorPixels(const std::vector<sf::Vector2i>& pixels, sf::Color color) {
+    PaintPixels(pixels, color);
+}
+
+void StudioEngineFacade::PaintPixels(const std::vector<sf::Vector2i>& pixels, sf::Color color) {
+    if (pixels.empty()) return;
+    auto project = GetCurrentProject();
+    if (!project) return;
+    auto constTexture = project->GetTexture();
+    if (!constTexture || !constTexture->IsValid()) return;
+    auto texture = std::const_pointer_cast<SourceTexture>(constTexture);
+
+    int texWidth = texture->GetWidth();
+    int texHeight = texture->GetHeight();
+
+    std::vector<uint8_t> oldPixels = texture->GetPixels();
+    std::vector<uint8_t> newPixels = oldPixels;
+
+    for (const auto& pt : pixels) {
+        if (pt.x < 0 || pt.x >= texWidth || pt.y < 0 || pt.y >= texHeight) continue;
+        size_t idx = (static_cast<size_t>(pt.y) * texWidth + pt.x) * 4;
+        newPixels[idx] = color.r;
+        newPixels[idx + 1] = color.g;
+        newPixels[idx + 2] = color.b;
+        newPixels[idx + 3] = color.a;
+    }
+
+    m_commandHistory->ExecuteCommand(std::make_unique<PixelRegionCommand>(texture, oldPixels, newPixels));
 }
 
 void StudioEngineFacade::FillInternalHoles(int targetX, int targetY) {

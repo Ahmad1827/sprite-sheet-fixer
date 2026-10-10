@@ -5,7 +5,6 @@
 #include "DataModels/SpriteDefinition.h"
 #include "Theme.h"
 #include <algorithm>
-#include <queue>
 #include <cmath>
 #include <fstream>
 #include <iostream>
@@ -68,109 +67,6 @@ static std::string CleanPath(std::string path) {
         path.erase(path.begin());
     }
     return path;
-}
-
-struct EditorHistoryState {
-    std::vector<std::shared_ptr<StudioCore::SpriteDefinition>> sprites;
-    std::vector<uint8_t> pixels;
-    int width{0};
-    int height{0};
-};
-
-static std::vector<EditorHistoryState> g_undoStack;
-static std::vector<EditorHistoryState> g_redoStack;
-
-static void PushUndoState(StudioCore::StudioEngineFacade& engine) {
-    if (!engine.IsProjectActive() || !engine.GetCurrentProject()) return;
-    auto project = engine.GetCurrentProject();
-    
-    EditorHistoryState state;
-    for (const auto& s : project->GetSprites()) {
-        if (!s) continue;
-        auto copy = std::make_shared<StudioCore::SpriteDefinition>(s->GetId(), s->GetSourceRect());
-        copy->SetPivot(s->GetPivot());
-        state.sprites.push_back(copy);
-    }
-
-    if (engine.HasTexture() && engine.GetCurrentTexture()) {
-        auto tex = engine.GetCurrentTexture();
-        state.width = tex->GetWidth();
-        state.height = tex->GetHeight();
-        state.pixels = tex->GetPixels();
-    }
-
-    g_undoStack.push_back(state);
-    g_redoStack.clear();
-}
-
-static void PerformUndo(StudioCore::StudioEngineFacade& engine) {
-    if (!g_undoStack.empty() && engine.IsProjectActive() && engine.GetCurrentProject()) {
-        auto project = engine.GetCurrentProject();
-        
-        EditorHistoryState currentCloned;
-        for (const auto& s : project->GetSprites()) {
-            if (!s) continue;
-            auto copy = std::make_shared<StudioCore::SpriteDefinition>(s->GetId(), s->GetSourceRect());
-            copy->SetPivot(s->GetPivot());
-            currentCloned.sprites.push_back(copy);
-        }
-        if (engine.HasTexture() && engine.GetCurrentTexture()) {
-            auto tex = engine.GetCurrentTexture();
-            currentCloned.width = tex->GetWidth();
-            currentCloned.height = tex->GetHeight();
-            currentCloned.pixels = tex->GetPixels();
-        }
-        g_redoStack.push_back(currentCloned);
-
-        auto prevState = g_undoStack.back();
-        g_undoStack.pop_back();
-
-        project->SetSprites(prevState.sprites);
-
-        if (engine.HasTexture() && engine.GetCurrentTexture() && !prevState.pixels.empty()) {
-            auto tex = engine.GetCurrentTexture();
-            if (tex->GetWidth() == prevState.width && tex->GetHeight() == prevState.height) {
-                auto& rawPixels = const_cast<std::vector<uint8_t>&>(tex->GetPixels());
-                rawPixels = prevState.pixels;
-            }
-        }
-    }
-    engine.Undo();
-}
-
-static void PerformRedo(StudioCore::StudioEngineFacade& engine) {
-    if (!g_redoStack.empty() && engine.IsProjectActive() && engine.GetCurrentProject()) {
-        auto project = engine.GetCurrentProject();
-        
-        EditorHistoryState currentCloned;
-        for (const auto& s : project->GetSprites()) {
-            if (!s) continue;
-            auto copy = std::make_shared<StudioCore::SpriteDefinition>(s->GetId(), s->GetSourceRect());
-            copy->SetPivot(s->GetPivot());
-            currentCloned.sprites.push_back(copy);
-        }
-        if (engine.HasTexture() && engine.GetCurrentTexture()) {
-            auto tex = engine.GetCurrentTexture();
-            currentCloned.width = tex->GetWidth();
-            currentCloned.height = tex->GetHeight();
-            currentCloned.pixels = tex->GetPixels();
-        }
-        g_undoStack.push_back(currentCloned);
-
-        auto nextState = g_redoStack.back();
-        g_redoStack.pop_back();
-
-        project->SetSprites(nextState.sprites);
-
-        if (engine.HasTexture() && engine.GetCurrentTexture() && !nextState.pixels.empty()) {
-            auto tex = engine.GetCurrentTexture();
-            if (tex->GetWidth() == nextState.width && tex->GetHeight() == nextState.height) {
-                auto& rawPixels = const_cast<std::vector<uint8_t>&>(tex->GetPixels());
-                rawPixels = nextState.pixels;
-            }
-        }
-    }
-    engine.Redo();
 }
 
 static void ExportAtlasMetadata(StudioCore::StudioEngineFacade& engine, const std::string& baseFilePath) {
@@ -347,8 +243,6 @@ void SpriteSheetStudioPanel::Initialize() {
             m_isInfillMode = false;
             m_isDeleteMode = false;
             if (m_engine.IsProjectActive() && m_engine.GetCurrentProject()) {
-                PushUndoState(m_engine);
-
                 StudioCore::DetectionConfig config;
                 config.minSpriteSize = 10;
                 m_engine.RunAutoDetection(config);
@@ -410,7 +304,7 @@ void SpriteSheetStudioPanel::Initialize() {
                     newSprites.push_back(def);
                 }
                 
-                project->SetSprites(newSprites);
+                m_engine.ReplaceSprites(newSprites);
                 m_viewport.RefreshTexture(m_engine);
             }
         },
@@ -420,7 +314,6 @@ void SpriteSheetStudioPanel::Initialize() {
             m_isDeleteMode = false;
             auto selectedIds = m_viewport.GetSelectedSpriteIds();
             if (selectedIds.size() >= 2) {
-                PushUndoState(m_engine);
                 m_engine.MergeSelectedSprites(selectedIds);
                 m_viewport.ClearSelection();
                 m_viewport.RefreshTexture(m_engine);
@@ -431,7 +324,6 @@ void SpriteSheetStudioPanel::Initialize() {
             m_isArtifactMode = false;
             m_isInfillMode = false;
             m_isDeleteMode = false;
-            PushUndoState(m_engine);
             m_engine.CleanCurrentTexture();
             m_viewport.RefreshTexture(m_engine);
         },
@@ -467,7 +359,6 @@ void SpriteSheetStudioPanel::Initialize() {
             m_isArtifactMode = false;
             m_isInfillMode = false;
             m_isDeleteMode = false;
-            PushUndoState(m_engine);
             m_engine.RepackFrames();
             m_viewport.RefreshTexture(m_engine);
         },
@@ -475,7 +366,6 @@ void SpriteSheetStudioPanel::Initialize() {
             m_isArtifactMode = false;
             m_isInfillMode = false;
             m_isDeleteMode = false;
-            PushUndoState(m_engine);
             m_engine.FlipHorizontal();
             m_viewport.RefreshTexture(m_engine);
         }
@@ -490,7 +380,6 @@ void SpriteSheetStudioPanel::Initialize() {
 void SpriteSheetStudioPanel::LoadImage(const std::string& filePath) {
     std::string clean = CleanPath(filePath);
     std::string errorMsg;
-    PushUndoState(m_engine);
     if (m_engine.ImportImage(clean, errorMsg)) {
         m_viewport.RefreshTexture(m_engine);
     }
@@ -509,10 +398,11 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
         if (event.key.code == sf::Keyboard::Delete) {
             auto selectedIds = m_viewport.GetSelectedSpriteIds();
             if (!selectedIds.empty()) {
-                PushUndoState(m_engine);
+                m_engine.BeginUndoGroup();
                 for (const auto& id : selectedIds) {
                     m_engine.DeleteSpriteWithPixels(id);
                 }
+                m_engine.EndUndoGroup();
                 m_viewport.ClearSelection();
                 m_viewport.RefreshTexture(m_engine);
                 return;
@@ -521,7 +411,6 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
 
         if (isShift && event.key.code == sf::Keyboard::N) {
             if (m_engine.IsProjectActive()) {
-                PushUndoState(m_engine);
                 static int animCounter = 1;
                 m_engine.CreateAnimation("New Animation " + std::to_string(animCounter++));
                 m_viewport.RefreshTexture(m_engine);
@@ -531,16 +420,16 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
         if (isControl) {
             if (event.key.code == sf::Keyboard::Z) {
                 if (isShift) {
-                    PerformRedo(m_engine);
+                    m_engine.Redo();
                 } else {
-                    PerformUndo(m_engine);
+                    m_engine.Undo();
                 }
                 m_viewport.ClearSelection();
                 m_viewport.RefreshTexture(m_engine);
                 return;
             }
             if (event.key.code == sf::Keyboard::Y) {
-                PerformRedo(m_engine);
+                m_engine.Redo();
                 m_viewport.ClearSelection();
                 m_viewport.RefreshTexture(m_engine);
                 return;
@@ -622,7 +511,10 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
         return;
     }
 
-    if (m_toolbar.HandleEvent(event, window, m_engine)) return;
+    if (m_toolbar.HandleEvent(event, window, m_engine)) {
+        m_viewport.RefreshTexture(m_engine);
+        return;
+    }
 
     if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
         if (m_isWandMode) {
@@ -734,7 +626,7 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
                 int height = tex->GetHeight();
 
                 if (px >= 0 && px < width && py >= 0 && py < height) {
-                    auto& rawPixels = const_cast<std::vector<uint8_t>&>(tex->GetPixels());
+                    const auto& rawPixels = tex->GetPixels();
                     size_t targetIdx = static_cast<size_t>(py * width + px) * 4;
 
                     if (m_isWandEyedropper) {
@@ -763,65 +655,8 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
                         return;
                     }
 
-                    uint8_t targetR = rawPixels[targetIdx];
-                    uint8_t targetG = rawPixels[targetIdx + 1];
-                    uint8_t targetB = rawPixels[targetIdx + 2];
-                    uint8_t targetA = rawPixels[targetIdx + 3];
-
-                    if (targetA > 0) {
-                        m_wandSelectionPixels.clear();
-                        const float tolSq = m_wandTolerance * m_wandTolerance;
-
-                        if (m_wandContiguous) {
-                            std::vector<bool> visited(static_cast<size_t>(width * height), false);
-                            std::queue<std::pair<int, int>> q;
-                            q.push({px, py});
-                            visited[py * width + px] = true;
-
-                            const int dx[4] = {1, -1, 0, 0};
-                            const int dy[4] = {0, 0, 1, -1};
-
-                            while (!q.empty()) {
-                                auto [cx, cy] = q.front();
-                                q.pop();
-
-                                m_wandSelectionPixels.push_back({cx, cy});
-
-                                for (int d = 0; d < 4; ++d) {
-                                    int nx = cx + dx[d];
-                                    int ny = cy + dy[d];
-                                    if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-                                        size_t nPos = static_cast<size_t>(ny * width + nx);
-                                        if (!visited[nPos]) {
-                                            visited[nPos] = true;
-                                            size_t nIdx = nPos * 4;
-                                            if (rawPixels[nIdx + 3] > 0) {
-                                                float dr = static_cast<float>(rawPixels[nIdx]) - targetR;
-                                                float dg = static_cast<float>(rawPixels[nIdx + 1]) - targetG;
-                                                float db = static_cast<float>(rawPixels[nIdx + 2]) - targetB;
-                                                if (dr * dr + dg * dg + db * db <= tolSq) {
-                                                    q.push({nx, ny});
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        } else {
-                            for (int y = 0; y < height; ++y) {
-                                for (int x = 0; x < width; ++x) {
-                                    size_t idx = static_cast<size_t>(y * width + x) * 4;
-                                    if (rawPixels[idx + 3] > 0) {
-                                        float dr = static_cast<float>(rawPixels[idx]) - targetR;
-                                        float dg = static_cast<float>(rawPixels[idx + 1]) - targetG;
-                                        float db = static_cast<float>(rawPixels[idx + 2]) - targetB;
-                                        if (dr * dr + dg * dg + db * db <= tolSq) {
-                                            m_wandSelectionPixels.push_back({x, y});
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                    if (rawPixels[targetIdx + 3] > 0) {
+                        m_wandSelectionPixels = m_engine.SelectPixelsByColor(px, py, m_wandTolerance, m_wandContiguous);
                         return;
                     }
                 }
@@ -842,56 +677,11 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
                 int height = tex->GetHeight();
 
                 if (px >= 0 && px < width && py >= 0 && py < height) {
-                    auto& rawPixels = const_cast<std::vector<uint8_t>&>(tex->GetPixels());
                     size_t targetIdx = static_cast<size_t>(py * width + px) * 4;
 
-                    uint8_t targetR = rawPixels[targetIdx];
-                    uint8_t targetG = rawPixels[targetIdx + 1];
-                    uint8_t targetB = rawPixels[targetIdx + 2];
-                    uint8_t targetA = rawPixels[targetIdx + 3];
-
-                    if (targetA > 0) {
-                        PushUndoState(m_engine);
-
+                    if (tex->GetPixels()[targetIdx + 3] > 0) {
                         if (m_isDeleteMode) {
-                            std::vector<bool> visited(static_cast<size_t>(width * height), false);
-                            std::queue<std::pair<int, int>> q;
-                            q.push({px, py});
-                            visited[py * width + px] = true;
-
-                            const int dx[4] = {1, -1, 0, 0};
-                            const int dy[4] = {0, 0, 1, -1};
-
-                            while (!q.empty()) {
-                                auto [cx, cy] = q.front();
-                                q.pop();
-
-                                size_t cIdx = static_cast<size_t>(cy * width + cx) * 4;
-                                rawPixels[cIdx] = 0;
-                                rawPixels[cIdx + 1] = 0;
-                                rawPixels[cIdx + 2] = 0;
-                                rawPixels[cIdx + 3] = 0;
-
-                                for (int d = 0; d < 4; ++d) {
-                                    int nx = cx + dx[d];
-                                    int ny = cy + dy[d];
-                                    if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-                                        size_t nPos = static_cast<size_t>(ny * width + nx);
-                                        if (!visited[nPos]) {
-                                            visited[nPos] = true;
-                                            size_t nIdx = nPos * 4;
-                                            if (rawPixels[nIdx + 3] > 0) {
-                                                int dr = std::abs(static_cast<int>(rawPixels[nIdx]) - targetR);
-                                                int dg = std::abs(static_cast<int>(rawPixels[nIdx + 1]) - targetG);
-                                                int db = std::abs(static_cast<int>(rawPixels[nIdx + 2]) - targetB);
-                                                if (dr <= 25 && dg <= 25 && db <= 25) {
-                                                    q.push({nx, ny});
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                            m_engine.DeleteColorRegion(px, py);
                         } else if (m_isArtifactMode) {
                             m_engine.RemoveArtifacts(px, py);
                         }
@@ -968,8 +758,6 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
             float minY = std::min(m_artifactDragStart.y, dragEnd.y);
             float maxY = std::max(m_artifactDragStart.y, dragEnd.y);
 
-            PushUndoState(m_engine);
-
             if (m_isInfillMode) {
                 m_engine.FillTransparencyArea(
                     static_cast<int>(minX),
@@ -1042,24 +830,26 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
 
             std::vector<StudioUI::ContextMenuItem> items = {
                 {deleteLabel, [this, targetsToDelete]() {
-                    PushUndoState(m_engine);
+                    m_engine.BeginUndoGroup();
                     for (const auto& id : targetsToDelete) {
                         m_engine.DeleteSpriteWithPixels(id);
                     }
+                    m_engine.EndUndoGroup();
                     m_viewport.ClearSelection();
                     m_viewport.RefreshTexture(m_engine);
                 }},
                 {pivotLabel, [this, targetsToDelete]() {
                     auto proj = m_engine.GetCurrentProject();
                     if (!proj) return;
-                    PushUndoState(m_engine);
+                    m_engine.BeginUndoGroup();
                     for (const auto& id : targetsToDelete) {
                         auto sprite = proj->GetSpriteById(id);
                         if (sprite) {
                             auto rect = sprite->GetSourceRect();
-                            sprite->SetPivot({rect.width / 2.0f, rect.height / 2.0f});
+                            m_engine.EditPivot({id}, {rect.width / 2.0f, rect.height / 2.0f});
                         }
                     }
+                    m_engine.EndUndoGroup();
                     m_viewport.RefreshTexture(m_engine);
                 }}
             };
@@ -1610,25 +1400,10 @@ void SpriteSheetStudioPanel::ApplyWandAction() {
     if (m_wandSelectionPixels.empty()) return;
     if (!m_engine.HasTexture() || !m_engine.GetCurrentTexture()) return;
 
-    PushUndoState(m_engine);
-
-    auto tex = m_engine.GetCurrentTexture();
-    int width = tex->GetWidth();
-    auto& rawPixels = const_cast<std::vector<uint8_t>&>(tex->GetPixels());
-
-    for (const auto& pt : m_wandSelectionPixels) {
-        size_t idx = static_cast<size_t>(pt.y * width + pt.x) * 4;
-        if (m_wandActionDelete) {
-            rawPixels[idx] = 0;
-            rawPixels[idx + 1] = 0;
-            rawPixels[idx + 2] = 0;
-            rawPixels[idx + 3] = 0;
-        } else {
-            rawPixels[idx] = m_wandSelectedColor.r;
-            rawPixels[idx + 1] = m_wandSelectedColor.g;
-            rawPixels[idx + 2] = m_wandSelectedColor.b;
-            rawPixels[idx + 3] = m_wandSelectedColor.a;
-        }
+    if (m_wandActionDelete) {
+        m_engine.ErasePixels(m_wandSelectionPixels);
+    } else {
+        m_engine.RecolorPixels(m_wandSelectionPixels, m_wandSelectedColor);
     }
 
     m_wandSelectionPixels.clear();

@@ -3,6 +3,8 @@
 #include <string>
 #include <vector>
 #include <SFML/Graphics/Image.hpp>
+#include <SFML/Graphics/Color.hpp>
+#include <SFML/System/Vector2.hpp>
 #include "Processing/SpriteDetector.h"
 #include "DataModels/SpriteDefinition.h"
 #include "Commands/BatchCommands.h"
@@ -46,6 +48,8 @@ public:
 
     void Undo();
     void Redo();
+    void BeginUndoGroup();
+    void EndUndoGroup();
     void EditPivot(const std::vector<std::string>& spriteIds, Point newPivot);
     void EditBaseline(const std::vector<std::string>& spriteIds, float newBaseline);
 
@@ -74,11 +78,18 @@ public:
     void RemoveColorGlobal(int targetX, int targetY, float tolerance = 25.0f);
     void CleanCurrentTexture();
     void DeleteArea(int x, int y, int width, int height);
+    void DeleteColorRegion(int targetX, int targetY, int tolerance = 25);
+    std::vector<sf::Vector2i> SelectPixelsByColor(int targetX, int targetY, float tolerance, bool contiguous) const;
+    void ErasePixels(const std::vector<sf::Vector2i>& pixels);
+    void RecolorPixels(const std::vector<sf::Vector2i>& pixels, sf::Color color);
+    void ReplaceSprites(const std::vector<std::shared_ptr<SpriteDefinition>>& newSprites);
     void FillInternalHoles(int targetX, int targetY);
     void MergeSelectedSprites(const std::vector<std::string>& selectedIds);
     void FillTransparencyArea(int x, int y, int width, int height);
     bool ExportIndividualSprites(const std::string& outputFolder, const std::string& baseName = "sprite") const;
 private:
+    void PaintPixels(const std::vector<sf::Vector2i>& pixels, sf::Color color);
+
     std::shared_ptr<WorkspaceManager> m_workspace;
     std::unique_ptr<BackgroundJobQueue> m_jobQueue;
     std::unique_ptr<CommandHistory> m_commandHistory;
