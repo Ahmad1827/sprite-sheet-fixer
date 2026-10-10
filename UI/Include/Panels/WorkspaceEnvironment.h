@@ -18,7 +18,8 @@ public:
     void InitializeFont(const std::string& fontPath);
     bool HandleEvent(const sf::Event& event, const sf::RenderWindow& window);
     void Render(sf::RenderWindow& window);
-    void UpdateStatusBar(float zoom, sf::Vector2f mousePos, int totalSprites, int selectedCount, const std::string& statusText);
+    // hint: what to do next or how the active tool works. info: zoom, counts, cursor.
+    void SetStatus(const std::string& hint, const std::string& info);
     void SetBounds(const sf::FloatRect& bounds) { m_bounds = bounds; }
     void ShowContextMenu(sf::Vector2f position, const std::vector<ContextMenuItem>& items);
     void HideContextMenu();
@@ -29,6 +30,7 @@ private:
     sf::RectangleShape m_statusBarBg;
     sf::RectangleShape m_statusBarTopBorder;
     sf::Text m_statusText;
+    sf::Text m_infoText;
 
     // Context Menu UI
     bool m_showContextMenu{false};

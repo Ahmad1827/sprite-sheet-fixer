@@ -14,27 +14,33 @@ void WorkspaceEnvironment::InitializeFont(const std::string& fontPath) {
     m_statusBarTopBorder.setFillColor(Theme::BorderColor);
 
     m_statusText.setFont(m_font);
-    m_statusText.setCharacterSize(11);
-    m_statusText.setFillColor(Theme::TextSecondary);
+    m_statusText.setCharacterSize(12);
+    m_statusText.setFillColor(Theme::TextPrimary);
+
+    m_infoText.setFont(m_font);
+    m_infoText.setCharacterSize(11);
+    m_infoText.setFillColor(Theme::TextMuted);
 }
 
-void WorkspaceEnvironment::UpdateStatusBar(float zoom, sf::Vector2f mousePos, int totalSprites, int selectedCount, const std::string& statusText) {
-    std::string statusStr = statusText + 
-                            "  |  Zoom " + std::to_string(static_cast<int>(zoom * 100)) + "%" +
-                            "  |  Mouse " + std::to_string(static_cast<int>(mousePos.x)) + "," + std::to_string(static_cast<int>(mousePos.y)) +
-                            "  |  Sprites " + std::to_string(totalSprites) +
-                            "  |  Selected " + std::to_string(selectedCount) +
-                            "  |  Autosaved";
-    m_statusText.setString(statusStr);
+void WorkspaceEnvironment::SetStatus(const std::string& hint, const std::string& info) {
+    m_statusText.setString(hint);
+    m_infoText.setString(info);
 }
 
 bool WorkspaceEnvironment::HandleEvent(const sf::Event& event, const sf::RenderWindow& window) {
+    (void)window;
     if (m_showContextMenu) {
-        sf::Vector2i mousePixel = sf::Mouse::getPosition(window);
-        sf::Vector2f mousePos(mousePixel.x, mousePixel.y);
+        // Use the position carried by the event itself, so a click always acts
+        // on the item that was under it.
+        sf::Vector2f mousePos(-1.0f, -1.0f);
+        if (event.type == sf::Event::MouseMoved) {
+            mousePos = { static_cast<float>(event.mouseMove.x), static_cast<float>(event.mouseMove.y) };
+        } else if (event.type == sf::Event::MouseButtonPressed) {
+            mousePos = { static_cast<float>(event.mouseButton.x), static_cast<float>(event.mouseButton.y) };
+        }
 
-        float itemHeight = 24.0f;
-        float menuWidth = 140.0f;
+        float itemHeight = 28.0f;
+        float menuWidth = 190.0f;
         float totalHeight = m_menuItems.size() * itemHeight;
 
         sf::FloatRect menuBounds(m_menuPosition.x, m_menuPosition.y, menuWidth, totalHeight);
@@ -49,8 +55,15 @@ bool WorkspaceEnvironment::HandleEvent(const sf::Event& event, const sf::RenderW
         }
 
         if (event.type == sf::Event::MouseButtonPressed) {
-            if (menuBounds.contains(mousePos) && m_hoveredMenuItem >= 0 && m_hoveredMenuItem < static_cast<int>(m_menuItems.size())) {
-                m_menuItems[m_hoveredMenuItem].action();
+            if (menuBounds.contains(mousePos)) {
+                int index = static_cast<int>((mousePos.y - m_menuPosition.y) / itemHeight);
+                if (index >= 0 && index < static_cast<int>(m_menuItems.size())) {
+                    // The action may open another menu, so take it out first.
+                    auto action = m_menuItems[index].action;
+                    HideContextMenu();
+                    if (action) action();
+                    return true;
+                }
             }
             HideContextMenu();
             return true;
@@ -80,15 +93,18 @@ void WorkspaceEnvironment::Render(sf::RenderWindow& window) {
     m_statusBarTopBorder.setPosition(m_bounds.left, yPos);
     m_statusBarTopBorder.setSize(sf::Vector2f(m_bounds.width, Theme::BorderThickness));
 
-    m_statusText.setPosition(m_bounds.left + 8.0f, yPos + 4.0f);
+    m_statusText.setPosition(m_bounds.left + 14.0f, yPos + 7.0f);
+    sf::FloatRect infoBounds = m_infoText.getLocalBounds();
+    m_infoText.setPosition(m_bounds.left + m_bounds.width - infoBounds.width - 14.0f, yPos + 8.0f);
 
     window.draw(m_statusBarBg);
     window.draw(m_statusBarTopBorder);
     window.draw(m_statusText);
+    window.draw(m_infoText);
 
     if (m_showContextMenu) {
-        float itemHeight = 24.0f;
-        float menuWidth = 140.0f;
+        float itemHeight = 28.0f;
+        float menuWidth = 190.0f;
         float totalHeight = m_menuItems.size() * itemHeight;
 
         sf::RectangleShape menuBg(sf::Vector2f(menuWidth, totalHeight));
@@ -113,7 +129,7 @@ void WorkspaceEnvironment::Render(sf::RenderWindow& window) {
             itemText.setString(m_menuItems[i].label);
             itemText.setCharacterSize(12);
             itemText.setFillColor(Theme::TextPrimary);
-            itemText.setPosition(m_menuPosition.x + 8.0f, itemY + 4.0f);
+            itemText.setPosition(m_menuPosition.x + 12.0f, itemY + 6.0f);
             window.draw(itemText);
         }
     }

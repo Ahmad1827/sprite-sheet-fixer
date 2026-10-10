@@ -58,6 +58,22 @@ private:
     float m_wandAntsOffset{ 0.0f };
     sf::Font m_wandFont;
 
+    bool m_timelinePinned{ false };   // shown by the user while there are no animations yet
+    bool m_timelineHidden{ false };   // hidden by the user although animations exist
+    bool m_cleanTried{ false };
+
+    void ClearTools();
+    void OpenImageDialog();
+    void ExportFramesDialog();
+    void RunDetect();
+    int SpriteCount() const;
+    int AnimationCount() const;
+    bool AnimationPanelsVisible() const;
+    sf::FloatRect CanvasBounds() const;
+    bool BackgroundLooksOpaque() const;
+    std::string NextStep() const;
+    std::string CurrentHint() const;
+
     void ApplyWandAction();
     void UpdateWandColorFromHsv();
     void DrawDashedBox(sf::RenderWindow& window, sf::FloatRect rect, float offset, float zoom);

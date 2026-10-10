@@ -57,9 +57,18 @@ public:
     void CenterOnPoint(const sf::Vector2f& worldPos);
     void TriggerNumericEdit(StudioCore::StudioEngineFacade& engine);
     void SetBounds(const sf::FloatRect& bounds) { m_bounds = bounds; }
+    // The part of the window the image is drawn in (the window minus bars and panels).
+    void SetCanvasBounds(const sf::FloatRect& canvas);
+    const sf::FloatRect& GetCanvasBounds() const { return m_canvas; }
+    bool HasImage() const { return m_hasValidTexture; }
 
 private:
+    void ApplyView();
+    void FitToCanvas();
+
     sf::FloatRect m_bounds{0.0f, 0.0f, 1280.0f, 720.0f};
+    sf::FloatRect m_canvas{0.0f, 0.0f, 1280.0f, 720.0f};
+    bool m_isFitted{true};   // still showing the whole image; refit when the canvas changes size
     void RenderSprite(sf::RenderTarget& target, const StudioCore::SpriteDefinition& sprite, const StudioCore::SourceTexture& sourceTex);
     sf::Vector2i GetMouseImageCoords(const sf::RenderWindow& window) const;
     sf::Color GetPixelColor(const StudioCore::StudioEngineFacade& engine, int x, int y) const;
@@ -81,10 +90,12 @@ private:
     bool m_showGrid{false};
     bool m_showDebug{false};
     bool m_showBoxes{true};
-    bool m_showCenters{true};
+    // Pivot and baseline always show on the selected sprite; these turn them on
+    // for every sprite (P and L).
+    bool m_showCenters{false};
     bool m_showIds{true};
-    bool m_showPivots{true};
-    bool m_showBaselines{true};
+    bool m_showPivots{false};
+    bool m_showBaselines{false};
 
     std::vector<std::string> m_selectedSpriteIds;
     std::string m_hoveredSpriteId;

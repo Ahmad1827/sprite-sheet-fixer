@@ -1,196 +1,204 @@
 #include "Panels/Toolbar.h"
 #include "Theme.h"
-#include "StudioEngineFacade.h"
-#include <iostream>
+#include "Widgets.h"
 #include <cmath>
 
 namespace StudioUI {
 
-void Toolbar::Initialize(const std::string& fontPath,
-                         std::function<void()> onOpenImage,
-                         std::function<void()> onLoadProject,
-                         std::function<void()> onSaveProject,
-                         std::function<void()> onExport,
-                         std::function<void()> onExportFrames,
-                         std::function<void()> onToggleUI,
-                         std::function<void()> onOpenWizard,
-                         std::function<void()> onDetect,
-                         std::function<void()> onMerge,
-                         std::function<void()> onCleanBg,
-                         std::function<void()> onWand,
-                         std::function<void()> onArtifact,
-                         std::function<void()> onInfill,
-                         std::function<void()> onDelete,
-                         std::function<void()> onRepack,
-                         std::function<void()> onFlipH) {
-    
-    std::vector<std::string> fontCandidates = { fontPath, "Resources/font.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf" };
+namespace {
+constexpr float kCaptionY = 7.0f;
+constexpr float kButtonY = 24.0f;
+constexpr float kButtonHeight = 28.0f;
+constexpr float kButtonGap = 4.0f;
+constexpr float kGroupGap = 18.0f;
+constexpr float kMargin = 12.0f;
+constexpr unsigned kLabelSize = 13;
+constexpr unsigned kCaptionSize = 10;
+}
+
+void Toolbar::Initialize(const std::string& fontPath, std::vector<ToolbarAction> actions) {
+    std::vector<std::string> fontCandidates = { fontPath, "Resources/font.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf" };
     for (const auto& path : fontCandidates) {
         if (!path.empty() && m_font.loadFromFile(path)) break;
     }
 
     m_buttons.clear();
-    
-    m_buttons.push_back({"open_img", u8"Import", {}, [onOpenImage](StudioCore::StudioEngineFacade&){ onOpenImage(); }});
-    m_buttons.push_back({"load_proj", u8"Open", {}, [onLoadProject](StudioCore::StudioEngineFacade&){ onLoadProject(); }});
-    m_buttons.push_back({"save_proj", u8"Save", {}, [onSaveProject](StudioCore::StudioEngineFacade&){ onSaveProject(); }});
-    m_buttons.push_back({"export", u8"Export", {}, [onExport](StudioCore::StudioEngineFacade&){ onExport(); }});
-    m_buttons.push_back({"export_frames", u8"Frames", {}, [onExportFrames](StudioCore::StudioEngineFacade&){ onExportFrames(); }});
-    
-    m_buttons.push_back({"undo", u8"Undo", {}, [](StudioCore::StudioEngineFacade& engine){ engine.Undo(); }});
-    m_buttons.push_back({"redo", u8"Redo", {}, [](StudioCore::StudioEngineFacade& engine){ engine.Redo(); }});
-    
-    m_buttons.push_back({"clean_bg", u8"Clean", {}, [onCleanBg](StudioCore::StudioEngineFacade&){ onCleanBg(); }});
-    m_buttons.push_back({"wand", u8"Wand", {}, [onWand](StudioCore::StudioEngineFacade&){ onWand(); }});
-    m_buttons.push_back({"detect", u8"Detect", {}, [onDetect](StudioCore::StudioEngineFacade&){ onDetect(); }});
-    m_buttons.push_back({"merge", u8"Merge", {}, [onMerge](StudioCore::StudioEngineFacade&){ onMerge(); }});
-    m_buttons.push_back({"artifact", u8"Artifact", {}, [onArtifact](StudioCore::StudioEngineFacade&){ onArtifact(); }}); 
-    m_buttons.push_back({"infill", u8"Infill", {}, [onInfill](StudioCore::StudioEngineFacade&){ onInfill(); }}); 
-    m_buttons.push_back({"delete", u8"Delete", {}, [onDelete](StudioCore::StudioEngineFacade&){ onDelete(); }}); 
-    m_buttons.push_back({"repack", u8"Repack", {}, [onRepack](StudioCore::StudioEngineFacade&){ onRepack(); }}); 
-    m_buttons.push_back({"flip_h", u8"Flip H", {}, [onFlipH](StudioCore::StudioEngineFacade&){ onFlipH(); }}); 
-    m_buttons.push_back({"wizard", u8"Wizard", {}, [onOpenWizard](StudioCore::StudioEngineFacade&){ onOpenWizard(); }});
-    
-    m_buttons.push_back({"toggle_ui", u8"View", {}, [onToggleUI](StudioCore::StudioEngineFacade&){ onToggleUI(); }, true, false});
-
-    LayoutButtons(1280.0f);
-}
-
-void Toolbar::LayoutButtons(float windowWidth) {
-    m_background.setSize(sf::Vector2f(m_bounds.width, Theme::ToolbarHeight));
-    m_background.setFillColor(Theme::PanelBackground);
-
-    m_bottomBorder.setSize({windowWidth, Theme::BorderThickness});
-    m_bottomBorder.setFillColor(Theme::BorderColor);
-    m_bottomBorder.setPosition(0.0f, Theme::ToolbarHeight - Theme::BorderThickness);
-
-    float startX = 8.0f;
-    float buttonHeight = Theme::ToolbarHeight - 8.0f;
-    float fixedButtonWidth = 55.0f;
-    float spacing = 3.0f;
-
-    m_dividers.clear();
-
-    for (size_t i = 0; i < m_buttons.size(); ++i) {
-        float btnWidth = fixedButtonWidth;
-        if (m_buttons[i].id == "artifact" || m_buttons[i].id == "wizard") {
-            btnWidth = 60.0f;
-        }
-
-        m_buttons[i].bounds = sf::FloatRect(startX, 4.0f, btnWidth, buttonHeight);
-        startX += btnWidth + spacing;
-
-        if (m_buttons[i].id == "export_frames" || m_buttons[i].id == "redo" || m_buttons[i].id == "wizard") {
-            sf::RectangleShape divider({Theme::BorderThickness, buttonHeight - 4.0f});
-            divider.setPosition(startX + 1.0f, 6.0f);
-            divider.setFillColor(Theme::BorderColor);
-            m_dividers.push_back(divider);
-            startX += 6.0f;
-        }
+    for (auto& action : actions) {
+        Button button;
+        button.action = std::move(action);
+        m_buttons.push_back(std::move(button));
     }
+    Layout();
 }
 
-void Toolbar::Update(float deltaTime, sf::Vector2f mousePos) {
-    for (size_t i = 0; i < m_buttons.size(); ++i) {
-        bool isHovered = m_buttons[i].bounds.contains(mousePos);
-        float targetAlpha = isHovered ? 1.0f : 0.0f;
+void Toolbar::Layout() {
+    m_captions.clear();
 
-        float speed = 10.0f;
-        if (m_buttons[i].hoverAlpha < targetAlpha) {
-            m_buttons[i].hoverAlpha = std::min(targetAlpha, m_buttons[i].hoverAlpha + deltaTime * speed);
-        } else if (m_buttons[i].hoverAlpha > targetAlpha) {
-            m_buttons[i].hoverAlpha = std::max(targetAlpha, m_buttons[i].hoverAlpha - deltaTime * speed);
+    auto naturalWidth = [&](const Button& b, float padding) {
+        sf::Text text(b.action.label, m_font, kLabelSize);
+        return std::max(46.0f, std::ceil(text.getLocalBounds().width) + padding * 2.0f);
+    };
+
+    // Shrink the padding when the window is too narrow to fit every button.
+    float padding = 13.0f;
+    for (; padding > 4.0f; padding -= 1.0f) {
+        float total = kMargin * 2.0f;
+        std::string lastGroup;
+        for (const auto& b : m_buttons) {
+            total += naturalWidth(b, padding) + kButtonGap;
+            if (b.action.group != lastGroup) total += kGroupGap;
+            lastGroup = b.action.group;
         }
+        if (total <= m_bounds.width) break;
     }
+
+    float x = m_bounds.left + kMargin;
+    std::string group;
+    for (auto& b : m_buttons) {
+        if (b.action.alignRight) continue;
+        if (b.action.group != group) {
+            if (!group.empty()) x += kGroupGap - kButtonGap;
+            group = b.action.group;
+            m_captions.push_back({ group, x });
+        }
+        float width = naturalWidth(b, padding);
+        b.bounds = sf::FloatRect(std::floor(x), kButtonY, width, kButtonHeight);
+        x += width + kButtonGap;
+    }
+
+    float right = m_bounds.left + m_bounds.width - kMargin;
+    group.clear();
+    for (auto it = m_buttons.rbegin(); it != m_buttons.rend(); ++it) {
+        if (!it->action.alignRight) continue;
+        if (it->action.group != group) {
+            if (!group.empty()) {
+                m_captions.push_back({ group, right + kButtonGap });
+                right -= kGroupGap - kButtonGap;
+            }
+            group = it->action.group;
+        }
+        float width = naturalWidth(*it, padding);
+        right -= width;
+        it->bounds = sf::FloatRect(std::floor(right), kButtonY, width, kButtonHeight);
+        right -= kButtonGap;
+    }
+    if (!group.empty()) m_captions.push_back({ group, right + kButtonGap });
 }
 
-bool Toolbar::HandleEvent(const sf::Event& event, const sf::RenderWindow& window, StudioCore::StudioEngineFacade& engine) {
-    sf::Vector2i mousePixel = sf::Mouse::getPosition(window);
-    sf::Vector2f mousePos(mousePixel.x, mousePixel.y);
+int Toolbar::ButtonAt(sf::Vector2f pos) const {
+    for (size_t i = 0; i < m_buttons.size(); ++i) {
+        if (m_buttons[i].bounds.contains(pos)) return static_cast<int>(i);
+    }
+    return -1;
+}
 
-    if (mousePos.y > Theme::ToolbarHeight) {
-        m_hoveredIndex = -1;
+bool Toolbar::HandleEvent(const sf::Event& event, const sf::RenderWindow& window) {
+    (void)window;
+    if (event.type == sf::Event::MouseMoved) {
+        m_mousePos = { static_cast<float>(event.mouseMove.x), static_cast<float>(event.mouseMove.y) };
         return false;
     }
+    if (event.type == sf::Event::MouseLeft) {
+        m_mousePos = { -1.0f, -1.0f };
+        return false;
+    }
+    if (event.type != sf::Event::MouseButtonPressed) return false;
 
-    if (event.type == sf::Event::MouseMoved) {
-        m_hoveredIndex = -1;
-        for (size_t i = 0; i < m_buttons.size(); ++i) {
-            if (m_buttons[i].bounds.contains(mousePos)) {
-                m_hoveredIndex = static_cast<int>(i);
-                break;
-            }
+    sf::Vector2f pos(static_cast<float>(event.mouseButton.x), static_cast<float>(event.mouseButton.y));
+    if (pos.y > Theme::ToolbarHeight) return false;
+
+    // Anything on the bar belongs to the bar, so a miss never reaches the canvas.
+    if (event.mouseButton.button == sf::Mouse::Left) {
+        int index = ButtonAt(pos);
+        if (index >= 0 && Enabled(m_buttons[index]) && m_buttons[index].action.onClick) {
+            m_hoverTime = 0.0f;
+            m_buttons[index].action.onClick();
         }
     }
-
-    if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
-        for (size_t i = 0; i < m_buttons.size(); ++i) {
-            if (m_buttons[i].bounds.contains(mousePos)) {
-                if (m_buttons[i].isToggle) {
-                    m_buttons[i].isToggled = !m_buttons[i].isToggled;
-                }
-                if (m_buttons[i].onClick) {
-                    m_buttons[i].onClick(engine);
-                }
-                return true;
-            }
-        }
-    }
-
-    return false;
+    return true;
 }
 
 void Toolbar::Render(sf::RenderWindow& window) {
-    LayoutButtons(static_cast<float>(m_bounds.width));
+    Layout();
 
-    sf::Vector2i mousePixel = sf::Mouse::getPosition(window);
-    sf::Vector2f mousePos(mousePixel.x, mousePixel.y);
-    Update(0.016f, mousePos);
+    const float dt = std::min(0.1f, m_clock.restart().asSeconds());
+    int hovered = ButtonAt(m_mousePos);
+    if (hovered != m_hoveredIndex) {
+        m_hoveredIndex = hovered;
+        m_hoverTime = 0.0f;
+    } else if (hovered >= 0) {
+        m_hoverTime += dt;
+    }
 
-    window.draw(m_background);
-    window.draw(m_bottomBorder);
+    sf::RectangleShape background({ m_bounds.width, Theme::ToolbarHeight });
+    background.setPosition(m_bounds.left, 0.0f);
+    background.setFillColor(Theme::PanelBackground);
+    window.draw(background);
 
-    for (const auto& divider : m_dividers) {
-        window.draw(divider);
+    sf::RectangleShape border({ m_bounds.width, Theme::BorderThickness });
+    border.setPosition(m_bounds.left, Theme::ToolbarHeight - Theme::BorderThickness);
+    border.setFillColor(Theme::BorderColor);
+    window.draw(border);
+
+    for (const auto& caption : m_captions) {
+        sf::Text text(caption.text, m_font, kCaptionSize);
+        text.setFillColor(Theme::TextMuted);
+        text.setLetterSpacing(1.6f);
+        text.setPosition(std::floor(caption.x + 2.0f), kCaptionY);
+        window.draw(text);
     }
 
     for (size_t i = 0; i < m_buttons.size(); ++i) {
-        const auto& btn = m_buttons[i];
+        Button& b = m_buttons[i];
+        const bool enabled = Enabled(b);
+        const bool active = enabled && b.action.isActive && b.action.isActive();
+        const bool isHovered = enabled && static_cast<int>(i) == m_hoveredIndex;
 
-        sf::RectangleShape bg({btn.bounds.width, btn.bounds.height});
-        bg.setPosition(btn.bounds.left, btn.bounds.top);
+        float target = isHovered ? 1.0f : 0.0f;
+        b.hover += (target - b.hover) * std::min(1.0f, dt * 14.0f);
 
-        if (btn.isToggled) {
-            bg.setFillColor(Theme::AccentColor);
-        } else {
-            sf::Color base = Theme::PanelBackground;
-            sf::Color hover = Theme::HoverColor;
-            float t = btn.hoverAlpha;
+        sf::Color fill = MixColor(Theme::HoverColor, Theme::BevelLight, b.hover * 0.5f);
+        sf::Color outline = Theme::BorderColor;
+        sf::Color textColor = Theme::TextPrimary;
 
-            sf::Color blended(
-                static_cast<sf::Uint8>(base.r + (hover.r - base.r) * t),
-                static_cast<sf::Uint8>(base.g + (hover.g - base.g) * t),
-                static_cast<sf::Uint8>(base.b + (hover.b - base.b) * t)
-            );
-            bg.setFillColor(blended);
+        if (!enabled) {
+            fill = Theme::PanelBackground;
+            textColor = Theme::TextMuted;
+        } else if (b.action.isPrimary && b.action.isPrimary()) {
+            fill = MixColor(Theme::AccentColor, Theme::AccentHoverColor, b.hover);
+            outline = fill;
+            textColor = sf::Color(10, 18, 30);
+        } else if (active) {
+            fill = MixColor(Theme::PanelBackground, Theme::AccentColor, 0.32f);
+            outline = Theme::AccentColor;
+            textColor = sf::Color::White;
         }
 
-        bg.setOutlineThickness(Theme::BorderThickness);
-        bg.setOutlineColor(btn.isToggled ? Theme::AccentHoverColor : Theme::BorderColor);
-        window.draw(bg);
+        DrawRoundedRect(window, b.bounds, Theme::CornerRadius, fill, outline, 1.0f);
 
-        sf::Text labelText;
-        labelText.setFont(m_font);
-        labelText.setString(btn.label);
-        labelText.setCharacterSize(12);
-        labelText.setFillColor(btn.isToggled ? sf::Color::White : Theme::TextPrimary);
+        sf::Text label(b.action.label, m_font, kLabelSize);
+        label.setFillColor(textColor);
+        sf::FloatRect tb = label.getLocalBounds();
+        label.setPosition(std::floor(b.bounds.left + (b.bounds.width - tb.width) / 2.0f - tb.left),
+                          std::floor(b.bounds.top + (b.bounds.height - tb.height) / 2.0f - tb.top));
+        window.draw(label);
+    }
 
-        sf::FloatRect textBounds = labelText.getLocalBounds();
-        float textX = std::floor(btn.bounds.left + (btn.bounds.width - textBounds.width) / 2.0f - textBounds.left);
-        float textY = std::floor(btn.bounds.top + (btn.bounds.height - textBounds.height) / 2.0f - textBounds.top - 1.0f);
-        labelText.setPosition(textX, textY);
+    // Tooltip after a short hover.
+    if (m_hoveredIndex >= 0 && m_hoverTime > 0.35f && !m_buttons[m_hoveredIndex].action.tooltip.empty()) {
+        const Button& b = m_buttons[m_hoveredIndex];
+        sf::Text tip(b.action.tooltip, m_font, 12);
+        sf::FloatRect tb = tip.getLocalBounds();
+        float width = tb.width + 20.0f;
+        float height = 26.0f;
+        float x = std::min(b.bounds.left, m_bounds.left + m_bounds.width - width - 8.0f);
+        x = std::max(m_bounds.left + 8.0f, x);
+        float y = Theme::ToolbarHeight + 6.0f;
 
-        window.draw(labelText);
+        DrawRoundedRect(window, { std::floor(x), y, width, height }, 5.0f, sf::Color(12, 13, 16, 245), Theme::BorderColor, 1.0f);
+        tip.setFillColor(Theme::TextPrimary);
+        tip.setPosition(std::floor(x + 10.0f - tb.left), std::floor(y + (height - tb.height) / 2.0f - tb.top));
+        window.draw(tip);
     }
 }
 

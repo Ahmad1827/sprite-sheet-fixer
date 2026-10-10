@@ -156,220 +156,112 @@ void SpriteSheetStudioPanel::Initialize() {
         m_engine.ToggleAutoAlign();
     }
 
-    m_toolbar.Initialize("Resources/font.ttf",
-        [this]() {
-            m_isArtifactMode = false;
-            m_isInfillMode = false;
-            m_isDeleteMode = false;
-#if defined(_WIN32)
-            std::string path = openWindowsFileDialog(DialogMode::OpenImage);
-#else
-            std::string path = NativeFileDialog::OpenFileDialog("Image Files (*.png;*.jpg;*.jpeg;*.jfif;*.bmp;*.webp)");
-#endif
-            path = CleanPath(path);
-            if (!path.empty()) LoadImage(path);
-        },
-        [this]() {
-            m_isArtifactMode = false;
-            m_isInfillMode = false;
-            m_isDeleteMode = false;
-#if defined(_WIN32)
-            std::string path = openWindowsFileDialog(DialogMode::OpenImage);
-#else
-            std::string path = NativeFileDialog::OpenFileDialog("Image Files (*.png;*.jpg;*.jpeg;*.jfif;*.bmp;*.webp)");
-#endif
-            path = CleanPath(path);
-            if (!path.empty()) LoadImage(path);
-        },
-        [this]() {
-            m_isArtifactMode = false;
-            m_isInfillMode = false;
-            m_isDeleteMode = false;
-#if defined(_WIN32)
-            std::string path = openWindowsFileDialog(DialogMode::SaveImage, "spritesheet.png");
-#else
-            std::string path = NativeFileDialog::SaveFileDialog("spritesheet.png");
-#endif
-            path = CleanPath(path);
-            if (!path.empty() && m_engine.IsProjectActive()) {
-                namespace fs = std::filesystem;
-                fs::path p(path);
-                std::string folder = p.parent_path().string();
-                std::string base = p.stem().string();
-                m_engine.ExportIndividualSprites(folder.empty() ? "." : folder, base);
-                ExportAtlasMetadata(m_engine, path);
-            }
-        },
-        [this]() {
-            m_isArtifactMode = false;
-            m_isInfillMode = false;
-            m_isDeleteMode = false;
-            m_isExportMode = true; 
-            m_exportPreview.Activate(m_engine); 
-        },
-        [this]() {
-            m_isArtifactMode = false;
-            m_isInfillMode = false;
-            m_isDeleteMode = false;
-#if defined(_WIN32)
-            std::string path = openWindowsFileDialog(DialogMode::SaveImage, "frame.png");
-#else
-            std::string path = NativeFileDialog::SaveFileDialog("frame.png");
-#endif
-            path = CleanPath(path);
-            if (!path.empty()) {
-                namespace fs = std::filesystem;
-                fs::path p(path);
-                std::string folder = p.parent_path().string();
-                std::string base = p.stem().string();
-                m_engine.ExportIndividualSprites(folder.empty() ? "." : folder, base);
-                ExportAtlasMetadata(m_engine, path);
-            }
-        },
-        [this]() {
-            m_isUIHidden = !m_isUIHidden;
-            m_viewport.SetUIHidden(m_isUIHidden);
-        },
-        [this]() {
-            m_isArtifactMode = false;
-            m_isInfillMode = false;
-            m_isDeleteMode = false;
-            if (!m_engine.IsProjectActive() || !m_engine.GetCurrentProject() || m_engine.GetCurrentProject()->GetSprites().empty()) return;
-            m_isWizardMode = true;
-            m_animBuilderPanel.Activate(m_engine);
-        },
-        [this]() {
-            m_isArtifactMode = false;
-            m_isInfillMode = false;
-            m_isDeleteMode = false;
-            if (m_engine.IsProjectActive() && m_engine.GetCurrentProject()) {
-                StudioCore::DetectionConfig config;
-                config.minSpriteSize = 10;
-                m_engine.RunAutoDetection(config);
-                
-                auto project = m_engine.GetCurrentProject();
-                auto rawSprites = project->GetSprites();
-                std::vector<StudioCore::Rect> rawRects;
-                for (const auto& s : rawSprites) {
-                    rawRects.push_back(s->GetSourceRect());
-                }
+    auto hasImage = [this]() { return m_engine.HasTexture(); };
+    auto hasSprites = [this]() { return SpriteCount() > 0; };
+    auto next = [this](const char* id) { return [this, id]() { return NextStep() == id; }; };
 
-                std::vector<StudioCore::Rect> mainSprites;
-                std::vector<StudioCore::Rect> fragments;
-                for (const auto& r : rawRects) {
-                    if (r.width > 35 && r.height > 35) {
-                        mainSprites.push_back(r);
-                    } else {
-                        fragments.push_back(r);
-                    }
-                }
+    std::vector<ToolbarAction> actions;
+    auto add = [&](ToolbarAction action) { actions.push_back(std::move(action)); };
 
-                for (const auto& frag : fragments) {
-                    if (mainSprites.empty()) break;
-                    float minD = 999999.0f;
-                    int bestIdx = -1;
-                    float fcx = frag.x + frag.width / 2.0f;
-                    float fcy = frag.y + frag.height / 2.0f;
-                    for (size_t i = 0; i < mainSprites.size(); ++i) {
-                        float mcx = mainSprites[i].x + mainSprites[i].width / 2.0f;
-                        float mcy = mainSprites[i].y + mainSprites[i].height / 2.0f;
-                        float d = (fcx - mcx) * (fcx - mcx) + (fcy - mcy) * (fcy - mcy);
-                        if (d < minD) {
-                            minD = d;
-                            bestIdx = static_cast<int>(i);
-                        }
-                    }
-                    if (bestIdx != -1) {
-                        float minX = std::min(mainSprites[bestIdx].x, frag.x);
-                        float minY = std::min(mainSprites[bestIdx].y, frag.y);
-                        float maxX = std::max(mainSprites[bestIdx].x + mainSprites[bestIdx].width, frag.x + frag.width);
-                        float maxY = std::max(mainSprites[bestIdx].y + mainSprites[bestIdx].height, frag.y + frag.height);
-                        mainSprites[bestIdx].x = minX;
-                        mainSprites[bestIdx].y = minY;
-                        mainSprites[bestIdx].width = maxX - minX;
-                        mainSprites[bestIdx].height = maxY - minY;
-                    }
-                }
+    // id, label, group, tooltip, onClick, isActive, isEnabled, isPrimary
+    add({ "open", u8"Open", u8"FILE", u8"Open an image (Ctrl+O). You can also drop a file on the window.",
+          [this]() { ClearTools(); OpenImageDialog(); }, nullptr, nullptr, next("open") });
 
-                std::sort(mainSprites.begin(), mainSprites.end(), [](const StudioCore::Rect& a, const StudioCore::Rect& b) {
-                    if (std::abs(a.y - b.y) > 20) {
-                        return a.y < b.y;
-                    }
-                    return a.x < b.x; 
-                });
+    add({ "clean", u8"Clean", u8"PREPARE", u8"Remove the background automatically. Ctrl+Z brings it back.",
+          [this]() {
+              ClearTools();
+              m_engine.CleanCurrentTexture();
+              m_cleanTried = true;
+              m_viewport.RefreshTexture(m_engine);
+          }, nullptr, hasImage, next("clean") });
+    add({ "detect", u8"Detect", u8"PREPARE", u8"Find every sprite and draw a box around it.",
+          [this]() { ClearTools(); RunDetect(); }, nullptr, hasImage, next("detect") });
 
-                std::vector<std::shared_ptr<StudioCore::SpriteDefinition>> newSprites;
-                for (size_t i = 0; i < mainSprites.size(); ++i) {
-                    auto def = std::make_shared<StudioCore::SpriteDefinition>("sprite_" + std::to_string(i + 1), mainSprites[i]);
-                    newSprites.push_back(def);
-                }
-                
-                m_engine.ReplaceSprites(newSprites);
-                m_viewport.RefreshTexture(m_engine);
-            }
-        },
-        [this]() {
-            m_isArtifactMode = false;
-            m_isInfillMode = false;
-            m_isDeleteMode = false;
-            auto selectedIds = m_viewport.GetSelectedSpriteIds();
-            if (selectedIds.size() >= 2) {
-                m_engine.MergeSelectedSprites(selectedIds);
-                m_viewport.ClearSelection();
-                m_viewport.RefreshTexture(m_engine);
-            }
-        },
-        [this]() {
-            m_isWandMode = false;
-            m_isArtifactMode = false;
-            m_isInfillMode = false;
-            m_isDeleteMode = false;
-            m_engine.CleanCurrentTexture();
-            m_viewport.RefreshTexture(m_engine);
-        },
-        [this]() {
-            m_isWandMode = !m_isWandMode;
-            m_isWandEyedropper = false;
-            m_isDraggingWandTol = false;
-            m_isDraggingWandHue = false;
-            m_isDraggingWandSatVal = false;
-            m_isArtifactMode = false;
-            m_isInfillMode = false;
-            m_isDeleteMode = false;
-        },
-        [this]() {
-            m_isArtifactMode = !m_isArtifactMode;
-            m_isWandMode = false;
-            m_isInfillMode = false;
-            m_isDeleteMode = false;
-        },
-        [this]() {
-            m_isInfillMode = !m_isInfillMode;
-            m_isWandMode = false;
-            m_isArtifactMode = false;
-            m_isDeleteMode = false;
-        },
-        [this]() {
-            m_isDeleteMode = !m_isDeleteMode;
-            m_isWandMode = false;
-            m_isArtifactMode = false;
-            m_isInfillMode = false;
-        },
-        [this]() {
-            m_isArtifactMode = false;
-            m_isInfillMode = false;
-            m_isDeleteMode = false;
-            m_engine.RepackFrames();
-            m_viewport.RefreshTexture(m_engine);
-        },
-        [this]() {
-            m_isArtifactMode = false;
-            m_isInfillMode = false;
-            m_isDeleteMode = false;
-            m_engine.FlipHorizontal();
-            m_viewport.RefreshTexture(m_engine);
-        }
-    );
+    add({ "wand", u8"Wand", u8"FIX BY HAND", u8"Click a colour to select it, then delete or recolour it.",
+          [this]() {
+              bool enable = !m_isWandMode;
+              ClearTools();
+              m_isWandMode = enable;
+          }, [this]() { return m_isWandMode; }, hasImage });
+    add({ "delete", u8"Erase", u8"FIX BY HAND", u8"Drag a box to erase what is inside. Ctrl+click erases one colour patch.",
+          [this]() {
+              bool enable = !m_isDeleteMode;
+              ClearTools();
+              m_isDeleteMode = enable;
+          }, [this]() { return m_isDeleteMode; }, hasImage });
+    add({ "artifact", u8"Specks", u8"FIX BY HAND", u8"Click or drag a box to remove stray leftover pixels.",
+          [this]() {
+              bool enable = !m_isArtifactMode;
+              ClearTools();
+              m_isArtifactMode = enable;
+          }, [this]() { return m_isArtifactMode; }, hasImage });
+    add({ "infill", u8"Fill", u8"FIX BY HAND", u8"Drag a box over a sprite to fill see-through holes inside it.",
+          [this]() {
+              bool enable = !m_isInfillMode;
+              ClearTools();
+              m_isInfillMode = enable;
+          }, [this]() { return m_isInfillMode; }, hasImage });
+
+    add({ "merge", u8"Merge", u8"SPRITES", u8"Join the selected sprite boxes into one. Select two or more first.",
+          [this]() {
+              ClearTools();
+              auto selectedIds = m_viewport.GetSelectedSpriteIds();
+              if (selectedIds.size() >= 2) {
+                  m_engine.MergeSelectedSprites(selectedIds);
+                  m_viewport.ClearSelection();
+                  m_viewport.RefreshTexture(m_engine);
+              }
+          }, nullptr, [this]() { return m_viewport.GetSelectedSpriteIds().size() >= 2; } });
+    add({ "repack", u8"Repack", u8"SPRITES", u8"Line the sprites up in one even row.",
+          [this]() {
+              ClearTools();
+              m_engine.RepackFrames();
+              m_viewport.RefreshTexture(m_engine);
+          }, nullptr, hasImage });
+    add({ "flip_h", u8"Flip", u8"SPRITES", u8"Mirror every sprite left to right.",
+          [this]() {
+              ClearTools();
+              m_engine.FlipHorizontal();
+              m_viewport.RefreshTexture(m_engine);
+          }, nullptr, hasImage });
+
+    add({ "wizard", u8"Animate", u8"ANIMATION", u8"Build animations automatically, one for each row of sprites.",
+          [this]() {
+              ClearTools();
+              if (SpriteCount() == 0) return;
+              m_isWizardMode = true;
+              m_animBuilderPanel.Activate(m_engine);
+          }, nullptr, hasSprites, next("animate") });
+    add({ "timeline", u8"Timeline", u8"ANIMATION", u8"Show or hide the animation list, preview and timeline.",
+          [this]() {
+              if (AnimationCount() > 0) m_timelineHidden = !m_timelineHidden;
+              else m_timelinePinned = !m_timelinePinned;
+          }, [this]() { return AnimationPanelsVisible(); }, hasImage });
+
+    ToolbarAction undo{ "undo", u8"Undo", u8"HISTORY", u8"Undo the last change (Ctrl+Z).",
+          [this]() { m_engine.Undo(); m_viewport.ClearSelection(); m_viewport.RefreshTexture(m_engine); }, nullptr, hasImage };
+    undo.alignRight = true;
+    add(undo);
+    ToolbarAction redo{ "redo", u8"Redo", u8"HISTORY", u8"Redo what you just undid (Ctrl+Y).",
+          [this]() { m_engine.Redo(); m_viewport.ClearSelection(); m_viewport.RefreshTexture(m_engine); }, nullptr, hasImage };
+    redo.alignRight = true;
+    add(redo);
+
+    ToolbarAction frames{ "export_frames", u8"Frames", u8"SAVE", u8"Save every sprite as its own PNG, plus a data file (Ctrl+S).",
+          [this]() { ClearTools(); ExportFramesDialog(); }, nullptr, hasSprites };
+    frames.alignRight = true;
+    add(frames);
+    ToolbarAction exportSheet{ "export", u8"Export", u8"SAVE", u8"Preview and save the finished sheet (Ctrl+E).",
+          [this]() {
+              ClearTools();
+              m_isExportMode = true;
+              m_exportPreview.Activate(m_engine);
+          }, nullptr, hasImage, next("export") };
+    exportSheet.alignRight = true;
+    add(exportSheet);
+
+    m_toolbar.Initialize("Resources/font.ttf", std::move(actions));
+
     m_wandFont.loadFromFile("Resources/font.ttf");
     m_animationPanel->InitializeFont("Resources/font.ttf");
     m_exportPreview.InitializeFont("Resources/font.ttf");
@@ -377,10 +269,206 @@ void SpriteSheetStudioPanel::Initialize() {
     m_workspace.InitializeFont("Resources/font.ttf");
 }
 
+void SpriteSheetStudioPanel::ClearTools() {
+    m_isWandMode = false;
+    m_isWandEyedropper = false;
+    m_isDraggingWandTol = false;
+    m_isDraggingWandHue = false;
+    m_isDraggingWandSatVal = false;
+    m_wandSelectionPixels.clear();
+    m_isArtifactMode = false;
+    m_isInfillMode = false;
+    m_isDeleteMode = false;
+    m_isDraggingArtifact = false;
+}
+
+void SpriteSheetStudioPanel::OpenImageDialog() {
+#if defined(_WIN32)
+    std::string path = openWindowsFileDialog(DialogMode::OpenImage);
+#else
+    std::string path = NativeFileDialog::OpenFileDialog("Image Files (*.png;*.jpg;*.jpeg;*.jfif;*.bmp;*.webp)");
+#endif
+    path = CleanPath(path);
+    if (!path.empty()) LoadImage(path);
+}
+
+void SpriteSheetStudioPanel::ExportFramesDialog() {
+#if defined(_WIN32)
+    std::string path = openWindowsFileDialog(DialogMode::SaveImage, "spritesheet.png");
+#else
+    std::string path = NativeFileDialog::SaveFileDialog("spritesheet.png");
+#endif
+    path = CleanPath(path);
+    if (!path.empty() && m_engine.IsProjectActive()) {
+        namespace fs = std::filesystem;
+        fs::path p(path);
+        std::string folder = p.parent_path().string();
+        std::string base = p.stem().string();
+        m_engine.ExportIndividualSprites(folder.empty() ? "." : folder, base);
+        ExportAtlasMetadata(m_engine, path);
+    }
+}
+
+void SpriteSheetStudioPanel::RunDetect() {
+    if (!m_engine.IsProjectActive() || !m_engine.GetCurrentProject()) return;
+
+    StudioCore::DetectionConfig config;
+    config.minSpriteSize = 10;
+    m_engine.RunAutoDetection(config);
+
+    auto project = m_engine.GetCurrentProject();
+    auto rawSprites = project->GetSprites();
+    std::vector<StudioCore::Rect> rawRects;
+    for (const auto& s : rawSprites) {
+        rawRects.push_back(s->GetSourceRect());
+    }
+
+    std::vector<StudioCore::Rect> mainSprites;
+    std::vector<StudioCore::Rect> fragments;
+    for (const auto& r : rawRects) {
+        if (r.width > 35 && r.height > 35) {
+            mainSprites.push_back(r);
+        } else {
+            fragments.push_back(r);
+        }
+    }
+
+    for (const auto& frag : fragments) {
+        if (mainSprites.empty()) break;
+        float minD = 999999.0f;
+        int bestIdx = -1;
+        float fcx = frag.x + frag.width / 2.0f;
+        float fcy = frag.y + frag.height / 2.0f;
+        for (size_t i = 0; i < mainSprites.size(); ++i) {
+            float mcx = mainSprites[i].x + mainSprites[i].width / 2.0f;
+            float mcy = mainSprites[i].y + mainSprites[i].height / 2.0f;
+            float d = (fcx - mcx) * (fcx - mcx) + (fcy - mcy) * (fcy - mcy);
+            if (d < minD) {
+                minD = d;
+                bestIdx = static_cast<int>(i);
+            }
+        }
+        if (bestIdx != -1) {
+            float minX = std::min(mainSprites[bestIdx].x, frag.x);
+            float minY = std::min(mainSprites[bestIdx].y, frag.y);
+            float maxX = std::max(mainSprites[bestIdx].x + mainSprites[bestIdx].width, frag.x + frag.width);
+            float maxY = std::max(mainSprites[bestIdx].y + mainSprites[bestIdx].height, frag.y + frag.height);
+            mainSprites[bestIdx].x = minX;
+            mainSprites[bestIdx].y = minY;
+            mainSprites[bestIdx].width = maxX - minX;
+            mainSprites[bestIdx].height = maxY - minY;
+        }
+    }
+
+    std::sort(mainSprites.begin(), mainSprites.end(), [](const StudioCore::Rect& a, const StudioCore::Rect& b) {
+        if (std::abs(a.y - b.y) > 20) {
+            return a.y < b.y;
+        }
+        return a.x < b.x; 
+    });
+
+    std::vector<std::shared_ptr<StudioCore::SpriteDefinition>> newSprites;
+    for (size_t i = 0; i < mainSprites.size(); ++i) {
+        auto def = std::make_shared<StudioCore::SpriteDefinition>("sprite_" + std::to_string(i + 1), mainSprites[i]);
+        newSprites.push_back(def);
+    }
+
+    m_engine.ReplaceSprites(newSprites);
+    m_viewport.RefreshTexture(m_engine);
+}
+
+int SpriteSheetStudioPanel::SpriteCount() const {
+    auto project = m_engine.GetCurrentProject();
+    return project ? static_cast<int>(project->GetSprites().size()) : 0;
+}
+
+int SpriteSheetStudioPanel::AnimationCount() const {
+    auto project = m_engine.GetCurrentProject();
+    return project ? static_cast<int>(project->GetAnimationGroups().size()) : 0;
+}
+
+bool SpriteSheetStudioPanel::AnimationPanelsVisible() const {
+    if (!m_engine.HasTexture()) return false;
+    return AnimationCount() > 0 ? !m_timelineHidden : m_timelinePinned;
+}
+
+sf::FloatRect SpriteSheetStudioPanel::CanvasBounds() const {
+    const bool panels = AnimationPanelsVisible();
+    const float right = panels ? Theme::SidePanelWidth : 0.0f;
+    const float bottom = Theme::StatusBarHeight + (panels ? Theme::TimelineHeight : 0.0f);
+    // The wand panel floats on the left; keep the image out from under it.
+    const float left = m_isWandMode ? 290.0f : 0.0f;
+    return sf::FloatRect(m_bounds.left + left, m_bounds.top + Theme::ToolbarHeight,
+                         std::max(1.0f, m_bounds.width - right - left),
+                         std::max(1.0f, m_bounds.height - Theme::ToolbarHeight - bottom));
+}
+
+// True while most of the image border is still opaque, i.e. the background has
+// not been removed yet.
+bool SpriteSheetStudioPanel::BackgroundLooksOpaque() const {
+    auto tex = m_engine.GetCurrentTexture();
+    if (!tex || !tex->IsValid()) return false;
+    const int w = tex->GetWidth();
+    const int h = tex->GetHeight();
+    const auto& pixels = tex->GetPixels();
+    int opaque = 0;
+    int total = 0;
+    for (int i = 0; i < 32; ++i) {
+        const int x = (w - 1) * i / 31;
+        const int y = (h - 1) * i / 31;
+        const size_t samples[4] = {
+            static_cast<size_t>(x), static_cast<size_t>(h - 1) * w + x,
+            static_cast<size_t>(y) * w, static_cast<size_t>(y) * w + (w - 1)
+        };
+        for (size_t sample : samples) {
+            ++total;
+            if (pixels[sample * 4 + 3] > 0) ++opaque;
+        }
+    }
+    return opaque * 2 > total;
+}
+
+// The one button worth pressing next; the toolbar highlights it.
+std::string SpriteSheetStudioPanel::NextStep() const {
+    if (!m_engine.HasTexture()) return "open";
+    if (SpriteCount() == 0) return (!m_cleanTried && BackgroundLooksOpaque()) ? "clean" : "detect";
+    if (AnimationCount() == 0) return "animate";
+    return "export";
+}
+
+std::string SpriteSheetStudioPanel::CurrentHint() const {
+    if (!m_engine.HasTexture()) return u8"Open an image, or drop one on the window, to begin.";
+    if (m_engine.IsDetectionRunning()) return u8"Detecting sprites...   Esc cancels.";
+
+    if (m_isWandMode) {
+        if (m_isWandEyedropper) return u8"Wand: click a colour on the image to pick it up.";
+        if (m_wandSelectionPixels.empty()) return u8"Wand: click a colour on the image to select it.   Esc closes the wand.";
+        return u8"Wand: press Delete Selection or Recolor Selection in the panel.   Esc closes the wand.";
+    }
+    if (m_isDeleteMode) return u8"Erase: drag a box to erase everything inside.   Ctrl+click erases one colour patch.   Esc stops.";
+    if (m_isArtifactMode) return u8"Specks: click or drag a box to remove stray leftover pixels.   Esc stops.";
+    if (m_isInfillMode) return u8"Fill: drag a box over a sprite to fill see-through holes inside it.   Esc stops.";
+
+    const size_t selected = m_viewport.GetSelectedSpriteIds().size();
+    if (selected > 0) {
+        return std::to_string(selected) + " selected.     Del deletes     Merge joins     Alt+drag moves the pivot     Right-click for more";
+    }
+
+    const std::string step = NextStep();
+    const std::string navigation = "          Scroll to zoom     Middle mouse to pan     F to fit";
+    if (step == "clean") return u8"Step 1: press Clean to remove the background." + navigation;
+    if (step == "detect") return u8"Step 2: press Detect to find the sprites." + navigation;
+    if (step == "animate") return u8"Step 3: press Animate to group the sprites into animations, or Export to save." + navigation;
+    return u8"Step 4: press Export to save the sheet.   Space plays the selected animation." + navigation;
+}
+
 void SpriteSheetStudioPanel::LoadImage(const std::string& filePath) {
     std::string clean = CleanPath(filePath);
     std::string errorMsg;
     if (m_engine.ImportImage(clean, errorMsg)) {
+        ClearTools();
+        m_cleanTried = false;
+        m_viewport.SetCanvasBounds(CanvasBounds());
         m_viewport.RefreshTexture(m_engine);
     }
 }
@@ -511,7 +599,7 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
         return;
     }
 
-    if (m_toolbar.HandleEvent(event, window, m_engine)) {
+    if (m_toolbar.HandleEvent(event, window)) {
         m_viewport.RefreshTexture(m_engine);
         return;
     }
@@ -521,7 +609,7 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
             float pw = 260.0f;
             float ph = 410.0f;
             float px0 = 18.0f;
-            float py0 = 48.0f;
+            float py0 = Theme::ToolbarHeight + 12.0f;
             sf::FloatRect panelRect(px0, py0, pw, ph);
 
             float mx = static_cast<float>(event.mouseButton.x);
@@ -710,7 +798,7 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
         if (m_isWandMode) {
             float pw = 260.0f;
             float px0 = 18.0f;
-            float py0 = 48.0f;
+            float py0 = Theme::ToolbarHeight + 12.0f;
             float mx = static_cast<float>(event.mouseMove.x);
             float my = static_cast<float>(event.mouseMove.y);
 
@@ -858,7 +946,7 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
         }
     }
 
-    if (m_animationPanel) {
+    if (m_animationPanel && AnimationPanelsVisible()) {
         m_animationPanel->HandleEvent(event, window, m_engine, m_viewport);
     }
     m_viewport.HandleEvent(event, window, m_engine);
@@ -880,12 +968,24 @@ void SpriteSheetStudioPanel::Update(float deltaTime, const sf::RenderWindow& win
         m_engine.Update(deltaTime);
         m_viewport.Update(deltaTime);
         m_wandAntsOffset += deltaTime * 24.0f;
-        sf::Vector2i pixelPos = sf::Mouse::getPosition(window);
-        sf::Vector2f worldPos = window.mapPixelToCoords(pixelPos);
-        int totalSprites = (m_engine.IsProjectActive() && m_engine.GetCurrentProject())
-                            ? static_cast<int>(m_engine.GetCurrentProject()->GetSprites().size()) : 0;
-        int selectedCount = static_cast<int>(m_viewport.GetSelectedSpriteIds().size());
-        m_workspace.UpdateStatusBar(m_viewport.GetZoom(), worldPos, totalSprites, selectedCount, "Ready");
+
+        std::string info;
+        if (m_engine.HasTexture()) {
+            auto tex = m_engine.GetCurrentTexture();
+            sf::Vector2i pixelPos = sf::Mouse::getPosition(window);
+            sf::Vector2f worldPos = m_viewport.MapPixelToWorld(pixelPos, window);
+            const int ix = static_cast<int>(std::floor(worldPos.x));
+            const int iy = static_cast<int>(std::floor(worldPos.y));
+            if (ix >= 0 && iy >= 0 && ix < tex->GetWidth() && iy < tex->GetHeight() &&
+                m_viewport.GetCanvasBounds().contains(static_cast<float>(pixelPos.x), static_cast<float>(pixelPos.y))) {
+                info += std::to_string(ix) + ", " + std::to_string(iy) + u8"      ";
+            }
+            info += std::to_string(tex->GetWidth()) + " x " + std::to_string(tex->GetHeight()) + u8" px";
+            info += u8"      " + std::to_string(SpriteCount()) + u8" sprites";
+            const float zoom = std::max(0.0001f, m_viewport.GetZoom());
+            info += u8"      Zoom " + std::to_string(static_cast<int>(100.0f / zoom + 0.5f)) + u8"%";
+        }
+        m_workspace.SetStatus(CurrentHint(), info);
     }
 }
 
@@ -893,10 +993,14 @@ void SpriteSheetStudioPanel::SetBounds(const sf::FloatRect& bounds) {
     m_bounds = bounds;
     m_toolbar.SetBounds(bounds);
     m_viewport.SetBounds(bounds);
+    m_viewport.SetCanvasBounds(CanvasBounds());
     m_workspace.SetBounds(bounds);
-    
+    m_animBuilderPanel.SetBounds(bounds);
+
     if (m_animationPanel) {
+        // The panels sit above the status bar instead of underneath it.
         m_animationPanel->SetBounds(bounds);
+        m_animationPanel->SetBottomInset(Theme::StatusBarHeight);
     }
 }
 
@@ -908,6 +1012,10 @@ void SpriteSheetStudioPanel::Render(sf::RenderWindow& window) {
 
     sf::View uiView(currentBounds);
     window.setView(uiView);
+
+    sf::RectangleShape backdrop({ currentBounds.width, currentBounds.height });
+    backdrop.setFillColor(Theme::MainBackground);
+    window.draw(backdrop);
 
     if (m_isExportMode && m_exportPreview.IsActive()) {
         m_exportPreview.Render(window);
@@ -944,163 +1052,6 @@ void SpriteSheetStudioPanel::Render(sf::RenderWindow& window) {
 
         window.setView(uiView);
 
-        if (m_isWandMode) {
-            float pw = 240.0f;
-            float ph = 312.0f;
-            float px0 = m_bounds.width - pw - 14.0f;
-            float py0 = 48.0f;
-
-            sf::RectangleShape pbg({pw, ph});
-            pbg.setPosition(px0, py0);
-            pbg.setFillColor(sf::Color(22, 18, 30, 245));
-            pbg.setOutlineThickness(1.0f);
-            pbg.setOutlineColor(Theme::BorderColor);
-            window.draw(pbg);
-
-            sf::RectangleShape pHeader({pw, 26.0f});
-            pHeader.setPosition(px0, py0);
-            pHeader.setFillColor(Theme::PanelBackground);
-            window.draw(pHeader);
-
-            sf::Text titleText(u8"Magic Wand", m_wandFont, 12);
-            titleText.setFillColor(Theme::AccentColor);
-            titleText.setPosition(px0 + 10.0f, py0 + 5.0f);
-            window.draw(titleText);
-
-            sf::Text closeBtnText(u8"X", m_wandFont, 12);
-            closeBtnText.setFillColor(Theme::TextMuted);
-            closeBtnText.setPosition(px0 + pw - 18.0f, py0 + 5.0f);
-            window.draw(closeBtnText);
-
-            sf::Text tolLabel(u8"Tolerance: " + std::to_string(static_cast<int>(m_wandTolerance)), m_wandFont, 11);
-            tolLabel.setFillColor(Theme::TextPrimary);
-            tolLabel.setPosition(px0 + 12.0f, py0 + 34.0f);
-            window.draw(tolLabel);
-
-            sf::RectangleShape btnMinus({26.0f, 20.0f});
-            btnMinus.setPosition(px0 + 12.0f, py0 + 52.0f);
-            btnMinus.setFillColor(Theme::PanelBackground);
-            btnMinus.setOutlineThickness(1.0f);
-            btnMinus.setOutlineColor(Theme::BorderColor);
-            window.draw(btnMinus);
-            sf::Text mText(u8"-", m_wandFont, 12);
-            mText.setFillColor(Theme::TextPrimary);
-            mText.setPosition(px0 + 21.0f, py0 + 53.0f);
-            window.draw(mText);
-
-            sf::RectangleShape sliderTrack({pw - 88.0f, 8.0f});
-            sliderTrack.setPosition(px0 + 44.0f, py0 + 58.0f);
-            sliderTrack.setFillColor(sf::Color(12, 10, 16));
-            window.draw(sliderTrack);
-
-            float fillFrac = std::clamp(m_wandTolerance / 128.0f, 0.0f, 1.0f);
-            sf::RectangleShape sliderFill({(pw - 88.0f) * fillFrac, 8.0f});
-            sliderFill.setPosition(px0 + 44.0f, py0 + 58.0f);
-            sliderFill.setFillColor(Theme::AccentColor);
-            window.draw(sliderFill);
-
-            sf::RectangleShape btnPlus({26.0f, 20.0f});
-            btnPlus.setPosition(px0 + pw - 38.0f, py0 + 52.0f);
-            btnPlus.setFillColor(Theme::PanelBackground);
-            btnPlus.setOutlineThickness(1.0f);
-            btnPlus.setOutlineColor(Theme::BorderColor);
-            window.draw(btnPlus);
-            sf::Text pText(u8"+", m_wandFont, 12);
-            pText.setFillColor(Theme::TextPrimary);
-            pText.setPosition(px0 + pw - 30.0f, py0 + 53.0f);
-            window.draw(pText);
-
-            sf::RectangleShape tabDel({104.0f, 24.0f});
-            tabDel.setPosition(px0 + 12.0f, py0 + 82.0f);
-            tabDel.setFillColor(m_wandActionDelete ? sf::Color(190, 45, 45) : Theme::PanelBackground);
-            tabDel.setOutlineThickness(1.0f);
-            tabDel.setOutlineColor(m_wandActionDelete ? sf::Color(255, 80, 80) : Theme::BorderColor);
-            window.draw(tabDel);
-            sf::Text delText(u8"Delete", m_wandFont, 11);
-            delText.setFillColor(sf::Color::White);
-            delText.setPosition(px0 + 44.0f, py0 + 86.0f);
-            window.draw(delText);
-
-            sf::RectangleShape tabRec({104.0f, 24.0f});
-            tabRec.setPosition(px0 + 124.0f, py0 + 82.0f);
-            tabRec.setFillColor(!m_wandActionDelete ? Theme::AccentColor : Theme::PanelBackground);
-            tabRec.setOutlineThickness(1.0f);
-            tabRec.setOutlineColor(!m_wandActionDelete ? Theme::AccentHoverColor : Theme::BorderColor);
-            window.draw(tabRec);
-            sf::Text recText(u8"Recolor", m_wandFont, 11);
-            recText.setFillColor(sf::Color::White);
-            recText.setPosition(px0 + 154.0f, py0 + 86.0f);
-            window.draw(recText);
-
-            const sf::Color swatches[12] = {
-                sf::Color(230, 45, 45), sf::Color(245, 130, 35), sf::Color(255, 215, 0),
-                sf::Color(55, 205, 95), sf::Color(35, 175, 245), sf::Color(55, 85, 245),
-                sf::Color(165, 55, 245), sf::Color(245, 55, 175), sf::Color(255, 255, 255),
-                sf::Color(170, 170, 170), sf::Color(65, 65, 65), sf::Color(10, 10, 10)
-            };
-            for (int i = 0; i < 12; ++i) {
-                float sx = px0 + 12.0f + (i % 6) * 36.0f;
-                float sy = py0 + 114.0f + (i / 6) * 30.0f;
-                sf::RectangleShape swatch({30.0f, 24.0f});
-                swatch.setPosition(sx, sy);
-                swatch.setFillColor(swatches[i]);
-                bool isCur = (!m_wandActionDelete && swatches[i] == m_wandSelectedColor);
-                swatch.setOutlineThickness(isCur ? 2.0f : 1.0f);
-                swatch.setOutlineColor(isCur ? sf::Color::White : Theme::BorderColor);
-                window.draw(swatch);
-            }
-
-            sf::RectangleShape eyeBtn({pw - 24.0f, 24.0f});
-            eyeBtn.setPosition(px0 + 12.0f, py0 + 180.0f);
-            eyeBtn.setFillColor(m_isWandEyedropper ? sf::Color(45, 140, 75) : Theme::PanelBackground);
-            eyeBtn.setOutlineThickness(1.0f);
-            eyeBtn.setOutlineColor(m_isWandEyedropper ? sf::Color(80, 220, 120) : Theme::BorderColor);
-            window.draw(eyeBtn);
-
-            sf::RectangleShape activeColorBox({14.0f, 14.0f});
-            activeColorBox.setPosition(px0 + 18.0f, py0 + 185.0f);
-            activeColorBox.setFillColor(m_wandSelectedColor);
-            activeColorBox.setOutlineThickness(1.0f);
-            activeColorBox.setOutlineColor(sf::Color::White);
-            window.draw(activeColorBox);
-
-            sf::Text eyeText(m_isWandEyedropper ? u8"Click Canvas to Sample" : u8"Eyedrop Color", m_wandFont, 11);
-            eyeText.setFillColor(sf::Color::White);
-            eyeText.setPosition(px0 + 42.0f, py0 + 184.0f);
-            window.draw(eyeText);
-
-            sf::RectangleShape applyBtn({pw - 24.0f, 28.0f});
-            applyBtn.setPosition(px0 + 12.0f, py0 + 214.0f);
-            applyBtn.setFillColor(m_wandActionDelete ? sf::Color(180, 40, 40) : Theme::AccentColor);
-            applyBtn.setOutlineThickness(1.0f);
-            applyBtn.setOutlineColor(Theme::AccentHoverColor);
-            window.draw(applyBtn);
-
-            std::string applyStr = m_wandActionDelete ? u8"Delete Selection" : u8"Recolor Selection";
-            sf::Text aText(applyStr, m_wandFont, 11);
-            aText.setFillColor(sf::Color::White);
-            aText.setPosition(px0 + 36.0f, py0 + 220.0f);
-            window.draw(aText);
-
-            sf::RectangleShape clearBtn({pw - 24.0f, 22.0f});
-            clearBtn.setPosition(px0 + 12.0f, py0 + 248.0f);
-            clearBtn.setFillColor(Theme::PanelBackground);
-            clearBtn.setOutlineThickness(1.0f);
-            clearBtn.setOutlineColor(Theme::BorderColor);
-            window.draw(clearBtn);
-
-            sf::Text cText(u8"Deselect All", m_wandFont, 10);
-            cText.setFillColor(Theme::TextMuted);
-            cText.setPosition(px0 + 82.0f, py0 + 252.0f);
-            window.draw(cText);
-
-            std::string countStr = std::to_string(m_wandSelectionPixels.size()) + u8" pixels selected";
-            sf::Text countText(countStr, m_wandFont, 10);
-            countText.setFillColor(Theme::TextMuted);
-            countText.setPosition(px0 + 14.0f, py0 + 280.0f);
-            window.draw(countText);
-        }
-
         if (m_isDraggingArtifact) {
             float minX = std::min(m_dragStartPixel.x, m_dragCurrentPixel.x);
             float minY = std::min(m_dragStartPixel.y, m_dragCurrentPixel.y);
@@ -1124,7 +1075,7 @@ void SpriteSheetStudioPanel::Render(sf::RenderWindow& window) {
             window.draw(selectionRect);
         }
 
-        if (!m_isUIHidden && m_animationPanel) {
+        if (m_animationPanel && AnimationPanelsVisible()) {
             m_animationPanel->Render(window, m_engine);
         }
         m_toolbar.Render(window);
@@ -1137,7 +1088,7 @@ void SpriteSheetStudioPanel::Render(sf::RenderWindow& window) {
             float pw = 260.0f;
             float ph = m_wandActionDelete ? 254.0f : 426.0f;
             float px0 = 18.0f;
-            float py0 = 48.0f;
+            float py0 = Theme::ToolbarHeight + 12.0f;
 
             sf::RectangleShape pbg({pw, ph});
             pbg.setPosition(px0, py0);

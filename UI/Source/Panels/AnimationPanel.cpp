@@ -7,6 +7,7 @@
 #include "DataModels/SourceTexture.h"
 #include "Systems/PlaybackEngine.h"
 #include "Theme.h"
+#include "Widgets.h"
 #include <iostream>
 #include <algorithm>
 #include <cmath>
@@ -43,12 +44,13 @@ void AnimationPanel::SetBounds(const sf::FloatRect& bounds) {
 void AnimationPanel::HandleEvent(const sf::Event& event, const sf::RenderWindow& window, StudioCore::StudioEngineFacade& engine, PreviewViewport& viewport) {
     if (!engine.IsProjectActive()) return;
 
-    float timelineHeight = 160.0f;
-    float rightPanelWidth = 300.0f;
+    float timelineHeight = StudioUI::Theme::TimelineHeight;
+    float rightPanelWidth = StudioUI::Theme::SidePanelWidth;
     float topOffset = StudioUI::Theme::ToolbarHeight; 
     
-    m_timelineArea = sf::FloatRect(m_bounds.left, m_bounds.top + m_bounds.height - timelineHeight, m_bounds.width, timelineHeight);
-    m_listArea = sf::FloatRect(m_bounds.left + m_bounds.width - rightPanelWidth, m_bounds.top + topOffset, rightPanelWidth, (m_bounds.height - topOffset - timelineHeight) / 2.0f);
+    const float usableHeight = m_bounds.height - m_bottomInset;
+    m_timelineArea = sf::FloatRect(m_bounds.left, m_bounds.top + usableHeight - timelineHeight, m_bounds.width, timelineHeight);
+    m_listArea = sf::FloatRect(m_bounds.left + m_bounds.width - rightPanelWidth, m_bounds.top + topOffset, rightPanelWidth, (usableHeight - topOffset - timelineHeight) / 2.0f);
     m_previewArea = sf::FloatRect(m_bounds.left + m_bounds.width - rightPanelWidth, m_listArea.top + m_listArea.height, rightPanelWidth, m_listArea.height);
 
     const auto& selectedSprites = viewport.GetSelectedSpriteIds();
@@ -191,12 +193,13 @@ void AnimationPanel::Render(sf::RenderWindow& window, const StudioCore::StudioEn
     sf::View dynamicView(m_bounds);
     window.setView(dynamicView);
 
-    float timelineHeight = 160.0f;
-    float rightPanelWidth = 300.0f;
+    float timelineHeight = StudioUI::Theme::TimelineHeight;
+    float rightPanelWidth = StudioUI::Theme::SidePanelWidth;
     float topOffset = StudioUI::Theme::ToolbarHeight;
     
-    m_timelineArea = sf::FloatRect(m_bounds.left, m_bounds.top + m_bounds.height - timelineHeight, m_bounds.width, timelineHeight);
-    m_listArea = sf::FloatRect(m_bounds.left + m_bounds.width - rightPanelWidth, m_bounds.top + topOffset, rightPanelWidth, (m_bounds.height - topOffset - timelineHeight) / 2.0f);
+    const float usableHeight = m_bounds.height - m_bottomInset;
+    m_timelineArea = sf::FloatRect(m_bounds.left, m_bounds.top + usableHeight - timelineHeight, m_bounds.width, timelineHeight);
+    m_listArea = sf::FloatRect(m_bounds.left + m_bounds.width - rightPanelWidth, m_bounds.top + topOffset, rightPanelWidth, (usableHeight - topOffset - timelineHeight) / 2.0f);
     m_previewArea = sf::FloatRect(m_bounds.left + m_bounds.width - rightPanelWidth, m_listArea.top + m_listArea.height, rightPanelWidth, m_listArea.height);
 
     RenderList(window, engine);
@@ -217,7 +220,7 @@ void AnimationPanel::RenderList(sf::RenderWindow& window, const StudioCore::Stud
     header.setFillColor(StudioUI::Theme::InspectorBackground);
     window.draw(header);
 
-    sf::Text title("ANIMATIONS (Shift+N: New)", m_font, 11);
+    sf::Text title("ANIMATIONS     click one to select it", m_font, 11);
     title.setPosition(m_listArea.left + 12.f, m_listArea.top + 6.f);
     title.setFillColor(StudioUI::Theme::TextSecondary);
     window.draw(title);
@@ -261,7 +264,7 @@ void AnimationPanel::RenderPreview(sf::RenderWindow& window, const StudioCore::S
     window.draw(header);
 
     bool autoAlign = engine.IsAutoAlignEnabled();
-    std::string titleStr = "PREVIEW [Align: " + std::string(autoAlign ? "ON" : "OFF") + "] (Key: A)";
+    std::string titleStr = "PREVIEW     auto-align " + std::string(autoAlign ? "on" : "off") + "  (A)";
     sf::Text title(titleStr, m_font, 11);
     title.setPosition(m_previewArea.left + 12.f, m_previewArea.top + 6.f);
     title.setFillColor(autoAlign ? StudioUI::Theme::AccentColor : StudioUI::Theme::TextSecondary);
@@ -339,7 +342,7 @@ void AnimationPanel::RenderTimeline(sf::RenderWindow& window, const StudioCore::
     header.setFillColor(StudioUI::Theme::InspectorBackground);
     window.draw(header);
 
-    sf::Text headerText("ANIMATION TIMELINE (Drag to reorder, Right-Click frame to delete, Del/Backspace to clear all)", m_font, 11);
+    sf::Text headerText("TIMELINE     click here to add the selected sprites     drag a frame to reorder     right-click a frame to remove it", m_font, 11);
     headerText.setFillColor(StudioUI::Theme::TextSecondary);
     headerText.setPosition(m_timelineArea.left + 12.0f, posY + 6.0f);
     window.draw(headerText);
@@ -362,45 +365,49 @@ void AnimationPanel::RenderTimeline(sf::RenderWindow& window, const StudioCore::
         }
     }
     int currentFrame = engine.GetPlaybackEngine().GetCurrentFrameIndex();
-    float ctrlY = posY + StudioUI::Theme::HeaderHeight + 20.0f;
+    float ctrlY = 0.0f;
 
-    m_playBtnArea = sf::FloatRect(m_timelineArea.left + 20.f, ctrlY, 30.f, 20.f);
-    sf::Text playTxt("Play", m_font, 12);
-    playTxt.setPosition(m_playBtnArea.left, m_playBtnArea.top);
-    playTxt.setFillColor(isPlaying ? StudioUI::Theme::AccentColor : StudioUI::Theme::TextPrimary);
-    window.draw(playTxt);
+    ctrlY = posY + StudioUI::Theme::HeaderHeight + 14.0f;
+    auto controlButton = [&](const sf::FloatRect& rect, const std::string& label, bool highlighted) {
+        sf::Color fill = highlighted ? MixColor(StudioUI::Theme::PanelBackground, StudioUI::Theme::AccentColor, 0.32f) : StudioUI::Theme::HoverColor;
+        DrawRoundedRect(window, rect, 5.0f, fill, highlighted ? StudioUI::Theme::AccentColor : StudioUI::Theme::BorderColor, 1.0f);
+        sf::Text text(label, m_font, 12);
+        text.setFillColor(highlighted ? sf::Color::White : StudioUI::Theme::TextPrimary);
+        sf::FloatRect b = text.getLocalBounds();
+        text.setPosition(std::floor(rect.left + (rect.width - b.width) / 2.0f - b.left),
+                         std::floor(rect.top + (rect.height - b.height) / 2.0f - b.top));
+        window.draw(text);
+    };
 
-    m_pauseBtnArea = sf::FloatRect(m_timelineArea.left + 65.f, ctrlY, 40.f, 20.f);
-    sf::Text pauseTxt("Pause", m_font, 12);
-    pauseTxt.setPosition(m_pauseBtnArea.left, m_pauseBtnArea.top);
-    pauseTxt.setFillColor(!isPlaying ? StudioUI::Theme::AccentHoverColor : StudioUI::Theme::TextPrimary);
-    window.draw(pauseTxt);
+    m_playBtnArea = sf::FloatRect(m_timelineArea.left + 16.f, ctrlY, 66.f, 26.f);
+    m_pauseBtnArea = sf::FloatRect(m_timelineArea.left + 88.f, ctrlY, 66.f, 26.f);
+    m_stopBtnArea = sf::FloatRect(m_timelineArea.left + 160.f, ctrlY, 66.f, 26.f);
+    controlButton(m_playBtnArea, "Play", isPlaying);
+    controlButton(m_pauseBtnArea, "Pause", false);
+    controlButton(m_stopBtnArea, "Stop", false);
 
-    m_stopBtnArea = sf::FloatRect(m_timelineArea.left + 120.f, ctrlY, 35.f, 20.f);
-    sf::Text stopTxt("Stop", m_font, 12);
-    stopTxt.setPosition(m_stopBtnArea.left, m_stopBtnArea.top);
-    stopTxt.setFillColor(sf::Color(235, 87, 87));
-    window.draw(stopTxt);
+    m_fpsMinusBtnArea = sf::FloatRect(m_timelineArea.left + 16.f, ctrlY + 36.f, 30.f, 26.f);
+    m_fpsPlusBtnArea = sf::FloatRect(m_timelineArea.left + 124.f, ctrlY + 36.f, 30.f, 26.f);
+    controlButton(m_fpsMinusBtnArea, "-", false);
+    controlButton(m_fpsPlusBtnArea, "+", false);
 
-    m_fpsMinusBtnArea = sf::FloatRect(m_timelineArea.left + 20.f, ctrlY + 30.f, 15.f, 20.f);
-    sf::Text minusTxt("-", m_font, 14);
-    minusTxt.setPosition(m_fpsMinusBtnArea.left, m_fpsMinusBtnArea.top);
-    window.draw(minusTxt);
-
-    sf::Text fpsTxt("FPS: " + std::to_string(static_cast<int>(currentFps)), m_font, 12);
-    fpsTxt.setPosition(m_timelineArea.left + 40.f, ctrlY + 32.f);
+    sf::Text fpsTxt(std::to_string(static_cast<int>(currentFps)) + " fps", m_font, 12);
     fpsTxt.setFillColor(StudioUI::Theme::TextPrimary);
+    sf::FloatRect fpsBounds = fpsTxt.getLocalBounds();
+    fpsTxt.setPosition(std::floor(m_timelineArea.left + 85.f - fpsBounds.width / 2.0f), ctrlY + 41.f);
     window.draw(fpsTxt);
 
-    m_fpsPlusBtnArea = sf::FloatRect(m_timelineArea.left + 100.f, ctrlY + 30.f, 15.f, 20.f);
-    sf::Text plusTxt("+", m_font, 14);
-    plusTxt.setPosition(m_fpsPlusBtnArea.left, m_fpsPlusBtnArea.top);
-    window.draw(plusTxt);
-
-    sf::Text frameInfoTxt("Frame: " + std::to_string(currentFrame + 1) + " / " + std::to_string(std::max(1, frameCount)), m_font, 12);
-    frameInfoTxt.setFillColor(StudioUI::Theme::TextPrimary);
-    frameInfoTxt.setPosition(m_timelineArea.left + 20.f, ctrlY + 60.f);
+    sf::Text frameInfoTxt("Frame " + std::to_string(currentFrame + 1) + " of " + std::to_string(std::max(1, frameCount)), m_font, 11);
+    frameInfoTxt.setFillColor(StudioUI::Theme::TextMuted);
+    frameInfoTxt.setPosition(m_timelineArea.left + 16.f, ctrlY + 74.f);
     window.draw(frameInfoTxt);
+
+    if (m_selectedAnimation.empty()) {
+        sf::Text pick("Select an animation in the list on the right to see its frames here.", m_font, 12);
+        pick.setFillColor(StudioUI::Theme::TextMuted);
+        pick.setPosition(m_timelineArea.left + leftPanelWidth + 20.0f, posY + StudioUI::Theme::HeaderHeight + 44.0f);
+        window.draw(pick);
+    }
 
     if (m_selectedAnimation.empty()) return;
     auto anim = engine.GetCurrentProject()->GetAnimationById(m_selectedAnimation);
@@ -417,7 +424,7 @@ void AnimationPanel::RenderTimeline(sf::RenderWindow& window, const StudioCore::
     for (const auto& frameId : anim->GetFrames()) {
         sf::RectangleShape frameBox(sf::Vector2f(frameWidth - 2.0f, frameHeight));
         frameBox.setPosition(xOffset, timelineY);
-        frameBox.setFillColor(index % 2 == 0 ? sf::Color(45, 48, 54) : sf::Color(40, 42, 48));
+        frameBox.setFillColor(index % 2 == 0 ? StudioUI::Theme::HoverColor : StudioUI::Theme::InspectorBackground);
         
         if (index == currentFrame) {
             frameBox.setOutlineThickness(1.5f);

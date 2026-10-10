@@ -1,5 +1,7 @@
 #include "Rendering/OverlayRenderer.h"
 #include "Theme.h"
+#include "Widgets.h"
+#include <cmath>
 #include <sstream>
 #include <iomanip>
 #include <iostream>
@@ -224,29 +226,75 @@ void OverlayRenderer::RenderSpriteInspector(sf::RenderWindow& window, const Spri
     window.draw(contentText);
 }
 
-void OverlayRenderer::RenderEmptyState(sf::RenderWindow& window) {
+void OverlayRenderer::RenderEmptyState(sf::RenderWindow& window, const sf::FloatRect& area) {
     if (!m_hasFont) return;
-    
-    sf::Vector2f center(window.getSize().x / 2.0f, (window.getSize().y - Theme::StatusBarHeight) / 2.0f);
-    
-    sf::Text title("Sprite Sheet Fixer", m_font, 20);
-    title.setFillColor(Theme::TextSecondary);
-    title.setStyle(sf::Text::Bold);
-    
-    sf::Text subtitle("AtodDev", m_font, 14);
-    subtitle.setFillColor(Theme::AccentColor);
-    
-    sf::Text instructions("Drag & Drop PNG\n\nor\n\nClick Import Image", m_font, 14);
-    instructions.setFillColor(Theme::TextSecondary);
-    
-    // Center alignment math
-    title.setPosition(center.x - title.getLocalBounds().width / 2.0f, center.y - 80.0f);
-    subtitle.setPosition(center.x - subtitle.getLocalBounds().width / 2.0f, center.y - 50.0f);
-    instructions.setPosition(center.x - instructions.getLocalBounds().width / 2.0f, center.y + 10.0f);
-    
-    window.draw(title);
-    window.draw(subtitle);
-    window.draw(instructions);
+
+    const sf::Vector2f center(area.left + area.width / 2.0f, area.top + area.height / 2.0f);
+    auto centered = [&](sf::Text& text, float y) {
+        sf::FloatRect b = text.getLocalBounds();
+        text.setPosition(std::floor(center.x - b.width / 2.0f - b.left), std::floor(y));
+        window.draw(text);
+    };
+
+    // Drop zone
+    const sf::FloatRect zone(std::floor(center.x - 250.0f), std::floor(center.y - 150.0f), 500.0f, 190.0f);
+    DrawRoundedRect(window, zone, 14.0f, Theme::InspectorBackground, Theme::BorderColor, 1.5f);
+
+    sf::Text title("Drop a sprite sheet here", m_font, 24);
+    title.setFillColor(Theme::TextPrimary);
+    centered(title, zone.top + 48.0f);
+
+    sf::Text subtitle("or press Open  (Ctrl+O)", m_font, 14);
+    subtitle.setFillColor(Theme::TextSecondary);
+    centered(subtitle, zone.top + 92.0f);
+
+    sf::Text formats("PNG  JPG  BMP  WebP", m_font, 11);
+    formats.setFillColor(Theme::TextMuted);
+    formats.setLetterSpacing(1.8f);
+    centered(formats, zone.top + 138.0f);
+
+    // The whole workflow in four steps
+    const char* steps[4] = { "Clean", "Detect", "Animate", "Export" };
+    const char* notes[4] = { "remove the background", "find every sprite", "group frames", "save the sheet" };
+    const float stepWidth = 150.0f;
+    const float startX = center.x - stepWidth * 2.0f;
+    const float y = zone.top + zone.height + 36.0f;
+    for (int i = 0; i < 4; ++i) {
+        const float cx = startX + stepWidth * (i + 0.5f);
+
+        sf::CircleShape badge(13.0f, 40);
+        badge.setOrigin(13.0f, 13.0f);
+        badge.setPosition(std::floor(cx), y);
+        badge.setFillColor(sf::Color::Transparent);
+        badge.setOutlineThickness(1.5f);
+        badge.setOutlineColor(Theme::AccentColor);
+        window.draw(badge);
+
+        sf::Text number(std::to_string(i + 1), m_font, 13);
+        number.setFillColor(Theme::TextAccent);
+        sf::FloatRect nb = number.getLocalBounds();
+        number.setPosition(std::floor(cx - nb.width / 2.0f - nb.left), std::floor(y - nb.height / 2.0f - nb.top));
+        window.draw(number);
+
+        sf::Text name(steps[i], m_font, 14);
+        name.setFillColor(Theme::TextPrimary);
+        sf::FloatRect sb = name.getLocalBounds();
+        name.setPosition(std::floor(cx - sb.width / 2.0f - sb.left), std::floor(y + 24.0f));
+        window.draw(name);
+
+        sf::Text note(notes[i], m_font, 11);
+        note.setFillColor(Theme::TextMuted);
+        sf::FloatRect ob = note.getLocalBounds();
+        note.setPosition(std::floor(cx - ob.width / 2.0f - ob.left), std::floor(y + 46.0f));
+        window.draw(note);
+
+        if (i < 3) {
+            sf::RectangleShape link({ stepWidth - 44.0f, 1.0f });
+            link.setPosition(std::floor(cx + 22.0f), y);
+            link.setFillColor(Theme::BorderColor);
+            window.draw(link);
+        }
+    }
 }
 
 } // namespace StudioUI

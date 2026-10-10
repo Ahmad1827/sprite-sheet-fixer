@@ -1,5 +1,6 @@
 #include "Rendering/SpriteGizmoRenderer.h"
 #include "DataModels/SpriteDefinition.h"
+#include "Theme.h"
 #include <algorithm>
 
 namespace StudioUI {
@@ -35,9 +36,9 @@ void SpriteGizmoRenderer::Render(sf::RenderWindow& window,
                                  sf::Font* font) {
     
     float scaleFactor = (currentZoom > 0.0001f) ? currentZoom : 1.0f;
-    float boxThickness = 3.0f * scaleFactor;
-    float selectedThickness = 5.0f * scaleFactor;
-    float hoverThickness = 4.0f * scaleFactor;
+    float boxThickness = 1.5f * scaleFactor;
+    float selectedThickness = 2.5f * scaleFactor;
+    float hoverThickness = 2.0f * scaleFactor;
 
     for (const auto& sprite : sprites) {
         if (!sprite) continue;
@@ -53,13 +54,13 @@ void SpriteGizmoRenderer::Render(sf::RenderWindow& window,
             m_box.setSize(sf::Vector2f(static_cast<float>(rect.width), static_cast<float>(rect.height)));
             
             if (isSelected) {
-                m_box.setOutlineColor(isMultiSelect ? sf::Color(255, 120, 0, 255) : sf::Color(255, 235, 0, 255));
+                m_box.setOutlineColor(isMultiSelect ? sf::Color(255, 170, 60, 255) : sf::Color(255, 214, 64, 255));
                 m_box.setOutlineThickness(selectedThickness);
             } else if (isHovered) {
-                m_box.setOutlineColor(sf::Color(0, 240, 255, 255));
+                m_box.setOutlineColor(Theme::AccentHoverColor);
                 m_box.setOutlineThickness(hoverThickness);
             } else {
-                m_box.setOutlineColor(sf::Color(255, 0, 220, 255));
+                m_box.setOutlineColor(sf::Color(Theme::AccentColor.r, Theme::AccentColor.g, Theme::AccentColor.b, 200));
                 m_box.setOutlineThickness(boxThickness);
             }
             window.draw(m_box);
@@ -101,10 +102,10 @@ void SpriteGizmoRenderer::Render(sf::RenderWindow& window,
 
         // 5. Sprite ID Text Overlay
         if (showIds && font) {
-            unsigned int fontSize = static_cast<unsigned int>(std::max(12.0f, 14.0f * scaleFactor));
+            unsigned int fontSize = static_cast<unsigned int>(std::max(10.0f, 11.0f * scaleFactor));
             sf::Text idText(sprite->GetId(), *font, fontSize);
             idText.setPosition(static_cast<float>(rect.x), rect.y - (fontSize + 4.0f * scaleFactor));
-            idText.setFillColor(isSelected ? sf::Color(255, 235, 0, 255) : sf::Color(255, 255, 255, 255));
+            idText.setFillColor(isSelected ? sf::Color(255, 214, 64, 255) : sf::Color(200, 208, 220, 255));
             
             sf::Text idShadow = idText;
             idShadow.setPosition(idText.getPosition().x + (1.5f * scaleFactor), idText.getPosition().y + (1.5f * scaleFactor));

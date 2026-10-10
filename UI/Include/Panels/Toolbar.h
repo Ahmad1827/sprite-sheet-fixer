@@ -4,57 +4,52 @@
 #include <string>
 #include <functional>
 
-namespace StudioCore {
-    class StudioEngineFacade;
-}
-
 namespace StudioUI {
 
-struct ToolbarButton {
+struct ToolbarAction {
     std::string id;
     std::string label;
-    sf::FloatRect bounds;
-    std::function<void(StudioCore::StudioEngineFacade&)> onClick;
-    bool isToggle{false};
-    bool isToggled{false};
-    float hoverAlpha{0.0f};
+    std::string group;      // caption shown above the buttons that share it
+    std::string tooltip;    // one line explaining what the button does
+    std::function<void()> onClick;
+    std::function<bool()> isActive;   // highlighted while this returns true (tools, toggles)
+    std::function<bool()> isEnabled;  // greyed out and ignored while this returns false
+    std::function<bool()> isPrimary;  // the step to take next, drawn in the accent colour
+    bool alignRight{false};
 };
 
 class Toolbar {
 public:
     Toolbar() = default;
     void SetBounds(const sf::FloatRect& bounds) { m_bounds = bounds; }
-    void Initialize(const std::string& fontPath,
-                     std::function<void()> onOpenImage,
-                     std::function<void()> onLoadProject,
-                     std::function<void()> onSaveProject,
-                     std::function<void()> onExport,
-                     std::function<void()> onExportFrames,
-                     std::function<void()> onToggleUI,
-                     std::function<void()> onOpenWizard,
-                     std::function<void()> onDetect,
-                     std::function<void()> onMerge,
-                     std::function<void()> onCleanBg,
-                     std::function<void()> onWand,
-                     std::function<void()> onArtifact,
-                     std::function<void()> onInfill,
-                     std::function<void()> onDelete,
-                     std::function<void()> onRepack,
-                     std::function<void()> onFlipH);
+    void Initialize(const std::string& fontPath, std::vector<ToolbarAction> actions);
 
-    bool HandleEvent(const sf::Event& event, const sf::RenderWindow& window, StudioCore::StudioEngineFacade& engine);
-    void Update(float deltaTime, sf::Vector2f mousePos);
+    bool HandleEvent(const sf::Event& event, const sf::RenderWindow& window);
     void Render(sf::RenderWindow& window);
 
 private:
+    struct Button {
+        ToolbarAction action;
+        sf::FloatRect bounds;
+        float hover{0.0f};
+    };
+    struct Caption {
+        std::string text;
+        float x;
+    };
+
+    void Layout();
+    int ButtonAt(sf::Vector2f pos) const;
+    static bool Enabled(const Button& button) { return !button.action.isEnabled || button.action.isEnabled(); }
+
     sf::Font m_font;
-    sf::RectangleShape m_background;
-    sf::RectangleShape m_bottomBorder;
-    std::vector<ToolbarButton> m_buttons;
-    std::vector<sf::RectangleShape> m_dividers;
+    std::vector<Button> m_buttons;
+    std::vector<Caption> m_captions;
+    sf::Vector2f m_mousePos{-1.0f, -1.0f};
     int m_hoveredIndex{-1};
+    float m_hoverTime{0.0f};
+    sf::Clock m_clock;
     sf::FloatRect m_bounds{0.0f, 0.0f, 1280.0f, 720.0f};
-    void LayoutButtons(float windowWidth);
 };
 
 }

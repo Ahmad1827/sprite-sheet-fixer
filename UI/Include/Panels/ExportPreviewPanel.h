@@ -22,6 +22,15 @@ public:
 
 private:
     void RefreshPreview(const StudioCore::StudioEngineFacade& engine);
+    void Save(const StudioCore::StudioEngineFacade& engine);
+    // Bottom bar buttons, laid out from the window size.
+    sf::FloatRect PackedRect() const;
+    sf::FloatRect OriginalRect() const;
+    sf::FloatRect SaveRect() const;
+    sf::FloatRect CancelRect() const;
+    sf::Vector2f m_windowSize{1280.0f, 720.0f};
+    sf::Vector2f m_mousePos{-1.0f, -1.0f};
+    bool m_needsFit{true};
 
     sf::Font m_font;
     bool m_hasFont{false};

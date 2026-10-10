@@ -19,6 +19,8 @@ public:
     void HandleEvent(const sf::Event& event, const sf::RenderWindow& window, StudioCore::StudioEngineFacade& engine, PreviewViewport& viewport);
     void Render(sf::RenderWindow& window, const StudioCore::StudioEngineFacade& engine);
     void SetBounds(const sf::FloatRect& bounds);
+    // Space kept free at the bottom of the window (the status bar).
+    void SetBottomInset(float inset) { m_bottomInset = inset; }
 
 private:
     sf::Font m_font;
@@ -45,6 +47,7 @@ private:
     void RenderPreview(sf::RenderWindow& window, const StudioCore::StudioEngineFacade& engine);
     
     sf::FloatRect m_bounds{0.0f, 0.0f, 1280.0f, 720.0f};
+    float m_bottomInset{0.0f};
 };
 
 }

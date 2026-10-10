@@ -35,13 +35,45 @@ void PreviewViewport::RefreshTexture(const StudioCore::StudioEngineFacade& engin
             m_selection.ClearSelection();
             m_selectedSpriteIds.clear();
             m_hoveredSpriteId.clear();
-            ResetZoom();
-            CenterImage();
+            FitToCanvas();
         }
     }
 }
 
+void PreviewViewport::SetCanvasBounds(const sf::FloatRect& canvas) {
+    const bool resized = canvas.width != m_canvas.width || canvas.height != m_canvas.height;
+    m_canvas = canvas;
+    if (resized && m_isFitted && m_hasValidTexture) {
+        FitToCanvas();
+    } else {
+        ApplyView();
+    }
+}
+
+void PreviewViewport::ApplyView() {
+    sf::Vector2f center = m_view.getCenter();
+    m_view.setSize(m_canvas.width * m_currentZoom, m_canvas.height * m_currentZoom);
+    m_view.setCenter(center);
+    if (m_bounds.width > 0.0f && m_bounds.height > 0.0f) {
+        m_view.setViewport(sf::FloatRect(
+            (m_canvas.left - m_bounds.left) / m_bounds.width,
+            (m_canvas.top - m_bounds.top) / m_bounds.height,
+            m_canvas.width / m_bounds.width,
+            m_canvas.height / m_bounds.height));
+    }
+}
+
+void PreviewViewport::FitToCanvas() {
+    if (!m_hasValidTexture || m_canvas.width <= 0.0f || m_canvas.height <= 0.0f) return;
+    sf::FloatRect bounds = m_sprite.getLocalBounds();
+    m_view.setCenter(bounds.width / 2.0f, bounds.height / 2.0f);
+    m_currentZoom = std::max(bounds.width / (m_canvas.width * 0.92f), bounds.height / (m_canvas.height * 0.92f));
+    m_isFitted = true;
+    ApplyView();
+}
+
 void PreviewViewport::ResetZoom() {
+    m_isFitted = false;
     float ratio = 1.0f / m_currentZoom;
     m_view.zoom(ratio);
     m_currentZoom = 1.0f;
@@ -58,16 +90,8 @@ void PreviewViewport::CenterImage() {
 }
 
 void PreviewViewport::FitToImage(const sf::RenderWindow& window) {
-    if (!m_hasValidTexture || m_bounds.width == 0) return;
-    sf::FloatRect bounds = m_sprite.getLocalBounds();
-    m_view.setCenter(bounds.width / 2.0f, bounds.height / 2.0f);
-    
-    float padX = m_bounds.width * 0.9f;
-    float padY = m_bounds.height * 0.9f;
-    float ratioX = bounds.width / padX;
-    float ratioY = bounds.height / padY;
-    
-    m_currentZoom = std::max(ratioX, ratioY);
+    (void)window;
+    FitToCanvas();
 }
 
 void PreviewViewport::ZoomToSelection() {
@@ -75,8 +99,9 @@ void PreviewViewport::ZoomToSelection() {
     sf::FloatRect rect = m_selection.GetSelectionRect();
     if (rect.width > 0 && rect.height > 0) {
         m_view.setCenter(rect.left + rect.width / 2.0f, rect.top + rect.height / 2.0f);
-        float baseWidth = m_bounds.width > 0 ? m_bounds.width : 1280.f;
-        m_currentZoom = (rect.width * 1.2f) / baseWidth; 
+        float baseWidth = m_canvas.width > 0 ? m_canvas.width : 1280.f;
+        m_currentZoom = (rect.width * 1.2f) / baseWidth;
+        m_isFitted = false;
     }
 }
 
@@ -84,6 +109,7 @@ void PreviewViewport::CenterOnPoint(const sf::Vector2f& worldPos) {
     sf::Vector2f currentCameraCenter = m_view.getCenter();
     sf::Vector2f panOffset = worldPos - currentCameraCenter;
     m_view.move(panOffset);
+    m_isFitted = false;
 }
 
 sf::Vector2i PreviewViewport::GetMouseImageCoords(const sf::RenderWindow& window) const {
@@ -144,9 +170,17 @@ void PreviewViewport::TriggerNumericEdit(StudioCore::StudioEngineFacade& engine)
 }
 
 void PreviewViewport::HandleEvent(const sf::Event& event, const sf::RenderWindow& window, StudioCore::StudioEngineFacade& engine) {
-    sf::Vector2f currentCenter = m_view.getCenter();
-    m_view.setSize(m_bounds.width * m_currentZoom, m_bounds.height * m_currentZoom);
-    m_view.setCenter(currentCenter);
+    ApplyView();
+
+    // Clicks and scrolling that start outside the canvas belong to a bar or panel.
+    if (event.type == sf::Event::MouseButtonPressed &&
+        !m_canvas.contains(static_cast<float>(event.mouseButton.x), static_cast<float>(event.mouseButton.y))) {
+        return;
+    }
+    if (event.type == sf::Event::MouseWheelScrolled &&
+        !m_canvas.contains(static_cast<float>(event.mouseWheelScroll.x), static_cast<float>(event.mouseWheelScroll.y))) {
+        return;
+    }
 
     if (event.type == sf::Event::KeyPressed) {
         if (event.key.code == sf::Keyboard::Z && event.key.control) {
@@ -189,8 +223,15 @@ void PreviewViewport::HandleEvent(const sf::Event& event, const sf::RenderWindow
         else if (event.key.code == sf::Keyboard::N) TriggerNumericEdit(engine);
     } 
     else if (event.type == sf::Event::MouseWheelScrolled) {
+        // Zoom around the cursor so the point under it stays put.
+        sf::Vector2i cursor(event.mouseWheelScroll.x, event.mouseWheelScroll.y);
+        sf::Vector2f before = window.mapPixelToCoords(cursor, m_view);
         float zoomFactor = (event.mouseWheelScroll.delta > 0) ? 0.8f : 1.25f;
-        m_currentZoom *= zoomFactor;
+        m_currentZoom = std::clamp(m_currentZoom * zoomFactor, 0.01f, 40.0f);
+        m_isFitted = false;
+        ApplyView();
+        sf::Vector2f after = window.mapPixelToCoords(cursor, m_view);
+        m_view.move(before - after);
     }
     else if (event.type == sf::Event::MouseButtonPressed) {
         sf::Vector2i clickScreenPos(event.mouseButton.x, event.mouseButton.y);
@@ -314,6 +355,7 @@ void PreviewViewport::HandleEvent(const sf::Event& event, const sf::RenderWindow
             delta.x *= m_currentZoom;
             delta.y *= m_currentZoom;
             m_view.move(delta);
+            m_isFitted = false;
             m_lastMousePos = currentMousePos;
         }
     } 
@@ -331,12 +373,24 @@ void PreviewViewport::Update(float deltaTime) {
 }
 
 void PreviewViewport::Render(sf::RenderWindow& window, const StudioCore::StudioEngineFacade& engine) {
-    sf::Vector2f center = m_view.getCenter();
-    m_view.setSize(m_bounds.width * m_currentZoom, m_bounds.height * m_currentZoom);
-    m_view.setCenter(center);
+    sf::View uiView(m_bounds);
+    window.setView(uiView);
+    sf::RectangleShape canvasBackground({ m_canvas.width, m_canvas.height });
+    canvasBackground.setPosition(m_canvas.left, m_canvas.top);
+    canvasBackground.setFillColor(StudioUI::Theme::ViewportBackground);
+    window.draw(canvasBackground);
+
+    ApplyView();
     window.setView(m_view);
 
     if (m_hasValidTexture) {
+        // The image area is a touch lighter than the canvas so its edges, and
+        // what is transparent inside it, are easy to see.
+        sf::FloatRect imageBounds = m_sprite.getLocalBounds();
+        sf::RectangleShape imageBackground({ imageBounds.width, imageBounds.height });
+        imageBackground.setFillColor(sf::Color(27, 29, 35));
+        window.draw(imageBackground);
+
         if (m_showGrid) {
             m_grid.Render(window, m_sprite.getLocalBounds());
         }
@@ -350,7 +404,8 @@ void PreviewViewport::Render(sf::RenderWindow& window, const StudioCore::StudioE
         canvasBorder.setOutlineColor(StudioUI::Theme::BorderColor);
         window.draw(canvasBorder);
 
-        m_axes.Render(window, m_sprite.getLocalBounds(), m_currentZoom);
+        // Rulers and axes are guides, shown together with the grid (G).
+        if (m_showGrid) m_axes.Render(window, m_sprite.getLocalBounds(), m_currentZoom);
     }
 
     if (engine.IsProjectActive()) {
@@ -362,7 +417,6 @@ void PreviewViewport::Render(sf::RenderWindow& window, const StudioCore::StudioE
 
     m_selection.Render(window, m_currentZoom);
 
-    sf::View uiView(m_bounds);
     window.setView(uiView);
 
     StudioUI::JobProgressInfo jobInfo;
@@ -387,27 +441,8 @@ void PreviewViewport::Render(sf::RenderWindow& window, const StudioCore::StudioE
         m_overlay.RenderDebug(window, debug);
     }
 
-    StudioUI::InspectorInfo inspector;
-    inspector.mouseWindow = sf::Mouse::getPosition(window);
-    inspector.mouseImage = GetMouseImageCoords(window);
-    inspector.currentZoom = m_currentZoom;
-    inspector.panOffset = m_view.getCenter();
-    
-    if (engine.HasTexture()) {
-        auto tex = engine.GetCurrentTexture();
-        inspector.imageWidth = tex->GetWidth();
-        inspector.imageHeight = tex->GetHeight();
-        inspector.isHoveringImage = (inspector.mouseImage.x >= 0 && inspector.mouseImage.x < tex->GetWidth() &&
-                                     inspector.mouseImage.y >= 0 && inspector.mouseImage.y < tex->GetHeight());
-        
-        if (inspector.isHoveringImage) {
-            inspector.pixelColor = GetPixelColor(engine, inspector.mouseImage.x, inspector.mouseImage.y);
-        }
-    }
-    m_overlay.RenderInspector(window, inspector);
-    
     if (!m_hasValidTexture) {
         window.setView(uiView);
-        m_overlay.RenderEmptyState(window);
+        m_overlay.RenderEmptyState(window, m_canvas);
     }
 }
