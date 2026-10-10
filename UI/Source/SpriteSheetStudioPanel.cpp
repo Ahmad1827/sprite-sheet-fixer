@@ -4,6 +4,8 @@
 #include "Processing/ImageLoader.h"
 #include "DataModels/SpriteDefinition.h"
 #include "Theme.h"
+#include "Widgets.h"
+#include <sstream>
 #include <algorithm>
 #include <cmath>
 #include <fstream>
@@ -156,6 +158,8 @@ void SpriteSheetStudioPanel::Initialize() {
         m_engine.ToggleAutoAlign();
     }
 
+    m_settings = AppSettings::Load();
+
     auto hasImage = [this]() { return m_engine.HasTexture(); };
     auto hasSprites = [this]() { return SpriteCount() > 0; };
     auto next = [this](const char* id) { return [this, id]() { return NextStep() == id; }; };
@@ -170,7 +174,11 @@ void SpriteSheetStudioPanel::Initialize() {
     add({ "clean", u8"Clean", u8"PREPARE", u8"Remove the background automatically. Ctrl+Z brings it back.",
           [this]() {
               ClearTools();
-              m_engine.CleanCurrentTexture();
+              StudioCore::CleanOptions options;
+              options.softEdges = m_settings.cleanSoftEdges;
+              options.removeFrameLines = m_settings.cleanRemoveFrameLines;
+              options.maxSpeckArea = m_settings.cleanSpeckSize;
+              m_engine.CleanCurrentTexture(options);
               m_cleanTried = true;
               m_viewport.RefreshTexture(m_engine);
           }, nullptr, hasImage, next("clean") });
@@ -201,6 +209,10 @@ void SpriteSheetStudioPanel::Initialize() {
               ClearTools();
               m_isInfillMode = enable;
           }, [this]() { return m_isInfillMode; }, hasImage });
+
+    add({ "review", u8"AI Review", u8"AI", u8"Let Claude Code find captions and stray bits to delete. Set it up in Settings.",
+          [this]() { StartAiReview(); }, [this]() { return m_review.GetState() != ClaudeReview::State::Idle; },
+          [this]() { return m_engine.HasTexture() && m_settings.aiEnabled; } });
 
     add({ "merge", u8"Merge", u8"SPRITES", u8"Join the selected sprite boxes into one. Select two or more first.",
           [this]() {
@@ -260,13 +272,258 @@ void SpriteSheetStudioPanel::Initialize() {
     exportSheet.alignRight = true;
     add(exportSheet);
 
+    ToolbarAction settings{ "settings", u8"Settings", u8"APP", u8"Choose how Clean and the AI review behave.",
+          [this]() { ClearTools(); m_settingsPanel.Open(m_settings); } };
+    settings.alignRight = true;
+    add(settings);
+
     m_toolbar.Initialize("Resources/font.ttf", std::move(actions));
 
-    m_wandFont.loadFromFile("Resources/font.ttf");
+    LoadUiFont(m_wandFont);
     m_animationPanel->InitializeFont("Resources/font.ttf");
     m_exportPreview.InitializeFont("Resources/font.ttf");
     m_animBuilderPanel.InitializeFont("Resources/font.ttf");
     m_workspace.InitializeFont("Resources/font.ttf");
+    m_settingsPanel.InitializeFont("Resources/font.ttf");
+}
+
+// ---- AI review (Claude Code) ------------------------------------------------
+
+void SpriteSheetStudioPanel::StartAiReview() {
+    ClearTools();
+    m_viewport.ClearSelection();
+    m_review.Start(m_engine, m_settings, m_wandFont);
+}
+
+void SpriteSheetStudioPanel::ApplyAiReview() {
+    auto regions = m_review.TakeMarked();
+    if (!regions.empty()) {
+        m_engine.EraseRegions(regions);
+        m_viewport.ClearSelection();
+        m_viewport.RefreshTexture(m_engine);
+    }
+}
+
+sf::FloatRect SpriteSheetStudioPanel::ReviewBarRect() const {
+    const float width = std::min(680.0f, m_bounds.width - 24.0f);
+    return sf::FloatRect(std::floor(m_bounds.left + (m_bounds.width - width) / 2.0f),
+                         m_bounds.top + m_bounds.height - Theme::StatusBarHeight - 66.0f, width, 52.0f);
+}
+
+sf::FloatRect SpriteSheetStudioPanel::ReviewCardRect() const {
+    const float width = std::min(520.0f, m_bounds.width - 24.0f);
+    const float height = 170.0f;
+    return sf::FloatRect(std::floor(m_bounds.left + (m_bounds.width - width) / 2.0f),
+                         std::floor(m_bounds.top + (m_bounds.height - height) / 2.0f), width, height);
+}
+
+namespace {
+// Buttons inside the review bar and card, shared by drawing and clicking.
+sf::FloatRect ReviewPrimaryButton(const sf::FloatRect& box) {
+    return sf::FloatRect(box.left + box.width - 152.0f, box.top + box.height - 43.0f, 140.0f, 34.0f);
+}
+sf::FloatRect ReviewSecondaryButton(const sf::FloatRect& box) {
+    return sf::FloatRect(box.left + box.width - 252.0f, box.top + box.height - 43.0f, 92.0f, 34.0f);
+}
+}
+
+void SpriteSheetStudioPanel::HandleReviewEvent(const sf::Event& event, const sf::RenderWindow& window) {
+    const auto state = m_review.GetState();
+
+    if (event.type == sf::Event::MouseMoved) {
+        m_reviewMouse = { static_cast<float>(event.mouseMove.x), static_cast<float>(event.mouseMove.y) };
+    }
+
+    if (event.type == sf::Event::KeyPressed) {
+        if (event.key.code == sf::Keyboard::Escape) {
+            m_review.Cancel();
+        } else if (event.key.code == sf::Keyboard::Enter) {
+            if (state == ClaudeReview::State::Choosing) ApplyAiReview();
+            else if (state == ClaudeReview::State::Failed) m_review.Cancel();
+        }
+        return;
+    }
+
+    if (state == ClaudeReview::State::Choosing) {
+        // Looking around stays possible while choosing.
+        const bool navigation = event.type == sf::Event::MouseWheelScrolled || event.type == sf::Event::MouseMoved ||
+            ((event.type == sf::Event::MouseButtonPressed || event.type == sf::Event::MouseButtonReleased) &&
+             event.mouseButton.button == sf::Mouse::Middle);
+        if (navigation) {
+            m_viewport.HandleEvent(event, window, m_engine);
+            return;
+        }
+    }
+
+    if (event.type != sf::Event::MouseButtonPressed || event.mouseButton.button != sf::Mouse::Left) return;
+    const sf::Vector2f pos(static_cast<float>(event.mouseButton.x), static_cast<float>(event.mouseButton.y));
+
+    if (state == ClaudeReview::State::Choosing) {
+        const sf::FloatRect bar = ReviewBarRect();
+        if (ReviewPrimaryButton(bar).contains(pos)) {
+            ApplyAiReview();
+        } else if (ReviewSecondaryButton(bar).contains(pos)) {
+            m_review.Cancel();
+        } else if (!bar.contains(pos) && m_viewport.GetCanvasBounds().contains(pos)) {
+            m_review.ToggleAt(m_viewport.MapPixelToWorld({ event.mouseButton.x, event.mouseButton.y }, window));
+        }
+        return;
+    }
+
+    const sf::FloatRect card = ReviewCardRect();
+    if (state == ClaudeReview::State::Running) {
+        if (ReviewPrimaryButton(card).contains(pos)) m_review.Cancel();
+    } else if (state == ClaudeReview::State::Failed) {
+        if (ReviewPrimaryButton(card).contains(pos)) {
+            m_review.Cancel();
+        } else if (ReviewSecondaryButton(card).contains(pos)) {
+            m_review.Cancel();
+            m_settingsPanel.Open(m_settings);
+        }
+    }
+}
+
+void SpriteSheetStudioPanel::RenderReview(sf::RenderWindow& window) {
+    const auto state = m_review.GetState();
+    if (state == ClaudeReview::State::Idle) return;
+
+    const sf::View uiView(m_bounds);
+
+    auto button = [&](const sf::FloatRect& rect, const std::string& label, bool primary, bool danger, bool enabled) {
+        const bool hovered = enabled && rect.contains(m_reviewMouse);
+        sf::Color fill = hovered ? Theme::BevelLight : Theme::HoverColor;
+        sf::Color outline = Theme::BorderColor;
+        sf::Color textColor = Theme::TextPrimary;
+        if (!enabled) {
+            fill = Theme::InspectorBackground;
+            textColor = Theme::TextMuted;
+        } else if (danger) {
+            fill = hovered ? sf::Color(250, 110, 110) : Theme::DangerColor;
+            outline = fill;
+            textColor = sf::Color(30, 8, 8);
+        } else if (primary) {
+            fill = hovered ? Theme::AccentHoverColor : Theme::AccentColor;
+            outline = fill;
+            textColor = sf::Color(10, 18, 30);
+        }
+        DrawRoundedRect(window, rect, Theme::CornerRadius, fill, outline, 1.0f);
+        sf::Text text(label, m_wandFont, 13);
+        text.setFillColor(textColor);
+        sf::FloatRect tb = text.getLocalBounds();
+        text.setPosition(std::floor(rect.left + (rect.width - tb.width) / 2.0f - tb.left),
+                         std::floor(rect.top + (rect.height - tb.height) / 2.0f - tb.top));
+        window.draw(text);
+    };
+
+    if (state == ClaudeReview::State::Choosing) {
+        // What will go is tinted red on the image itself.
+        window.setView(m_viewport.GetView());
+        const float px = std::max(0.0001f, m_viewport.GetZoom());
+        const auto& regions = m_review.Regions();
+        for (size_t i = 0; i < regions.size(); ++i) {
+            const auto& r = regions[i];
+            const bool marked = m_review.IsMarked(i);
+            sf::RectangleShape box({ static_cast<float>(r.width), static_cast<float>(r.height) });
+            box.setPosition(static_cast<float>(r.x), static_cast<float>(r.y));
+            box.setFillColor(marked ? sf::Color(235, 60, 60, 90) : sf::Color::Transparent);
+            box.setOutlineThickness((marked ? 2.0f : 1.0f) * px);
+            box.setOutlineColor(marked ? sf::Color(255, 90, 90) : sf::Color(150, 158, 172, 110));
+            window.draw(box);
+        }
+
+        window.setView(uiView);
+        const sf::FloatRect bar = ReviewBarRect();
+        DrawRoundedRect(window, bar, 10.0f, sf::Color(18, 20, 24, 245), Theme::BorderColor, 1.0f);
+
+        const int marked = m_review.MarkedCount();
+        const std::string headline = marked == 0
+            ? "Claude found nothing to remove."
+            : "Claude suggests removing " + std::to_string(marked) + " of " + std::to_string(regions.size()) + " objects.";
+        sf::Text title(headline, m_wandFont, 13);
+        title.setFillColor(Theme::TextPrimary);
+        title.setPosition(bar.left + 16.0f, bar.top + 9.0f);
+        window.draw(title);
+
+        sf::Text note("Click any box to switch it between keep and delete.", m_wandFont, 11);
+        note.setFillColor(Theme::TextMuted);
+        note.setPosition(bar.left + 16.0f, bar.top + 29.0f);
+        window.draw(note);
+
+        button(ReviewSecondaryButton(bar), "Cancel", false, false, true);
+        button(ReviewPrimaryButton(bar), marked == 1 ? "Remove 1" : "Remove " + std::to_string(marked), false, true, marked > 0);
+        return;
+    }
+
+    window.setView(uiView);
+    sf::RectangleShape dim({ m_bounds.width, m_bounds.height });
+    dim.setFillColor(sf::Color(0, 0, 0, 150));
+    window.draw(dim);
+
+    const sf::FloatRect card = ReviewCardRect();
+    DrawRoundedRect(window, card, 12.0f, Theme::PanelBackground, Theme::BorderColor, 1.0f);
+
+    if (state == ClaudeReview::State::Running) {
+        sf::Text title("Claude is looking at the sheet...", m_wandFont, 18);
+        title.setFillColor(Theme::TextPrimary);
+        title.setPosition(card.left + 24.0f, card.top + 22.0f);
+        window.draw(title);
+
+        sf::Text note("This usually takes 5 to 20 seconds.     " + std::to_string(static_cast<int>(m_review.SecondsRunning())) + " s",
+                      m_wandFont, 12);
+        note.setFillColor(Theme::TextSecondary);
+        note.setPosition(card.left + 24.0f, card.top + 54.0f);
+        window.draw(note);
+
+        // A simple moving bar so it is clear the app has not frozen.
+        const float trackWidth = card.width - 48.0f;
+        sf::RectangleShape track({ trackWidth, 4.0f });
+        track.setPosition(card.left + 24.0f, card.top + 88.0f);
+        track.setFillColor(Theme::InspectorBackground);
+        window.draw(track);
+        const float t = std::fmod(m_review.SecondsRunning() * 0.6f, 1.0f);
+        sf::RectangleShape runner({ trackWidth * 0.25f, 4.0f });
+        runner.setPosition(card.left + 24.0f + (trackWidth * 0.75f) * t, card.top + 88.0f);
+        runner.setFillColor(Theme::AccentColor);
+        window.draw(runner);
+
+        button(ReviewPrimaryButton(card), "Cancel", false, false, true);
+        return;
+    }
+
+    sf::Text title("The AI review did not work", m_wandFont, 18);
+    title.setFillColor(Theme::TextPrimary);
+    title.setPosition(card.left + 24.0f, card.top + 22.0f);
+    window.draw(title);
+
+    // Wrap the message to the card width.
+    std::string wrapped;
+    std::string lineText;
+    std::istringstream words(m_review.GetError());
+    std::string paragraph;
+    sf::Text measure("", m_wandFont, 12);
+    while (std::getline(words, paragraph)) {
+        std::istringstream stream(paragraph);
+        std::string word;
+        lineText.clear();
+        while (stream >> word) {
+            const std::string candidate = lineText.empty() ? word : lineText + " " + word;
+            measure.setString(candidate);
+            if (measure.getLocalBounds().width > card.width - 48.0f && !lineText.empty()) {
+                wrapped += lineText + "\n";
+                lineText = word;
+            } else {
+                lineText = candidate;
+            }
+        }
+        wrapped += lineText + "\n";
+    }
+    sf::Text message(wrapped, m_wandFont, 12);
+    message.setFillColor(Theme::TextSecondary);
+    message.setPosition(card.left + 24.0f, card.top + 54.0f);
+    window.draw(message);
+
+    button(ReviewSecondaryButton(card), "Settings", false, false, true);
+    button(ReviewPrimaryButton(card), "OK", true, false, true);
 }
 
 void SpriteSheetStudioPanel::ClearTools() {
@@ -439,6 +696,8 @@ std::string SpriteSheetStudioPanel::NextStep() const {
 std::string SpriteSheetStudioPanel::CurrentHint() const {
     if (!m_engine.HasTexture()) return u8"Open an image, or drop one on the window, to begin.";
     if (m_engine.IsDetectionRunning()) return u8"Detecting sprites...   Esc cancels.";
+    if (m_review.GetState() == ClaudeReview::State::Running) return u8"Claude is looking at the sheet...   Esc cancels.";
+    if (m_review.GetState() == ClaudeReview::State::Choosing) return u8"AI review: red boxes will be deleted. Click a box to switch it, then press Remove.   Esc cancels.";
 
     if (m_isWandMode) {
         if (m_isWandEyedropper) return u8"Wand: click a colour on the image to pick it up.";
@@ -478,6 +737,16 @@ void SpriteSheetStudioPanel::HandleEvent(const sf::Event& event, const sf::Rende
 
     sf::FloatRect currentBounds(0.f, 0.f, static_cast<float>(window.getSize().x), static_cast<float>(window.getSize().y));
     SetBounds(currentBounds);
+
+    // The settings window and a running AI review take every event.
+    if (m_settingsPanel.IsOpen()) {
+        m_settingsPanel.HandleEvent(event);
+        return;
+    }
+    if (m_review.GetState() != ClaudeReview::State::Idle) {
+        HandleReviewEvent(event, window);
+        return;
+    }
 
     if (event.type == sf::Event::KeyPressed) {
         bool isShift = sf::Keyboard::isKeyPressed(sf::Keyboard::LShift) || sf::Keyboard::isKeyPressed(sf::Keyboard::RShift);
@@ -964,6 +1233,11 @@ void SpriteSheetStudioPanel::Update(float deltaTime, const sf::RenderWindow& win
         }
         return;
     }
+    m_review.Update();
+    if (m_review.GetState() == ClaudeReview::State::Choosing && !m_settings.aiAskFirst) {
+        ApplyAiReview();
+    }
+
     if (!m_isWizardMode) {
         m_engine.Update(deltaTime);
         m_viewport.Update(deltaTime);
@@ -996,6 +1270,7 @@ void SpriteSheetStudioPanel::SetBounds(const sf::FloatRect& bounds) {
     m_viewport.SetCanvasBounds(CanvasBounds());
     m_workspace.SetBounds(bounds);
     m_animBuilderPanel.SetBounds(bounds);
+    m_settingsPanel.SetBounds(bounds);
 
     if (m_animationPanel) {
         // The panels sit above the status bar instead of underneath it.
@@ -1325,6 +1600,11 @@ void SpriteSheetStudioPanel::Render(sf::RenderWindow& window) {
             window.draw(countText);
         }
     }
+
+    window.setView(uiView);
+    RenderReview(window);
+    window.setView(uiView);
+    m_settingsPanel.Render(window);
 }
 
 void SpriteSheetStudioPanel::UpdateWandColorFromHsv() {

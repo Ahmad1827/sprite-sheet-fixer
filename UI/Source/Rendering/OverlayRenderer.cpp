@@ -12,27 +12,8 @@ namespace StudioUI {
 OverlayRenderer::OverlayRenderer() = default;
 
 bool OverlayRenderer::InitializeFont(const std::string& customPath) {
-    std::vector<std::string> fontPaths = {
-        customPath,
-        "Resources/font.ttf",
-        "../Resources/font.ttf",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-        "/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf",
-        "/usr/share/fonts/truetype/freefont/FreeSans.ttf"
-    };
-
-    for (const auto& path : fontPaths) {
-        if (m_font.loadFromFile(path)) {
-            m_hasFont = true;
-            std::cout << "[Overlay] Successfully loaded font: " << path << std::endl;
-            return true;
-        }
-    }
-    
-    std::cerr << "[Overlay] FATAL: Could not load any system fonts for UI text rendering!" << std::endl;
-    m_hasFont = false;
-    return false;
+    m_hasFont = LoadUiFont(m_font, customPath);
+    return m_hasFont;
 }
 
 void OverlayRenderer::DrawTextShadowed(sf::RenderWindow& window, const std::string& str, const sf::Vector2f& pos) {

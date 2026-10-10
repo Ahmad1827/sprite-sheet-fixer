@@ -16,9 +16,7 @@ constexpr float kPadding = 24.0f;
 }
 
 void AnimationBuilderPanel::InitializeFont(const std::string& fontPath) {
-    if (!m_font.loadFromFile(fontPath)) {
-        m_font.loadFromFile("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf");
-    }
+    LoadUiFont(m_font, fontPath);
 }
 
 void AnimationBuilderPanel::Activate(StudioCore::StudioEngineFacade& engine) {

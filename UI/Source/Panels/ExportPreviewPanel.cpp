@@ -18,20 +18,8 @@ ExportPreviewPanel::ExportPreviewPanel() {
 }
 
 bool ExportPreviewPanel::InitializeFont(const std::string& customPath) {
-    std::vector<std::string> fontPaths = {
-        customPath,
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-        "/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf",
-        "/usr/share/fonts/truetype/freefont/FreeSans.ttf"
-    };
-    for (const auto& path : fontPaths) {
-        if (m_font.loadFromFile(path)) {
-            m_hasFont = true;
-            return true;
-        }
-    }
-    return false;
+    m_hasFont = LoadUiFont(m_font, customPath);
+    return m_hasFont;
 }
 
 namespace {

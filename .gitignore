@@ -75,3 +75,5 @@ Desktop.ini
 # Ignore downloaded test image binaries if created during testing
 test_sheet.png
 *.log
+# Per-user app settings written next to the program
+settings.json

@@ -1,9 +1,46 @@
 #pragma once
 #include <SFML/Graphics.hpp>
+#include <SFML/System/Err.hpp>
 #include <algorithm>
 #include <cmath>
+#include <string>
 
 namespace StudioUI {
+
+// Loads the interface font. The app is not always started from the folder that
+// holds Resources/, so it also looks a few folders up and then falls back to a
+// font that ships with the operating system. Every part of the interface uses
+// this, so text can never be missing in one place and present in another.
+inline bool LoadUiFont(sf::Font& font, const std::string& preferred = "Resources/font.ttf") {
+    const std::string candidates[] = {
+        preferred,
+        "Resources/font.ttf",
+        "../Resources/font.ttf",
+        "../../Resources/font.ttf",
+        "../../../Resources/font.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        "/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf",
+        "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
+        "/usr/share/fonts/TTF/DejaVuSans.ttf",
+        "C:/Windows/Fonts/segoeui.ttf",
+        "C:/Windows/Fonts/arial.ttf",
+        "/System/Library/Fonts/Supplemental/Arial.ttf"
+    };
+
+    // SFML prints an error for every path it cannot open; only the outcome matters.
+    std::streambuf* previous = sf::err().rdbuf(nullptr);
+    bool loaded = false;
+    for (const auto& path : candidates) {
+        if (!path.empty() && font.loadFromFile(path)) {
+            loaded = true;
+            break;
+        }
+    }
+    sf::err().rdbuf(previous);
+    sf::err().clear();
+    return loaded;
+}
 
 inline void DrawRoundedRect(sf::RenderTarget& target, const sf::FloatRect& rect, float radius,
                             sf::Color fill, sf::Color outline = sf::Color::Transparent, float outlineThickness = 0.0f) {

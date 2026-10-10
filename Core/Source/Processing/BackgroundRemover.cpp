@@ -269,7 +269,48 @@ void RemoveSeparatorLines(const std::vector<uint8_t>& px, int w, int h, bool ver
 
 }
 
-std::vector<uint8_t> BackgroundRemover::Clean(const SourceTexture& source) {
+void BackgroundRemover::RemoveSpecks(std::vector<uint8_t>& pixels, int width, int height, int maxArea) {
+    if (maxArea <= 0 || width <= 0 || height <= 0 || pixels.size() != static_cast<size_t>(width) * height * 4) return;
+
+    const int count = width * height;
+    std::vector<uint8_t> visited(count, 0);
+    std::vector<int> component;
+    const int dx[8] = { 1, -1, 0, 0, 1, 1, -1, -1 };
+    const int dy[8] = { 0, 0, 1, -1, 1, -1, 1, -1 };
+
+    for (int start = 0; start < count; ++start) {
+        if (visited[start] || pixels[static_cast<size_t>(start) * 4 + 3] == 0) continue;
+
+        component.clear();
+        component.push_back(start);
+        visited[start] = 1;
+        for (size_t head = 0; head < component.size(); ++head) {
+            const int cur = component[head];
+            const int cx = cur % width;
+            const int cy = cur / width;
+            for (int d = 0; d < 8; ++d) {
+                const int nx = cx + dx[d];
+                const int ny = cy + dy[d];
+                if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+                const int n = ny * width + nx;
+                if (visited[n] || pixels[static_cast<size_t>(n) * 4 + 3] == 0) continue;
+                visited[n] = 1;
+                component.push_back(n);
+            }
+        }
+
+        if (static_cast<int>(component.size()) > maxArea) continue;
+        for (int i : component) {
+            const size_t idx = static_cast<size_t>(i) * 4;
+            pixels[idx] = 0;
+            pixels[idx + 1] = 0;
+            pixels[idx + 2] = 0;
+            pixels[idx + 3] = 0;
+        }
+    }
+}
+
+std::vector<uint8_t> BackgroundRemover::Clean(const SourceTexture& source, const CleanOptions& options) {
     const int w = source.GetWidth();
     const int h = source.GetHeight();
     const std::vector<uint8_t>& px = source.GetPixels();
@@ -756,8 +797,10 @@ std::vector<uint8_t> BackgroundRemover::Clean(const SourceTexture& source) {
     }
 
     // --- 4. Frame separator lines ------------------------------------------------
-    RemoveSeparatorLines(px, w, h, true, gone);
-    RemoveSeparatorLines(px, w, h, false, gone);
+    if (options.removeFrameLines) {
+        RemoveSeparatorLines(px, w, h, true, gone);
+        RemoveSeparatorLines(px, w, h, false, gone);
+    }
 
     auto remaining = [&](int i) { return opaque(i) && gone[i] == kKept; };
 
@@ -809,7 +852,7 @@ std::vector<uint8_t> BackgroundRemover::Clean(const SourceTexture& source) {
         result[idx + 3] = 0;
     }
 
-    if (pixelArt) return result;
+    if (pixelArt || !options.softEdges) return result;
 
     // --- 6. Soft edges ------------------------------------------------------------
     // Pixels on the silhouette are a blend of sprite and background. Work out how

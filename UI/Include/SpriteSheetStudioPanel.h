@@ -9,6 +9,9 @@
 #include "Panels/AnimationPanel.h"
 #include "Panels/ExportPreviewPanel.h"
 #include "Panels/AnimationBuilderPanel.h"
+#include "Panels/SettingsPanel.h"
+#include "AI/ClaudeReview.h"
+#include "AppSettings.h"
 
 namespace StudioUI {
 
@@ -61,6 +64,18 @@ private:
     bool m_timelinePinned{ false };   // shown by the user while there are no animations yet
     bool m_timelineHidden{ false };   // hidden by the user although animations exist
     bool m_cleanTried{ false };
+
+    AppSettings m_settings;
+    SettingsPanel m_settingsPanel;
+    ClaudeReview m_review;
+    sf::Vector2f m_reviewMouse{ -1.0f, -1.0f };
+
+    void StartAiReview();
+    void ApplyAiReview();
+    void HandleReviewEvent(const sf::Event& event, const sf::RenderWindow& window);
+    void RenderReview(sf::RenderWindow& window);
+    sf::FloatRect ReviewBarRect() const;
+    sf::FloatRect ReviewCardRect() const;
 
     void ClearTools();
     void OpenImageDialog();

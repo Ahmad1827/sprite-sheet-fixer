@@ -17,10 +17,7 @@ constexpr unsigned kCaptionSize = 10;
 }
 
 void Toolbar::Initialize(const std::string& fontPath, std::vector<ToolbarAction> actions) {
-    std::vector<std::string> fontCandidates = { fontPath, "Resources/font.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf" };
-    for (const auto& path : fontCandidates) {
-        if (!path.empty() && m_font.loadFromFile(path)) break;
-    }
+    LoadUiFont(m_font, fontPath);
 
     m_buttons.clear();
     for (auto& action : actions) {

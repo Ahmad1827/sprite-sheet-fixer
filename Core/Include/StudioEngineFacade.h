@@ -6,6 +6,8 @@
 #include <SFML/Graphics/Color.hpp>
 #include <SFML/System/Vector2.hpp>
 #include "Processing/SpriteDetector.h"
+#include "Processing/BackgroundRemover.h"
+#include "Processing/RegionFinder.h"
 #include "DataModels/SpriteDefinition.h"
 #include "Commands/BatchCommands.h"
 #include "Systems/AnimationBuilder.h"
@@ -76,7 +78,11 @@ public:
     void RemoveArtifacts(int targetX, int targetY);
     void RemoveArtifactsArea(int x, int y, int width, int height);
     void RemoveColorGlobal(int targetX, int targetY, float tolerance = 25.0f);
-    void CleanCurrentTexture();
+    void CleanCurrentTexture(const CleanOptions& options = {});
+    // Separate objects left on the sheet, and removing some of them (pixels plus
+    // any sprite box left empty) as one undo step.
+    std::vector<LooseRegion> FindLooseRegions() const;
+    void EraseRegions(const std::vector<LooseRegion>& regions);
     void DeleteArea(int x, int y, int width, int height);
     void DeleteColorRegion(int targetX, int targetY, int tolerance = 25);
     std::vector<sf::Vector2i> SelectPixelsByColor(int targetX, int targetY, float tolerance, bool contiguous) const;

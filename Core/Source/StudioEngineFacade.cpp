@@ -470,7 +470,65 @@ void StudioEngineFacade::ReplaceSprites(const std::vector<std::shared_ptr<Sprite
     m_commandHistory->ExecuteCommand(std::make_unique<ReplaceSpritesCommand>(project, project->GetSprites(), newSprites));
 }
 
-void StudioEngineFacade::CleanCurrentTexture() {
+std::vector<LooseRegion> StudioEngineFacade::FindLooseRegions() const {
+    auto texture = GetCurrentTexture();
+    if (!texture || !texture->IsValid()) return {};
+    return RegionFinder::Find(*texture);
+}
+
+void StudioEngineFacade::EraseRegions(const std::vector<LooseRegion>& regions) {
+    auto project = GetCurrentProject();
+    if (!project || regions.empty()) return;
+    auto constTexture = project->GetTexture();
+    if (!constTexture || !constTexture->IsValid()) return;
+    auto texture = std::const_pointer_cast<SourceTexture>(constTexture);
+
+    const int w = texture->GetWidth();
+    const int h = texture->GetHeight();
+    std::vector<uint8_t> oldPixels = texture->GetPixels();
+    std::vector<uint8_t> newPixels = oldPixels;
+    for (const auto& region : regions) {
+        for (int i : region.pixels) {
+            if (i < 0 || i >= w * h) continue;
+            size_t idx = static_cast<size_t>(i) * 4;
+            newPixels[idx] = 0;
+            newPixels[idx + 1] = 0;
+            newPixels[idx + 2] = 0;
+            newPixels[idx + 3] = 0;
+        }
+    }
+
+    // A sprite box with nothing left inside it goes too.
+    std::vector<std::shared_ptr<SpriteDefinition>> oldSprites = project->GetSprites();
+    std::vector<std::shared_ptr<SpriteDefinition>> remaining;
+    for (const auto& sprite : oldSprites) {
+        if (!sprite) continue;
+        const Rect& r = sprite->GetSourceRect();
+        const int x0 = std::max(0, static_cast<int>(r.x));
+        const int y0 = std::max(0, static_cast<int>(r.y));
+        const int x1 = std::min(w, static_cast<int>(r.x + r.width));
+        const int y1 = std::min(h, static_cast<int>(r.y + r.height));
+        bool hasPixels = false;
+        for (int y = y0; y < y1 && !hasPixels; ++y) {
+            for (int x = x0; x < x1; ++x) {
+                if (newPixels[(static_cast<size_t>(y) * w + x) * 4 + 3] > 0) {
+                    hasPixels = true;
+                    break;
+                }
+            }
+        }
+        if (hasPixels) remaining.push_back(sprite);
+    }
+
+    m_commandHistory->BeginGroup();
+    m_commandHistory->ExecuteCommand(std::make_unique<PixelRegionCommand>(texture, oldPixels, newPixels));
+    if (remaining.size() != oldSprites.size()) {
+        m_commandHistory->ExecuteCommand(std::make_unique<ReplaceSpritesCommand>(project, oldSprites, remaining));
+    }
+    m_commandHistory->EndGroup();
+}
+
+void StudioEngineFacade::CleanCurrentTexture(const CleanOptions& options) {
     auto project = GetCurrentProject();
     if (!IsProjectActive() || !project) return;
     auto constTexture = project->GetTexture();
@@ -478,7 +536,8 @@ void StudioEngineFacade::CleanCurrentTexture() {
     auto texture = std::const_pointer_cast<SourceTexture>(constTexture);
 
     std::vector<uint8_t> oldPixels = texture->GetPixels();
-    std::vector<uint8_t> newPixels = BackgroundRemover::Clean(*texture);
+    std::vector<uint8_t> newPixels = BackgroundRemover::Clean(*texture, options);
+    BackgroundRemover::RemoveSpecks(newPixels, texture->GetWidth(), texture->GetHeight(), options.maxSpeckArea);
     if (newPixels == oldPixels) return;
 
     auto cmd = std::make_unique<PixelRegionCommand>(texture, oldPixels, newPixels);
