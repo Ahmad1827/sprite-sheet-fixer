@@ -16,9 +16,7 @@ struct Cluster {
     Rgb leader;
     Rgb mean;
     double sumR{0.0}, sumG{0.0}, sumB{0.0};
-    double sqError{0.0};
     long count{0};
-    long assigned{0};
     float tolerance{0.0f};
 };
 
@@ -126,28 +124,32 @@ std::vector<Cluster> BuildBorderPalette(const std::vector<uint8_t>& px, int w, i
 
     // Measure how noisy each background colour is so the tolerance fits the image:
     // tight for flat colours, wider for compressed or AI generated backgrounds.
+    // The median is used so blurred tile edges on the border do not inflate it.
+    std::vector<std::vector<float>> spread(clusters.size());
     for (int i : ring) {
         size_t idx = static_cast<size_t>(i) * 4;
         if (px[idx + 3] == 0) continue;
         Rgb c = ColorAt(px, i);
-        Cluster* nearest = nullptr;
+        int nearest = -1;
         float best = 45.0f * 45.0f;
-        for (auto& cl : clusters) {
-            float d = DistSq(cl.mean, c);
+        for (size_t k = 0; k < clusters.size(); ++k) {
+            float d = DistSq(clusters[k].mean, c);
             if (d < best) {
                 best = d;
-                nearest = &cl;
+                nearest = static_cast<int>(k);
             }
         }
-        if (nearest) {
-            nearest->sqError += best;
-            nearest->assigned++;
-        }
+        if (nearest >= 0) spread[nearest].push_back(std::sqrt(best));
     }
-    for (auto& c : clusters) {
-        float rms = c.assigned > 0 ? static_cast<float>(std::sqrt(c.sqError / c.assigned)) : 0.0f;
-        c.tolerance = pixelArt ? std::clamp(2.5f * rms + 3.0f, 3.0f, 36.0f)
-                               : std::clamp(2.5f * rms + 8.0f, 12.0f, 36.0f);
+    for (size_t k = 0; k < clusters.size(); ++k) {
+        float median = 0.0f;
+        if (!spread[k].empty()) {
+            auto mid = spread[k].begin() + spread[k].size() / 2;
+            std::nth_element(spread[k].begin(), mid, spread[k].end());
+            median = *mid;
+        }
+        clusters[k].tolerance = pixelArt ? std::clamp(3.0f * median + 3.0f, 3.0f, 36.0f)
+                                         : std::clamp(3.0f * median + 6.0f, 10.0f, 36.0f);
     }
     return clusters;
 }
@@ -223,6 +225,13 @@ void RemoveSeparatorLines(const std::vector<uint8_t>& px, int w, int h, bool ver
         }
         if (uniform < coverage[core] * 0.85f) continue;
 
+        // A separator stands alone: just beside it the sheet is mostly empty.
+        // A tall sprite also fills its columns, but so do the columns next to it.
+        const int before = first - margin - 1;
+        const int after = last + margin + 1;
+        const int flank = std::max(before >= 0 ? coverage[before] : 0, after < lines ? coverage[after] : 0);
+        if (flank > coverage[core] * 0.3f) continue;
+
         bands.push_back({ first, last, mean });
     }
 
@@ -281,6 +290,7 @@ std::vector<uint8_t> BackgroundRemover::Clean(const SourceTexture& source) {
     struct Segment {
         Rgb a, d;
         float lenSq, tolA, tolB;
+        float extend; // how far past either end the tone line is followed, in t units
     };
     std::vector<Segment> segments;
     for (int i = 0; i < clusterCount; ++i) {
@@ -288,12 +298,41 @@ std::vector<uint8_t> BackgroundRemover::Clean(const SourceTexture& source) {
             Rgb d{ palette[j].mean.r - palette[i].mean.r, palette[j].mean.g - palette[i].mean.g, palette[j].mean.b - palette[i].mean.b };
             float lenSq = d.r * d.r + d.g * d.g + d.b * d.b;
             if (lenSq < 1.0f) continue;
-            segments.push_back({ palette[i].mean, d, lenSq, palette[i].tolerance, palette[j].tolerance });
+            float extend = std::min(0.5f, 1.5f * (palette[i].tolerance + palette[j].tolerance) / std::sqrt(lenSq));
+            segments.push_back({ palette[i].mean, d, lenSq, palette[i].tolerance, palette[j].tolerance, extend });
         }
     }
 
+    // Offset of a colour from the tone line (the palette colours, the blends
+    // between them and a little beyond either end). Background that an AI
+    // generator smudged lighter or darker still sits on this line; sprite colours
+    // that merely look similar are tinted and sit off it.
+    auto lineOffset = [&](const Rgb& c, Rgb& offset) -> bool {
+        float best = 1e9f;
+        bool within = false;
+        for (const auto& s : segments) {
+            float t = ((c.r - s.a.r) * s.d.r + (c.g - s.a.g) * s.d.g + (c.b - s.a.b) * s.d.b) / s.lenSq;
+            t = std::clamp(t, -s.extend, 1.0f + s.extend);
+            Rgb o{ c.r - (s.a.r + s.d.r * t), c.g - (s.a.g + s.d.g * t), c.b - (s.a.b + s.d.b * t) };
+            float d = o.r * o.r + o.g * o.g + o.b * o.b;
+            if (d < best) {
+                best = d;
+                offset = o;
+                float tol = s.tolA + (s.tolB - s.tolA) * std::clamp(t, 0.0f, 1.0f);
+                within = d <= tol * tol;
+            }
+        }
+        return within;
+    };
+
+    // modelDist is the distance to the nearest palette colour. A blend of two
+    // palette colours is only promoted to background when it really sits on a
+    // boundary between both tones; otherwise a grey rock on a grey checkerboard
+    // would count as background just because its colour lies between them.
     std::vector<uint8_t> modelDist(count, 255);
+    std::vector<uint8_t> onToneLine(segments.empty() ? 0 : count, 0);
     std::vector<uint8_t> nearestCluster(count, 0);
+    std::vector<int> blendCandidates;
     for (int i = 0; i < count; ++i) {
         if (!opaque(i)) continue;
         Rgb c = ColorAt(px, i);
@@ -309,16 +348,53 @@ std::vector<uint8_t> BackgroundRemover::Clean(const SourceTexture& source) {
             float n = std::sqrt(raw) / palette[k].tolerance;
             if (n < best) best = n;
         }
+        modelDist[i] = static_cast<uint8_t>(std::min(255.0f, best * kAtTolerance));
+
+        if (!segments.empty()) {
+            Rgb offset;
+            onToneLine[i] = (best <= 1.0f || lineOffset(c, offset)) ? 1 : 0;
+        }
+
         if (best > 1.0f) {
             for (const auto& s : segments) {
                 float t = ((c.r - s.a.r) * s.d.r + (c.g - s.a.g) * s.d.g + (c.b - s.a.b) * s.d.b) / s.lenSq;
                 t = std::clamp(t, 0.0f, 1.0f);
                 Rgb p{ s.a.r + s.d.r * t, s.a.g + s.d.g * t, s.a.b + s.d.b * t };
-                float n = std::sqrt(DistSq(c, p)) / (s.tolA + (s.tolB - s.tolA) * t);
-                if (n < best) best = n;
+                if (std::sqrt(DistSq(c, p)) <= s.tolA + (s.tolB - s.tolA) * t) {
+                    blendCandidates.push_back(i);
+                    break;
+                }
             }
         }
-        modelDist[i] = static_cast<uint8_t>(std::min(255.0f, best * kAtTolerance));
+    }
+
+    // A blend only counts as background when both tones are right next to it.
+    {
+        const int reach = 3;
+        std::vector<int> confirmedBlends;
+        for (int i : blendCandidates) {
+            const int cx = i % w;
+            const int cy = i / w;
+            int firstTone = -1;
+            bool boundary = false;
+            for (int oy = -reach; oy <= reach && !boundary; ++oy) {
+                for (int ox = -reach; ox <= reach; ++ox) {
+                    int nx = cx + ox;
+                    int ny = cy + oy;
+                    if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+                    int n = ny * w + nx;
+                    if (!opaque(n) || modelDist[n] > kAtTolerance) continue;
+                    if (firstTone < 0) {
+                        firstTone = nearestCluster[n];
+                    } else if (nearestCluster[n] != firstTone) {
+                        boundary = true;
+                        break;
+                    }
+                }
+            }
+            if (boundary) confirmedBlends.push_back(i);
+        }
+        for (int i : confirmedBlends) modelDist[i] = kAtTolerance;
     }
 
     // --- 2. Flood the exterior from the image border ----------------------------
@@ -369,8 +445,9 @@ std::vector<uint8_t> BackgroundRemover::Clean(const SourceTexture& source) {
             bool accept = !opaque(n) || modelDist[n] <= kAtTolerance;
             // Follow slow drifts of the background (vignettes, soft smudges) that
             // stay close to the palette, without jumping over a real edge.
-            if (!accept && !pixelArt && curOpaque && modelDist[n] <= kDriftLimit) {
-                accept = DistSq(ColorAt(px, n), ColorAt(px, cur)) <= stepTolSq;
+            if (!accept && !pixelArt && curOpaque) {
+                const bool nearModel = segments.empty() ? modelDist[n] <= kDriftLimit : onToneLine[n] != 0;
+                accept = nearModel && DistSq(ColorAt(px, n), ColorAt(px, cur)) <= stepTolSq;
             }
             if (accept) {
                 exterior[n] = 1;
@@ -388,7 +465,7 @@ std::vector<uint8_t> BackgroundRemover::Clean(const SourceTexture& source) {
     // Regions are grouped diagonally so checker tiles that only touch at a corner
     // still count as one. How readily a trapped region is removed depends on how
     // likely a sprite is to contain the background colour itself:
-    //  - checkerboard: removed when it shows two tones or is large;
+    //  - checkerboard: removed when it shows both tones or is large;
     //  - solid saturated colour (magenta, green...): always removed;
     //  - solid white/grey/black: removed only when it is a meaningful share of the
     //    sprite around it, because small ones are usually eyes, teeth or highlights.
@@ -442,10 +519,16 @@ std::vector<uint8_t> BackgroundRemover::Clean(const SourceTexture& source) {
         component.push_back(start);
         visited[start] = 1;
         long perCluster[kMaxClusters] = { 0 };
+        double toneSum[kMaxClusters][3] = { { 0.0 } };
 
         for (size_t head = 0; head < component.size(); ++head) {
             int cur = component[head];
-            perCluster[nearestCluster[cur]]++;
+            const int tone = nearestCluster[cur];
+            const size_t curIdx = static_cast<size_t>(cur) * 4;
+            perCluster[tone]++;
+            toneSum[tone][0] += px[curIdx];
+            toneSum[tone][1] += px[curIdx + 1];
+            toneSum[tone][2] += px[curIdx + 2];
             int cx = cur % w;
             int cy = cur / w;
             for (int d = 0; d < 8; ++d) {
@@ -461,9 +544,22 @@ std::vector<uint8_t> BackgroundRemover::Clean(const SourceTexture& source) {
 
         const long area = static_cast<long>(component.size());
         int tones = 0;
+        bool averagesMatch = true;
         for (int k = 0; k < clusterCount; ++k) {
-            if (perCluster[k] >= area * 0.15f) ++tones;
+            if (perCluster[k] < area * 0.15f) continue;
+            ++tones;
+            // Individual pixels may sit anywhere inside the tolerance, but the
+            // average of real background lands on the background colour. A sprite
+            // area that is merely similar (a grey rock shadow, a cream eye) is
+            // tinted, so its average is off and it is left alone.
+            Rgb average{ static_cast<float>(toneSum[k][0] / perCluster[k]),
+                         static_cast<float>(toneSum[k][1] / perCluster[k]),
+                         static_cast<float>(toneSum[k][2] / perCluster[k]) };
+            const float limit = std::max(5.0f, palette[k].tolerance * 0.4f);
+            if (DistSq(average, palette[k].mean) > limit * limit) averagesMatch = false;
         }
+        if (!averagesMatch) continue;
+
         if (solidBackground) {
             if (chromaticBackground) {
                 if (area >= 4) {
@@ -560,6 +656,100 @@ std::vector<uint8_t> BackgroundRemover::Clean(const SourceTexture& source) {
                     confirmed[p] = 1;
                     changed = true;
                     for (int i : smallPockets[p]) gone[i] = kBackground;
+                }
+            }
+        }
+    }
+
+    // --- 3b. Off-tone background -----------------------------------------------------
+    // Generated checkerboards contain tiles and smudges that are lighter or darker
+    // than the two real tones. They are still neutral, so they sit on the tone
+    // line. A thick region of such pixels that touches removed background and
+    // whose average is not tinted is background too. Thin rings are left for the
+    // soft edge pass, tinted regions (rock, stone, fur) are sprite.
+    if (!segments.empty() && !pixelArt) {
+        auto candidate = [&](int i) { return opaque(i) && gone[i] == kKept && onToneLine[i]; };
+
+        std::vector<std::vector<int>> regions;
+        std::fill(visited.begin(), visited.end(), 0);
+        for (int start = 0; start < count; ++start) {
+            if (visited[start] || !candidate(start)) continue;
+
+            component.clear();
+            component.push_back(start);
+            visited[start] = 1;
+            double offR = 0.0, offG = 0.0, offB = 0.0;
+            bool thick = false;
+
+            for (size_t head = 0; head < component.size(); ++head) {
+                int cur = component[head];
+                int cx = cur % w;
+                int cy = cur / w;
+
+                Rgb offset{};
+                lineOffset(ColorAt(px, cur), offset);
+                offR += offset.r;
+                offG += offset.g;
+                offB += offset.b;
+
+                if (!thick && cx >= 2 && cy >= 2 && cx < w - 2 && cy < h - 2) {
+                    bool full = true;
+                    for (int oy = -2; oy <= 2 && full; ++oy) {
+                        for (int ox = -2; ox <= 2; ++ox) {
+                            if (!candidate((cy + oy) * w + cx + ox)) {
+                                full = false;
+                                break;
+                            }
+                        }
+                    }
+                    thick = full;
+                }
+
+                for (int d = 0; d < 8; ++d) {
+                    int nx = cx + dx8[d];
+                    int ny = cy + dy8[d];
+                    if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+                    int n = ny * w + nx;
+                    if (visited[n] || !candidate(n)) continue;
+                    visited[n] = 1;
+                    component.push_back(n);
+                }
+            }
+
+            if (!thick) continue;
+            const double area = static_cast<double>(component.size());
+            const double mr = offR / area, mg = offG / area, mb = offB / area;
+            const float limit = std::max(6.0f, averageTolerance * 0.55f);
+            if (mr * mr + mg * mg + mb * mb > limit * limit) continue;
+            regions.push_back(component);
+        }
+
+        std::vector<uint8_t> accepted(regions.size(), 0);
+        bool changed = true;
+        while (changed) {
+            changed = false;
+            for (size_t r = 0; r < regions.size(); ++r) {
+                if (accepted[r]) continue;
+                bool touches = false;
+                for (int i : regions[r]) {
+                    int cx = i % w;
+                    int cy = i / w;
+                    for (int d = 0; d < 8; ++d) {
+                        int nx = cx + dx8[d];
+                        int ny = cy + dy8[d];
+                        if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+                        int n = ny * w + nx;
+                        if (!opaque(n) || gone[n] == kBackground) {
+                            touches = true;
+                            break;
+                        }
+                    }
+                    if (touches) break;
+                }
+                if (touches) {
+                    accepted[r] = 1;
+                    changed = true;
+                    for (int i : regions[r]) gone[i] = kBackground;
                 }
             }
         }
