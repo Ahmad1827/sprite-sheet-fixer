@@ -1016,6 +1016,93 @@ void StudioEngineFacade::DeleteColorRegion(int targetX, int targetY, int toleran
         }
     }
 
+    // The pixels around the patch are a blend of its colour and the sprite beside
+    // it. Take the patch colour back out of them, otherwise it stays behind as a ring.
+    {
+        const int dx8[8] = {1, -1, 0, 0, 1, 1, -1, -1};
+        const int dy8[8] = {0, 0, 1, -1, 1, -1, 1, -1};
+        auto erased = [&](size_t pos) { return oldPixels[pos * 4 + 3] != 0 && newPixels[pos * 4 + 3] == 0; };
+
+        std::vector<size_t> rim;
+        std::vector<bool> isRim(static_cast<size_t>(texWidth) * texHeight, false);
+        for (int y = 0; y < texHeight; ++y) {
+            for (int x = 0; x < texWidth; ++x) {
+                size_t pos = static_cast<size_t>(y) * texWidth + x;
+                if (oldPixels[pos * 4 + 3] == 0 || erased(pos)) continue;
+                bool touchesPatch = false;
+                for (int d = 0; d < 8 && !touchesPatch; ++d) {
+                    int nx = x + dx8[d];
+                    int ny = y + dy8[d];
+                    if (nx < 0 || nx >= texWidth || ny < 0 || ny >= texHeight) continue;
+                    touchesPatch = erased(static_cast<size_t>(ny) * texWidth + nx);
+                }
+                if (!touchesPatch) continue;
+                isRim[pos] = true;
+                rim.push_back(pos);
+            }
+        }
+
+        for (size_t pos : rim) {
+            const int x = static_cast<int>(pos % texWidth);
+            const int y = static_cast<int>(pos / texWidth);
+            const size_t idx = pos * 4;
+            const float cr = static_cast<float>(oldPixels[idx]) - tr;
+            const float cg = static_cast<float>(oldPixels[idx + 1]) - tg;
+            const float cb = static_cast<float>(oldPixels[idx + 2]) - tb;
+            const float maxResidual = std::max(12.0f, 0.1f * std::sqrt(cr * cr + cg * cg + cb * cb));
+
+            // The sprite colour behind this pixel: the neighbour that best explains it as a blend.
+            float bestA = 2.0f;
+            float fr = 0.0f, fg = 0.0f, fb = 0.0f;
+            for (int d = 0; d < 8; ++d) {
+                int nx = x + dx8[d];
+                int ny = y + dy8[d];
+                if (nx < 0 || nx >= texWidth || ny < 0 || ny >= texHeight) continue;
+                size_t nPos = static_cast<size_t>(ny) * texWidth + nx;
+                if (oldPixels[nPos * 4 + 3] == 0 || erased(nPos) || isRim[nPos]) continue;
+                const float nr = static_cast<float>(oldPixels[nPos * 4]) - tr;
+                const float ng = static_cast<float>(oldPixels[nPos * 4 + 1]) - tg;
+                const float nb = static_cast<float>(oldPixels[nPos * 4 + 2]) - tb;
+                const float lenSq = nr * nr + ng * ng + nb * nb;
+                if (lenSq < 48.0f * 48.0f) continue;
+                const float a = (cr * nr + cg * ng + cb * nb) / lenSq;
+                if (a < 0.0f || a > 1.05f || a >= bestA) continue;
+                const float rr = cr - a * nr, rg = cg - a * ng, rb = cb - a * nb;
+                if (rr * rr + rg * rg + rb * rb > maxResidual * maxResidual) continue;
+                bestA = a;
+                fr = nr + tr;
+                fg = ng + tg;
+                fb = nb + tb;
+            }
+            if (bestA > 1.5f) {
+                // No sprite colour explains it. Still close to the patch colour means
+                // it is a leftover of the patch (a corner, a compression smudge).
+                const float limit = tolerance * 2.5f;
+                if (std::abs(cr) <= limit && std::abs(cg) <= limit && std::abs(cb) <= limit) {
+                    newPixels[idx] = newPixels[idx + 1] = newPixels[idx + 2] = newPixels[idx + 3] = 0;
+                }
+                continue;
+            }
+            if (bestA > 0.9f) continue;   // almost all sprite
+
+            if (bestA < 0.1f) {
+                newPixels[idx] = newPixels[idx + 1] = newPixels[idx + 2] = newPixels[idx + 3] = 0;
+                continue;
+            }
+            auto toByte = [](float v) { return static_cast<uint8_t>(std::clamp(v + 0.5f, 0.0f, 255.0f)); };
+            if (bestA >= 0.35f) {
+                newPixels[idx] = toByte(tr + cr / bestA);
+                newPixels[idx + 1] = toByte(tg + cg / bestA);
+                newPixels[idx + 2] = toByte(tb + cb / bestA);
+            } else {
+                newPixels[idx] = toByte(fr);
+                newPixels[idx + 1] = toByte(fg);
+                newPixels[idx + 2] = toByte(fb);
+            }
+            newPixels[idx + 3] = static_cast<uint8_t>(std::max(1.0f, oldPixels[idx + 3] * bestA + 0.5f));
+        }
+    }
+
     m_commandHistory->ExecuteCommand(std::make_unique<PixelRegionCommand>(texture, oldPixels, newPixels));
 }
 

@@ -26,6 +26,8 @@ public:
 
     bool HandleEvent(const sf::Event& event, const sf::RenderWindow& window);
     void Render(sf::RenderWindow& window);
+    // Forget where the mouse was, so no button stays hovered or shows its tooltip.
+    void ClearHover() { m_mousePos = { -1.0f, -1.0f }; }
 
 private:
     struct Button {

@@ -41,7 +41,9 @@ private:
     std::string m_selectedAnimation;
     int m_draggedFrameIndex{-1};
     int m_dropTargetIndex{-1};
-    
+    float m_listScroll{0.0f};   // how far the animation list is scrolled, in pixels
+
+    void UpdateLayout(const StudioCore::StudioEngineFacade& engine);
     void RenderList(sf::RenderWindow& window, const StudioCore::StudioEngineFacade& engine);
     void RenderTimeline(sf::RenderWindow& window, const StudioCore::StudioEngineFacade& engine);
     void RenderPreview(sf::RenderWindow& window, const StudioCore::StudioEngineFacade& engine);

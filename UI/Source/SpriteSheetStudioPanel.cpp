@@ -1353,6 +1353,8 @@ void SpriteSheetStudioPanel::Render(sf::RenderWindow& window) {
         if (m_animationPanel && AnimationPanelsVisible()) {
             m_animationPanel->Render(window, m_engine);
         }
+        // A dialog on top takes the mouse, so the bar must not keep a tooltip open under it.
+        if (m_isWizardMode || m_isExportMode || m_settingsPanel.IsOpen()) m_toolbar.ClearHover();
         m_toolbar.Render(window);
         if (m_isWizardMode) {
             m_animBuilderPanel.Render(window);

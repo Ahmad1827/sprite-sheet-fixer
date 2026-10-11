@@ -508,8 +508,8 @@ std::vector<uint8_t> BackgroundRemover::Clean(const SourceTexture& source, const
     // likely a sprite is to contain the background colour itself:
     //  - checkerboard: removed when it shows both tones or is large;
     //  - solid saturated colour (magenta, green...): always removed;
-    //  - solid white/grey/black: removed only when it is a meaningful share of the
-    //    sprite around it, because small ones are usually eyes, teeth or highlights.
+    //  - solid white/grey/black: removed only when it is a noticeable share of the
+    //    sprite around it, because tiny ones are usually eyes, teeth or highlights.
     const int minHoleArea = std::clamp(static_cast<int>(count * 0.00004f), 16, 400);
 
     // Checkerboard tile size, measured as the typical run of one tone along the
@@ -543,6 +543,7 @@ std::vector<uint8_t> BackgroundRemover::Clean(const SourceTexture& source, const
     }
     const int minPocketArea = std::max(12, tileSize * tileSize / 8);
     std::vector<uint8_t> visited(count, 0);
+    std::vector<uint8_t> inComponent(count, 0);
     std::vector<int> component;
     std::vector<std::vector<int>> smallPockets;
     std::vector<std::vector<int>> undecided;
@@ -583,6 +584,36 @@ std::vector<uint8_t> BackgroundRemover::Clean(const SourceTexture& source, const
             }
         }
 
+        // The rim of a trapped region is where the background blends into the
+        // sprite, so its colours are off. Measure the region by its core (pixels
+        // with no sprite beside them) whenever it has one.
+        long corePer[kMaxClusters] = { 0 };
+        double coreSum[kMaxClusters][3] = { { 0.0 } };
+        bool hasCore = false;
+        for (int i : component) inComponent[i] = 1;
+        for (int i : component) {
+            const int cx = i % w;
+            const int cy = i / w;
+            bool core = true;
+            for (int d = 0; d < 4 && core; ++d) {
+                int nx = cx + dx4[d];
+                int ny = cy + dy4[d];
+                if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+                core = inComponent[ny * w + nx] != 0;
+            }
+            if (!core) continue;
+            const int tone = nearestCluster[i];
+            const size_t idx = static_cast<size_t>(i) * 4;
+            corePer[tone]++;
+            coreSum[tone][0] += px[idx];
+            coreSum[tone][1] += px[idx + 1];
+            coreSum[tone][2] += px[idx + 2];
+        }
+        for (int i : component) inComponent[i] = 0;
+        for (int k = 0; k < clusterCount; ++k) {
+            if (corePer[k] >= 4) hasCore = true;
+        }
+
         const long area = static_cast<long>(component.size());
         int tones = 0;
         bool averagesMatch = true;
@@ -593,9 +624,11 @@ std::vector<uint8_t> BackgroundRemover::Clean(const SourceTexture& source, const
             // average of real background lands on the background colour. A sprite
             // area that is merely similar (a grey rock shadow, a cream eye) is
             // tinted, so its average is off and it is left alone.
-            Rgb average{ static_cast<float>(toneSum[k][0] / perCluster[k]),
-                         static_cast<float>(toneSum[k][1] / perCluster[k]),
-                         static_cast<float>(toneSum[k][2] / perCluster[k]) };
+            const bool useCore = corePer[k] >= 4;
+            if (hasCore && !useCore) continue;   // this tone is rim only; the core tones decide
+            const double* sum = useCore ? coreSum[k] : toneSum[k];
+            const long n = useCore ? corePer[k] : perCluster[k];
+            Rgb average{ static_cast<float>(sum[0] / n), static_cast<float>(sum[1] / n), static_cast<float>(sum[2] / n) };
             const float limit = std::max(5.0f, palette[k].tolerance * 0.4f);
             if (DistSq(average, palette[k].mean) > limit * limit) averagesMatch = false;
         }
@@ -651,7 +684,7 @@ std::vector<uint8_t> BackgroundRemover::Clean(const SourceTexture& source, const
         }
         for (const auto& region : undecided) {
             const long enclosing = spriteArea[label[region.front()]];
-            if (static_cast<long>(region.size()) * 100 >= enclosing) {
+            if (static_cast<long>(region.size()) * 400 >= enclosing) {
                 for (int i : region) gone[i] = kBackground;
             }
         }
@@ -920,6 +953,22 @@ std::vector<uint8_t> BackgroundRemover::Clean(const SourceTexture& source, const
                 outerCoverage = lowest / 255.0f;
             }
 
+            // A colour that carries on into the sprite behind this pixel is the
+            // sprite's own colour, not a blend with the background: leave it solid.
+            {
+                const Rgb own = ColorAt(px, i);
+                bool continues = false;
+                for (int d = 0; d < 8 && !continues; ++d) {
+                    int nx = cx + dx8[d];
+                    int ny = cy + dy8[d];
+                    if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+                    int n = ny * w + nx;
+                    if (!remaining(n) || layer[n] <= l) continue;
+                    continues = DistSq(own, ColorAt(px, n)) <= 18.0f * 18.0f;
+                }
+                if (continues) continue;
+            }
+
             // Local background colour: what was removed right next to this pixel.
             const int bgRadius = l + 1;
             double br = 0.0, bg = 0.0, bb = 0.0;
@@ -944,35 +993,42 @@ std::vector<uint8_t> BackgroundRemover::Clean(const SourceTexture& source, const
             const Rgb C = ColorAt(px, i);
             const Rgb cb{ C.r - B.r, C.g - B.g, C.b - B.b };
             const float cbLen = std::sqrt(cb.r * cb.r + cb.g * cb.g + cb.b * cb.b);
-            const float maxResidual = std::max(12.0f, 0.2f * cbLen);
+            const float maxResidual = std::max(12.0f, 0.1f * cbLen);
 
+            // The sprite colour this pixel is blended with is the one right behind
+            // it, so take the nearest ring of deeper pixels that explains it.
             float bestA = 2.0f;
             Rgb bestF{};
             bool hasDeeper = false;
             const int fgRadius = 4;
-            for (int oy = -fgRadius; oy <= fgRadius; ++oy) {
-                for (int ox = -fgRadius; ox <= fgRadius; ++ox) {
-                    int nx = cx + ox;
-                    int ny = cy + oy;
-                    if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
-                    int n = ny * w + nx;
-                    if (!remaining(n) || layer[n] <= l) continue;
-                    hasDeeper = true;
+            for (int r = 1; r <= fgRadius && bestA > 1.5f; ++r) {
+                float ringA = 2.0f;
+                for (int oy = -r; oy <= r; ++oy) {
+                    for (int ox = -r; ox <= r; ++ox) {
+                        if (std::max(std::abs(ox), std::abs(oy)) != r) continue;
+                        int nx = cx + ox;
+                        int ny = cy + oy;
+                        if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+                        int n = ny * w + nx;
+                        if (!remaining(n) || layer[n] <= l) continue;
+                        hasDeeper = true;
 
-                    Rgb F = ColorAt(px, n);
-                    Rgb fb{ F.r - B.r, F.g - B.g, F.b - B.b };
-                    float fbLenSq = fb.r * fb.r + fb.g * fb.g + fb.b * fb.b;
-                    if (fbLenSq < 48.0f * 48.0f) continue;
+                        Rgb F = ColorAt(px, n);
+                        Rgb fb{ F.r - B.r, F.g - B.g, F.b - B.b };
+                        float fbLenSq = fb.r * fb.r + fb.g * fb.g + fb.b * fb.b;
+                        if (fbLenSq < 48.0f * 48.0f) continue;
 
-                    float a = (cb.r * fb.r + cb.g * fb.g + cb.b * fb.b) / fbLenSq;
-                    if (a < 0.0f || a > 1.05f || a >= bestA) continue;
+                        float a = (cb.r * fb.r + cb.g * fb.g + cb.b * fb.b) / fbLenSq;
+                        if (a < 0.0f || a > 1.05f || a >= ringA) continue;
 
-                    Rgb res{ cb.r - a * fb.r, cb.g - a * fb.g, cb.b - a * fb.b };
-                    if (res.r * res.r + res.g * res.g + res.b * res.b > maxResidual * maxResidual) continue;
+                        Rgb res{ cb.r - a * fb.r, cb.g - a * fb.g, cb.b - a * fb.b };
+                        if (res.r * res.r + res.g * res.g + res.b * res.b > maxResidual * maxResidual) continue;
 
-                    bestA = a;
-                    bestF = F;
+                        ringA = a;
+                        bestF = F;
+                    }
                 }
+                bestA = ringA;
             }
 
             if (bestA > 1.5f) {

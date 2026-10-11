@@ -14,6 +14,14 @@
 
 namespace StudioUI {
 
+namespace {
+constexpr float kListTop = StudioUI::Theme::HeaderHeight + 10.0f;   // first item, below the header
+constexpr float kListItemStep = 30.0f;
+constexpr float kListItemHeight = 25.0f;
+constexpr float kListFooter = 26.0f;                                // the "Total Animations" line
+constexpr float kMinPreviewHeight = 170.0f;
+}
+
 AnimationPanel::AnimationPanel() {
     m_bgShape.setFillColor(sf::Color(40, 40, 40, 255));
     m_bgShape.setOutlineColor(sf::Color(100, 100, 100));
@@ -29,17 +37,41 @@ void AnimationPanel::SetBounds(const sf::FloatRect& bounds) {
     m_bounds = bounds;
 }
 
+// The list takes the height its animations need and the preview gets the rest.
+// When there are too many to fit, the list scrolls.
+void AnimationPanel::UpdateLayout(const StudioCore::StudioEngineFacade& engine) {
+    const float timelineHeight = StudioUI::Theme::TimelineHeight;
+    const float rightPanelWidth = StudioUI::Theme::SidePanelWidth;
+    const float topOffset = StudioUI::Theme::ToolbarHeight;
+
+    const float usableHeight = m_bounds.height - m_bottomInset;
+    const float columnHeight = usableHeight - topOffset - timelineHeight;
+    const float columnLeft = m_bounds.left + m_bounds.width - rightPanelWidth;
+    m_timelineArea = sf::FloatRect(m_bounds.left, m_bounds.top + usableHeight - timelineHeight, m_bounds.width, timelineHeight);
+
+    auto project = engine.GetCurrentProject();
+    const float itemsHeight = (project ? static_cast<float>(project->GetAnimationGroups().size()) : 0.0f) * kListItemStep;
+    const float wanted = std::max(120.0f, kListTop + itemsHeight + kListFooter);
+    const float listHeight = std::min(wanted, std::max(columnHeight - kMinPreviewHeight, columnHeight / 2.0f));
+
+    m_listArea = sf::FloatRect(columnLeft, m_bounds.top + topOffset, rightPanelWidth, listHeight);
+    m_previewArea = sf::FloatRect(columnLeft, m_listArea.top + listHeight, rightPanelWidth, columnHeight - listHeight);
+
+    const float visibleItems = std::floor((listHeight - kListTop - kListFooter) / kListItemStep) * kListItemStep;
+    m_listScroll = std::clamp(m_listScroll, 0.0f, std::max(0.0f, itemsHeight - visibleItems));
+}
+
 void AnimationPanel::HandleEvent(const sf::Event& event, const sf::RenderWindow& window, StudioCore::StudioEngineFacade& engine, PreviewViewport& viewport) {
     if (!engine.IsProjectActive()) return;
 
-    float timelineHeight = StudioUI::Theme::TimelineHeight;
-    float rightPanelWidth = StudioUI::Theme::SidePanelWidth;
-    float topOffset = StudioUI::Theme::ToolbarHeight; 
-    
-    const float usableHeight = m_bounds.height - m_bottomInset;
-    m_timelineArea = sf::FloatRect(m_bounds.left, m_bounds.top + usableHeight - timelineHeight, m_bounds.width, timelineHeight);
-    m_listArea = sf::FloatRect(m_bounds.left + m_bounds.width - rightPanelWidth, m_bounds.top + topOffset, rightPanelWidth, (usableHeight - topOffset - timelineHeight) / 2.0f);
-    m_previewArea = sf::FloatRect(m_bounds.left + m_bounds.width - rightPanelWidth, m_listArea.top + m_listArea.height, rightPanelWidth, m_listArea.height);
+    UpdateLayout(engine);
+
+    if (event.type == sf::Event::MouseWheelScrolled &&
+        m_listArea.contains(static_cast<float>(event.mouseWheelScroll.x), static_cast<float>(event.mouseWheelScroll.y))) {
+        m_listScroll += event.mouseWheelScroll.delta > 0 ? -kListItemStep : kListItemStep;
+        UpdateLayout(engine);
+        return;
+    }
 
     const auto& selectedSprites = viewport.GetSelectedSpriteIds();
 
@@ -90,16 +122,18 @@ void AnimationPanel::HandleEvent(const sf::Event& event, const sf::RenderWindow&
             }
 
             if (m_listArea.contains(mousePos)) {
-                float yOffset = StudioUI::Theme::HeaderHeight + 10.f;
+                float yOffset = kListTop - m_listScroll;
+                const float lastItemBottom = m_listArea.height - kListFooter;
                 auto project = engine.GetCurrentProject();
                 for (const auto& anim : project->GetAnimationGroups()) {
-                    sf::FloatRect itemRect(m_listArea.left + 10.f, m_listArea.top + yOffset, m_listArea.width - 20.f, 25.f);
-                    if (itemRect.contains(mousePos)) {
+                    sf::FloatRect itemRect(m_listArea.left + 10.f, m_listArea.top + yOffset, m_listArea.width - 20.f, kListItemHeight);
+                    const bool shown = yOffset >= kListTop && yOffset + kListItemHeight <= lastItemBottom;
+                    if (shown && itemRect.contains(mousePos)) {
                         m_selectedAnimation = anim->GetId();
                         engine.GetPlaybackEngine().SetActiveAnimation(m_selectedAnimation);
                         break;
                     }
-                    yOffset += 30.f;
+                    yOffset += kListItemStep;
                 }
             } 
             else if (m_timelineArea.contains(mousePos) && !m_selectedAnimation.empty()) {
@@ -181,14 +215,7 @@ void AnimationPanel::Render(sf::RenderWindow& window, const StudioCore::StudioEn
     sf::View dynamicView(m_bounds);
     window.setView(dynamicView);
 
-    float timelineHeight = StudioUI::Theme::TimelineHeight;
-    float rightPanelWidth = StudioUI::Theme::SidePanelWidth;
-    float topOffset = StudioUI::Theme::ToolbarHeight;
-    
-    const float usableHeight = m_bounds.height - m_bottomInset;
-    m_timelineArea = sf::FloatRect(m_bounds.left, m_bounds.top + usableHeight - timelineHeight, m_bounds.width, timelineHeight);
-    m_listArea = sf::FloatRect(m_bounds.left + m_bounds.width - rightPanelWidth, m_bounds.top + topOffset, rightPanelWidth, (usableHeight - topOffset - timelineHeight) / 2.0f);
-    m_previewArea = sf::FloatRect(m_bounds.left + m_bounds.width - rightPanelWidth, m_listArea.top + m_listArea.height, rightPanelWidth, m_listArea.height);
+    UpdateLayout(engine);
 
     RenderList(window, engine);
     RenderPreview(window, engine);
@@ -213,26 +240,34 @@ void AnimationPanel::RenderList(sf::RenderWindow& window, const StudioCore::Stud
     title.setFillColor(StudioUI::Theme::TextSecondary);
     window.draw(title);
 
-    float yOffset = StudioUI::Theme::HeaderHeight + 10.f;
+    float yOffset = kListTop - m_listScroll;
+    const float lastItemBottom = m_listArea.height - kListFooter;
     auto project = engine.GetCurrentProject();
     int animCount = 0;
+    int hidden = 0;
     
     for (const auto& anim : project->GetAnimationGroups()) {
-        sf::RectangleShape item(sf::Vector2f(m_listArea.width - 20.f, 25.f));
-        item.setPosition(m_listArea.left + 10.f, m_listArea.top + yOffset);
-        item.setFillColor(anim->GetId() == m_selectedAnimation ? StudioUI::Theme::AccentColor : StudioUI::Theme::HoverColor);
-        window.draw(item);
-
-        sf::Text name(anim->GetName(), m_font, 12);
-        name.setPosition(item.getPosition().x + 8.f, item.getPosition().y + 5.f);
-        name.setFillColor(StudioUI::Theme::TextPrimary);
-        window.draw(name);
-        
-        yOffset += 30.f;
         animCount++;
+        const bool shown = yOffset >= kListTop && yOffset + kListItemHeight <= lastItemBottom;
+        if (shown) {
+            sf::RectangleShape item(sf::Vector2f(m_listArea.width - 20.f, kListItemHeight));
+            item.setPosition(m_listArea.left + 10.f, m_listArea.top + yOffset);
+            item.setFillColor(anim->GetId() == m_selectedAnimation ? StudioUI::Theme::AccentColor : StudioUI::Theme::HoverColor);
+            window.draw(item);
+
+            sf::Text name(anim->GetName(), m_font, 12);
+            name.setPosition(item.getPosition().x + 8.f, item.getPosition().y + 5.f);
+            name.setFillColor(StudioUI::Theme::TextPrimary);
+            window.draw(name);
+        } else {
+            hidden++;
+        }
+        yOffset += kListItemStep;
     }
 
-    sf::Text countText("Total Animations: " + std::to_string(animCount), m_font, 11);
+    std::string countLabel = "Total Animations: " + std::to_string(animCount);
+    if (hidden > 0) countLabel += "     scroll to see the rest";
+    sf::Text countText(countLabel, m_font, 11);
     countText.setPosition(m_listArea.left + 10.f, m_listArea.top + m_listArea.height - 20.f);
     countText.setFillColor(StudioUI::Theme::TextMuted);
     window.draw(countText);
@@ -285,12 +320,42 @@ void AnimationPanel::RenderPreview(sf::RenderWindow& window, const StudioCore::S
             activeBaseline = spriteDef->GetBaseline();
         }
 
+        // Fit the whole animation, not just this frame: one scale and one anchor
+        // point for every frame, so nothing jumps in size or leaves the pane.
+        // Each frame is placed around the anchor exactly as it is drawn below.
+        float left = -activeAnchor.x, top = activeBaseline - activeAnchor.y;
+        float right = left + r.width, bottom = top + r.height;
+        if (auto anim = engine.GetCurrentProject()->GetAnimationById(engine.GetPlaybackEngine().GetActiveAnimation())) {
+            for (const auto& frameId : anim->GetFrames()) {
+                auto frame = engine.GetCurrentProject()->GetSpriteById(frameId);
+                if (!frame) continue;
+                const auto& fr = frame->GetSourceRect();
+                sf::Vector2f pivot(frame->GetPivot().x, frame->GetPivot().y);
+                float baseline = frame->GetBaseline();
+                if (autoAlign) {
+                    auto alignment = StudioCore::SpriteAligner::ComputeAlignment(*frame);
+                    pivot = { alignment.alignedPivot.x, alignment.alignedPivot.y };
+                    baseline = alignment.alignedBaseline;
+                }
+                const float fl = -fr.width * pivot.x;
+                const float ft = baseline - fr.height * pivot.y;
+                left = std::min(left, fl);
+                top = std::min(top, ft);
+                right = std::max(right, fl + fr.width);
+                bottom = std::max(bottom, ft + fr.height);
+            }
+        }
+
+        const float pad = 14.f;
+        const sf::FloatRect content(m_previewArea.left + pad, m_previewArea.top + StudioUI::Theme::HeaderHeight + pad,
+                                    m_previewArea.width - pad * 2.f, m_previewArea.height - StudioUI::Theme::HeaderHeight - pad * 2.f);
+        const float scale = std::max(0.01f, std::min(content.width / std::max(1.f, right - left), content.height / std::max(1.f, bottom - top)));
+        const sf::Vector2f anchorPoint(content.left + content.width / 2.f - (left + right) / 2.f * scale,
+                                       content.top + content.height / 2.f - (top + bottom) / 2.f * scale);
+
         renderSprite.setOrigin(activeAnchor.x, activeAnchor.y);
-        float scale = std::min((m_previewArea.width - 40.f) / r.width, (m_previewArea.height - 100.f) / r.height);
         renderSprite.setScale(scale, scale);
-        
-        sf::Vector2f previewCenter(m_previewArea.left + m_previewArea.width / 2.f, m_previewArea.top + 30.f + m_previewArea.height / 2.f);
-        renderSprite.setPosition(previewCenter.x, previewCenter.y + (activeBaseline * scale));
+        renderSprite.setPosition(anchorPoint.x, anchorPoint.y + (activeBaseline * scale));
         
         window.draw(renderSprite);
 
