@@ -1,7 +1,7 @@
 # Sprite Sheet Fixer
 
 <p align="center">
-  <img src="Resources/gifSSF.gif" alt="Sprite Sheet Fixer Demo Preview" width="100%"/>
+  <img src="docs/demo.gif" alt="Sprite Sheet Fixer demo: clean, detect, animate, export" width="100%"/>
 </p>
 
 <p align="center">
@@ -9,7 +9,7 @@
     <img src="https://custom-icon-badges.demolab.com/badge/Download_for_Windows-100000?style=for-the-badge&logo=windows11&logoColor=white&labelColor=238636" alt="Download for Windows" />
   </a>
   <a href="https://github.com/Ahmad1827/sprite-sheet-fixer/releases">
-    <img src="https://img.shields.io/badge/Version-v1.0.0-blue?style=for-the-badge&logo=github" alt="Version" />
+    <img src="https://img.shields.io/github/v/release/Ahmad1827/sprite-sheet-fixer?style=for-the-badge&logo=github&label=Version&color=blue" alt="Version" />
   </a>
   <img src="https://img.shields.io/badge/C%2B%2B-17-00599C?style=for-the-badge&logo=c%2B%2B" alt="C++17" />
   <img src="https://img.shields.io/badge/SFML-2.6.x-8CC445?style=for-the-badge&logo=sfml" alt="SFML 2.6" />
@@ -33,6 +33,15 @@ The architecture is intentionally separated into a reusable **Core engine** and 
 - Cross-platform file dialogs (Linux / Windows)
 - Large texture support
 - Immutable source texture architecture
+
+---
+
+## Background Removal
+
+- One-click Clean for solid colours and fake transparency checkerboards
+- Removes background trapped inside sprites (between legs, under arms)
+- Soft edges without a colour halo
+- Frame separator line removal
 
 ---
 
@@ -176,7 +185,7 @@ The UI can be embedded into external applications as a reusable module.
 
 # Non-Destructive Workflow
 
-Sprite Sheet Studio never modifies the original imported image destructive to source data.
+Sprite Sheet Fixer never modifies the original imported image destructive to source data.
 
 Instead, every edit is stored as metadata:
 
@@ -193,6 +202,7 @@ The final aligned sprite sheet is generated only during export.
 # Current Capabilities
 
 - PNG / JPG / BMP / WebP Import
+- One-click background removal
 - Automatic sprite detection
 - Interactive sprite editing
 - Baseline editing
@@ -211,11 +221,11 @@ The final aligned sprite sheet is generated only during export.
 
 # Planned Integration
 
-Sprite Sheet Studio has been architected to integrate directly into **Wisdom Park**.
+Sprite Sheet Fixer has been architected to integrate directly into **Wisdom Park**.
 
 The engine has been separated from the application lifecycle, allowing it to function as an embeddable workspace tool rather than a standalone application.
 
-Future integration will allow Sprite Sheet Studio to run inside Wisdom Park while sharing the same rendering window and event system.
+Future integration will allow Sprite Sheet Fixer to run inside Wisdom Park while sharing the same rendering window and event system.
 
 ---
 
@@ -234,7 +244,7 @@ Future integration will allow Sprite Sheet Studio to run inside Wisdom Park whil
 ## Linux / WSL2
 
 ```bash
-git clone [https://github.com/Ahmad1827/sprite-sheet-fixer.git](https://github.com/Ahmad1827/sprite-sheet-fixer.git)
+git clone https://github.com/Ahmad1827/sprite-sheet-fixer.git
 
 cd sprite-sheet-fixer
 
